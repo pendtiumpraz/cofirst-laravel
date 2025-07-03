@@ -28,6 +28,16 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $user = Auth::user();
+        
+        // Check if user has both parent and student roles
+        if ($user->hasRole('parent') && $user->hasRole('student')) {
+            // Check if active role is already set in session
+            if (!$request->session()->has('active_role')) {
+                return redirect()->route('role.selection');
+            }
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

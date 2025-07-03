@@ -16,11 +16,13 @@ class ScheduleFactory extends Factory
     {
         return [
             'class_id' => ClassName::factory(),
-            'schedule_date' => $this->faker->date(),
-            'schedule_time' => $this->faker->time(),
+            'day_of_week' => $this->faker->numberBetween(1, 7), // 1=Senin, 7=Minggu
+            'start_time' => $this->faker->time('H:i'),
+            'end_time' => $this->faker->time('H:i'),
+            'room' => $this->faker->optional()->randomElement(['Room A', 'Room B', 'Online', 'Lab 1', 'Lab 2']),
             'enrollment_id' => Enrollment::factory(),
             'teacher_assignment_id' => TeacherAssignment::factory(),
-            'is_active' => $this->faker->boolean,
+            'is_active' => true,
         ];
     }
 }

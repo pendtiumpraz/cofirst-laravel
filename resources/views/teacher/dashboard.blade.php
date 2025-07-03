@@ -167,7 +167,7 @@
                         <div class="p-6">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
                             <div class="space-y-3">
-                                <a href="{{ route('teacher.reports.create') }}" class="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
+                                <a href="{{ route('class-reports.create') }}" class="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700">
                                     <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
                                         <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 1 1 0 000 2H6a2 2 0 00-2 2v6a2 2 0 002 2h2a1 1 0 100-2H6V5z" clip-rule="evenodd"/>
@@ -275,7 +275,7 @@
                                             {{ $student->lastReport ? $student->lastReport->created_at->diffForHumans() : 'No report yet' }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <a href="{{ route('teacher.reports.create', ['student' => $student->user]) }}" class="text-indigo-600 hover:text-indigo-900">Create Report</a>
+                                            <a href="{{ route('class-reports.create', ['student' => $student->user]) }}" class="text-indigo-600 hover:text-indigo-900">Create Report</a>
                                         </td>
                                     </tr>
                                 @empty

@@ -86,6 +86,30 @@
                                     </svg>
                                     Schedules
                                 </a>
+                                
+                                <!-- Curriculum -->
+                                <a href="{{ route('admin.curriculums.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('admin.curriculums.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253z"></path>
+                                    </svg>
+                                    Kurikulum
+                                </a>
+                                
+                                <!-- Syllabus -->
+                                <a href="{{ route('admin.syllabuses.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('admin.syllabuses.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    Silabus
+                                </a>
+                                
+                                <!-- Materials -->
+                                <a href="{{ route('admin.materials.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('admin.materials.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Materi
+                                </a>
                             </div>
                         </div>
                         @endif
@@ -126,17 +150,42 @@
                                     </svg>
                                     My Classes
                                 </a>
-                                <a href="{{ route('teacher.reports.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('teacher.reports.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                
+                                <!-- Curriculum for Teacher -->
+                                <a href="{{ route('teacher.curriculums.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('teacher.curriculums.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253z"></path>
+                                    </svg>
+                                    Kurikulum
+                                </a>
+                                
+                                <!-- Teacher Syllabuses -->
+                                <a href="{{ route('teacher.syllabuses.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('teacher.syllabuses.*') ? 'bg-blue-50 text-blue-600' : '' }}">
                                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                     </svg>
-                                    Reports
+                                    Silabus
+                                </a>
+                                
+                                <!-- Teacher Materials -->
+                                <a href="{{ route('teacher.materials.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('teacher.materials.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Materi
+                                </a>
+                                
+                                <a href="{{ route('class-reports.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('class-reports.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    Berita Acara
                                 </a>
                             </div>
                         </div>
                         @endif
 
-                        @if(Auth::user()->hasRole('student'))
+                        @if(Auth::user()->hasRole('student') && (!session('active_role') || session('active_role') === 'student'))
                         <!-- Student Menu -->
                         <div class="pt-4">
                             <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Learning</p>
@@ -147,6 +196,15 @@
                                     </svg>
                                     My Classes
                                 </a>
+                                
+                                <!-- Student Materials -->
+                                <a href="{{ route('student.curriculum.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('student.curriculum.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Materi Saya
+                                </a>
+                                
                                 <a href="{{ route('student.schedules.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('student.schedules.*') ? 'bg-blue-50 text-blue-600' : '' }}">
                                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
@@ -163,7 +221,7 @@
                         </div>
                         @endif
 
-                        @if(Auth::user()->hasRole('parent'))
+                        @if(Auth::user()->hasRole('parent') && (!session('active_role') || session('active_role') === 'parent'))
                         <!-- Parent Menu (Only for parents, not admin/superadmin) -->
                         <div class="pt-4">
                             <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Family</p>
@@ -174,6 +232,15 @@
                                     </svg>
                                     My Children
                                 </a>
+                                
+                                <!-- Parent Curriculum Progress -->
+                                <a href="{{ route('parent.curriculum.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('parent.curriculum.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                    Progress Anak
+                                </a>
+                                
                                 <a href="{{ route('parent.reports.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('parent.reports.*') ? 'bg-blue-50 text-blue-600' : '' }}">
                                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -219,8 +286,8 @@
                         </div>
                         
                         <!-- Profile dropdown -->
-                        <div class="relative" x-data="{ open: false }" x-cloak>
-                            <button type="button" class="flex items-center gap-x-3 text-sm text-gray-900 hover:text-gray-600" @click="open = !open">
+                        <div class="relative flex items-center" x-data="{ open: false }" x-cloak>
+                            <button type="button" class="flex items-center gap-x-3 text-sm text-gray-900 hover:text-gray-600 py-2" @click="open = !open">
                                 <div class="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
                                     <span class="text-sm font-medium text-white">{{ substr(Auth::user()->name, 0, 1) }}</span>
                                 </div>

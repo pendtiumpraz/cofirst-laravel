@@ -16,8 +16,6 @@ class Schedule extends Model
         'end_time',
         'room',
         'is_active',
-        'schedule_date',
-        'schedule_time',
         'enrollment_id',
         'teacher_assignment_id',
     ];
@@ -27,8 +25,6 @@ class Schedule extends Model
         'end_time' => 'datetime:H:i',
         'is_active' => 'boolean',
         'day_of_week' => 'integer',
-        'schedule_date' => 'date',
-        'schedule_time' => 'datetime:H:i',
     ];
 
     /**
@@ -56,11 +52,52 @@ class Schedule extends Model
     }
 
     /**
+     * Get the class reports for this schedule.
+     */
+    public function classReports()
+    {
+        return $this->hasMany(ClassReport::class, 'schedule_id');
+    }
+
+    /**
      * Scope to get only active schedules.
      */
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope untuk schedule yang bisa ditampilkan di calendar
+     * (hanya kelas yang aktif dan belum selesai)
+     */
+    public function scopeForCalendar($query)
+    {
+        return $query->where('is_active', true)
+                    ->whereHas('className', function($q) {
+                        $q->where('is_active', true)
+                          ->whereIn('status', ['planned', 'active']);
+                    });
+    }
+
+    /**
+     * Scope untuk schedule berdasarkan status kelas
+     */
+    public function scopeByClassStatus($query, $status)
+    {
+        return $query->whereHas('className', function($q) use ($status) {
+            $q->where('status', $status);
+        });
+    }
+
+    /**
+     * Check apakah schedule bisa ditampilkan di calendar
+     */
+    public function canShowInCalendar()
+    {
+        return $this->is_active && 
+               $this->className && 
+               $this->className->canShowInCalendar();
     }
 
     /**
@@ -79,5 +116,13 @@ class Schedule extends Model
         ];
 
         return $days[$this->day_of_week] ?? '';
+    }
+
+    /**
+     * Get formatted time range
+     */
+    public function getTimeRangeAttribute()
+    {
+        return $this->start_time->format('H:i') . ' - ' . $this->end_time->format('H:i');
     }
 }

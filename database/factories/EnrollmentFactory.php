@@ -18,6 +18,7 @@ class EnrollmentFactory extends Factory
             'student_id' => User::factory()->create()->assignRole('student'),
             'enrollment_date' => $this->faker->date(),
             'status' => $this->faker->randomElement(['active', 'inactive', 'completed', 'dropped']),
+            'is_active' => true,
         ];
     }
 }

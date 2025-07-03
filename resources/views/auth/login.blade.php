@@ -131,34 +131,40 @@
 
             <!-- Demo Accounts -->
             <div class="mt-8 pt-6 border-t border-white/20">
-                <p class="text-sm text-blue-100 text-center mb-4">Demo Accounts:</p>
+                <p class="text-sm text-blue-100 text-center mb-4">Demo Accounts (Click to auto-fill):</p>
                 <div class="grid grid-cols-2 gap-2 text-xs text-blue-100">
-                    <div class="bg-white/10 rounded p-2">
+                    <div class="bg-white/10 rounded p-2 cursor-pointer hover:bg-white/20 transition-colors demo-account" 
+                         data-email="superadmin@codingfirst.com" data-password="password">
                         <div class="font-medium">Super Admin</div>
                         <div>superadmin@codingfirst.com</div>
                         <div>password</div>
                     </div>
-                    <div class="bg-white/10 rounded p-2">
+                    <div class="bg-white/10 rounded p-2 cursor-pointer hover:bg-white/20 transition-colors demo-account" 
+                         data-email="admin@codingfirst.com" data-password="password">
                         <div class="font-medium">Admin</div>
                         <div>admin@codingfirst.com</div>
                         <div>password</div>
                     </div>
-                    <div class="bg-white/10 rounded p-2">
+                    <div class="bg-white/10 rounded p-2 cursor-pointer hover:bg-white/20 transition-colors demo-account" 
+                         data-email="teacher@codingfirst.com" data-password="password">
                         <div class="font-medium">Teacher</div>
                         <div>teacher@codingfirst.com</div>
                         <div>password</div>
                     </div>
-                    <div class="bg-white/10 rounded p-2">
+                    <div class="bg-white/10 rounded p-2 cursor-pointer hover:bg-white/20 transition-colors demo-account" 
+                         data-email="parent@codingfirst.com" data-password="password">
                         <div class="font-medium">Parent</div>
                         <div>parent@codingfirst.com</div>
                         <div>password</div>
                     </div>
-                    <div class="bg-white/10 rounded p-2">
+                    <div class="bg-white/10 rounded p-2 cursor-pointer hover:bg-white/20 transition-colors demo-account" 
+                         data-email="student@codingfirst.com" data-password="password">
                         <div class="font-medium">Student</div>
                         <div>student@codingfirst.com</div>
                         <div>password</div>
                     </div>
-                    <div class="bg-white/10 rounded p-2">
+                    <div class="bg-white/10 rounded p-2 cursor-pointer hover:bg-white/20 transition-colors demo-account" 
+                         data-email="finance@codingfirst.com" data-password="password">
                         <div class="font-medium">Finance</div>
                         <div>finance@codingfirst.com</div>
                         <div>password</div>
@@ -181,5 +187,29 @@
         <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-white/5 rounded-full animate-pulse" style="animation-delay: 2s;"></div>
         <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-white/3 rounded-full animate-pulse" style="animation-delay: 4s;"></div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const demoAccounts = document.querySelectorAll('.demo-account');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+
+            demoAccounts.forEach(account => {
+                account.addEventListener('click', function() {
+                    const email = this.getAttribute('data-email');
+                    const password = this.getAttribute('data-password');
+                    
+                    emailInput.value = email;
+                    passwordInput.value = password;
+                    
+                    // Add visual feedback
+                    this.style.background = 'rgba(255, 255, 255, 0.3)';
+                    setTimeout(() => {
+                        this.style.background = 'rgba(255, 255, 255, 0.1)';
+                    }, 200);
+                });
+            });
+        });
+    </script>
 </body>
 </html>

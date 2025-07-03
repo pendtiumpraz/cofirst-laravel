@@ -9,9 +9,10 @@
             @for ($i = 0; $i < 7; $i++)
                 @php
                     $date = $today->copy()->addDays($i);
-                    $daySchedules = $schedules->filter(function ($schedule) use ($date) {
-                        return \Carbon\Carbon::parse($schedule->schedule_date)->isSameDay($date);
-                    })->sortBy('schedule_time');
+                    $dayOfWeek = $date->dayOfWeek === 0 ? 7 : $date->dayOfWeek; // Convert Sunday from 0 to 7
+                    $daySchedules = $schedules->filter(function ($schedule) use ($dayOfWeek) {
+                        return $schedule->day_of_week == $dayOfWeek;
+                    })->sortBy('start_time');
                 @endphp
 
                 <div class="flex-none w-64 bg-gray-50 rounded-lg p-4">
@@ -22,10 +23,13 @@
                         <ul class="space-y-2">
                             @foreach ($daySchedules as $schedule)
                                 <li class="bg-white p-3 rounded-md shadow-sm border border-gray-200">
-                                    <p class="text-sm font-semibold text-gray-900">{{ \Carbon\Carbon::parse($schedule->schedule_time)->format('H:i') }}</p>
+                                    <p class="text-sm font-semibold text-gray-900">{{ $schedule->start_time->format('H:i') }} - {{ $schedule->end_time->format('H:i') }}</p>
                                     <p class="text-xs text-gray-700">Class: {{ $schedule->className->name ?? 'N/A' }}</p>
                                     <p class="text-xs text-gray-700">Teacher: {{ $schedule->teacherAssignment->teacher->name ?? 'N/A' }}</p>
                                     <p class="text-xs text-gray-700">Student: {{ $schedule->enrollment->student->name ?? 'N/A' }}</p>
+                                    @if($schedule->room)
+                                        <p class="text-xs text-gray-600">Room: {{ $schedule->room }}</p>
+                                    @endif
                                 </li>
                             @endforeach
                         </ul>

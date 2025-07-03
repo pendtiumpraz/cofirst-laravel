@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('student_id')->constrained('users')->onDelete('cascade');
             $table->date('enrollment_date');
             $table->enum('status', ['active', 'inactive', 'completed', 'dropped'])->default('active');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
             
             $table->unique(['class_id', 'student_id']);

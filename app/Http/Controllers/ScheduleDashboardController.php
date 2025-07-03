@@ -16,25 +16,27 @@ class ScheduleDashboardController extends Controller
         $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
         $endOfWeek = Carbon::now()->endOfWeek(Carbon::SUNDAY);
 
-        $schedules = Schedule::with(['class.teacher', 'class.enrollments.student'])
-            ->whereHas('class', function ($query) use ($user) {
-                // Only show schedules for active classes
-                $query->where('status', 'active');
-
-                // If teacher, only show their classes
-                if ($user->hasRole('teacher')) {
-                    $query->where('teacher_id', $user->id);
-                }
+        $schedules = Schedule::forCalendar()
+            ->with(['className.course', 'className.teacher', 'enrollment.student', 'teacherAssignment.teacher'])
+            ->when($user->hasRole('teacher'), function ($query) use ($user) {
+                // If teacher, only show schedules assigned to them
+                $query->whereHas('teacherAssignment', function ($q) use ($user) {
+                    $q->where('teacher_id', $user->id);
+                });
             })
-            ->where('is_active', true) // Only show active schedules
+            ->when($user->hasRole('student'), function ($query) use ($user) {
+                // If student, only show schedules from their enrolled classes
+                $query->whereHas('enrollment', function ($q) use ($user) {
+                    $q->where('student_id', $user->id)
+                      ->where('status', 'active');
+                });
+            })
             ->get()
             ->filter(function ($schedule) {
-                // Filter out schedules where teacher or students are inactive
-                $teacherIsActive = $schedule->class->teacher->is_active ?? false;
-                $studentsAreActive = $schedule->class->enrollments->every(function ($enrollment) {
-                    return $enrollment->student->is_active ?? false;
-                });
-                return $teacherIsActive && $studentsAreActive;
+                // Additional filter to ensure all participants are active
+                $teacherIsActive = $schedule->teacherAssignment?->teacher?->is_active ?? true;
+                $studentIsActive = $schedule->enrollment?->student?->is_active ?? true;
+                return $teacherIsActive && $studentIsActive;
             })
             ->groupBy(function ($schedule) {
                 return $schedule->day_of_week; // Group by day of week

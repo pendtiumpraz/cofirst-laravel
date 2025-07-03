@@ -15,10 +15,12 @@ class Enrollment extends Model
         'enrollment_date',
         'status',
         'notes',
+        'is_active',
     ];
 
     protected $casts = [
         'enrollment_date' => 'date',
+        'is_active' => 'boolean',
     ];
 
     /**

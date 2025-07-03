@@ -63,6 +63,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the teacher assignments for this user.
+     */
+    public function teacherAssignments()
+    {
+        return $this->hasMany(TeacherAssignment::class, 'teacher_id');
+    }
+
+    /**
      * Get the enrollments for this student.
      */
     public function enrollments()

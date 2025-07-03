@@ -21,6 +21,7 @@ return new class extends Migration
             $table->date('end_date');
             $table->integer('max_students')->default(20);
             $table->enum('status', ['planned', 'active', 'completed', 'cancelled'])->default('planned');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }

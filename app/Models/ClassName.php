@@ -21,11 +21,13 @@ class ClassName extends Model
         'type',
         'delivery_method', // Kolom baru
         'curriculum_id',   // Kolom baru
+        'is_active',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'is_active' => 'boolean',
     ];
 
     public function course()
@@ -51,5 +53,74 @@ class ClassName extends Model
     public function curriculum()
     {
         return $this->belongsTo(Curriculum::class); // Relasi baru
+    }
+
+    /**
+     * Scope untuk kelas yang aktif dan belum selesai
+     */
+    public function scopeActiveAndOngoing($query)
+    {
+        return $query->where('is_active', true)
+                    ->whereIn('status', ['planned', 'active']);
+    }
+
+    /**
+     * Scope untuk kelas yang sedang berlangsung
+     */
+    public function scopeOngoing($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    /**
+     * Scope untuk kelas yang sudah selesai
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
+    }
+
+    /**
+     * Check apakah kelas masih bisa ditampilkan di calendar
+     */
+    public function canShowInCalendar()
+    {
+        return $this->is_active && in_array($this->status, ['planned', 'active']);
+    }
+
+    /**
+     * Check apakah kelas sudah selesai
+     */
+    public function isCompleted()
+    {
+        return $this->status === 'completed';
+    }
+
+    /**
+     * Get status badge color
+     */
+    public function getStatusBadgeColorAttribute()
+    {
+        return match($this->status) {
+            'planned' => 'bg-blue-100 text-blue-800',
+            'active' => 'bg-green-100 text-green-800',
+            'completed' => 'bg-gray-100 text-gray-800',
+            'cancelled' => 'bg-red-100 text-red-800',
+            default => 'bg-gray-100 text-gray-800'
+        };
+    }
+
+    /**
+     * Get status label in Indonesian
+     */
+    public function getStatusLabelAttribute()
+    {
+        return match($this->status) {
+            'planned' => 'Direncanakan',
+            'active' => 'Berlangsung',
+            'completed' => 'Selesai',
+            'cancelled' => 'Dibatalkan',
+            default => 'Tidak Diketahui'
+        };
     }
 }

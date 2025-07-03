@@ -11,6 +11,13 @@ use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ClassReportController;
+use App\Http\Controllers\Admin\CurriculumController;
+use App\Http\Controllers\Admin\SyllabusController;
+use App\Http\Controllers\Admin\MaterialController;
+use App\Http\Controllers\Teacher\CurriculumController as TeacherCurriculumController;
+use App\Http\Controllers\Student\MaterialController as StudentMaterialController;
+use App\Http\Controllers\Parent\ProgressController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +33,13 @@ Route::get('/courses', [LandingController::class, 'courses'])->name('courses');
 Route::get('/contact', [LandingController::class, 'contact'])->name('contact');
 
 // Authenticated routes
+// Role switching routes
+Route::middleware('auth')->group(function () {
+    Route::get('/role-selection', [\App\Http\Controllers\RoleSwitchController::class, 'showRoleSelection'])->name('role.selection');
+    Route::post('/role-selection', [\App\Http\Controllers\RoleSwitchController::class, 'setActiveRole'])->name('role.set');
+    Route::post('/switch-role', [\App\Http\Controllers\RoleSwitchController::class, 'switchRole'])->name('role.switch');
+});
+
 Route::middleware('auth')->group(function () {
     // Dashboard - Main dashboard for all users
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -51,6 +65,21 @@ Route::middleware('auth')->group(function () {
         Route::post('classes/{class}/add-student', [ClassController::class, 'addStudent'])->name('classes.add-student');
         Route::delete('classes/{class}/remove-student/{student}', [ClassController::class, 'removeStudent'])->name('classes.remove-student');
         
+        // Curriculum Management
+        Route::resource('curriculums', CurriculumController::class);
+        Route::post('curriculums/{curriculum}/toggle-status', [CurriculumController::class, 'toggleStatus'])->name('curriculums.toggle-status');
+        
+        // Syllabus Management
+        Route::resource('syllabuses', SyllabusController::class);
+        Route::post('syllabuses/{syllabus}/toggle-status', [SyllabusController::class, 'toggleStatus'])->name('syllabuses.toggle-status');
+        Route::get('syllabuses/by-curriculum/{curriculum}', [SyllabusController::class, 'getByCurriculum'])->name('syllabuses.by-curriculum');
+        
+        // Material Management
+        Route::resource('materials', MaterialController::class);
+        Route::post('materials/{material}/toggle-status', [MaterialController::class, 'toggleStatus'])->name('materials.toggle-status');
+        Route::get('materials/{material}/download', [MaterialController::class, 'download'])->name('materials.download');
+        Route::get('materials/by-syllabus/{syllabus}', [MaterialController::class, 'getBySyllabus'])->name('materials.by-syllabus');
+        
         // Reports
         Route::get('reports', [ReportController::class, 'adminIndex'])->name('reports.index');
         
@@ -74,15 +103,27 @@ Route::middleware('auth')->group(function () {
         Route::get('classes/{class}', [TeacherController::class, 'classDetail'])->name('class-detail');
         Route::get('students', [TeacherController::class, 'students'])->name('students.index');
         
+        // Curriculum (View Only)
+        Route::get('curriculums', [TeacherCurriculumController::class, 'index'])->name('curriculums.index');
+        Route::get('curriculums/{curriculum}', [TeacherCurriculumController::class, 'show'])->name('curriculums.show');
+        Route::get('curriculums/{curriculum}/syllabuses', [TeacherCurriculumController::class, 'syllabuses'])->name('curriculums.syllabuses');
+        Route::get('curriculums/{curriculum}/materials', [TeacherCurriculumController::class, 'materials'])->name('curriculums.materials');
+        
+        // Syllabuses (View Only)
+        Route::get('syllabuses', [\App\Http\Controllers\Teacher\SyllabusController::class, 'index'])->name('syllabuses.index');
+        Route::get('syllabuses/{syllabus}', [\App\Http\Controllers\Teacher\SyllabusController::class, 'show'])->name('syllabuses.show');
+        
+        // Materials (View Only)
+        Route::get('materials', [\App\Http\Controllers\Teacher\MaterialController::class, 'index'])->name('materials.index');
+        Route::get('materials/{material}', [\App\Http\Controllers\Teacher\MaterialController::class, 'show'])->name('materials.show');
+        Route::get('materials/{material}/download', [\App\Http\Controllers\Teacher\MaterialController::class, 'download'])->name('materials.download');
+        
         // Report Management for Teachers
         Route::resource('reports', ReportController::class);
         Route::get('reports/class/{class}', [ReportController::class, 'byClass'])->name('reports.by-class');
         Route::get('reports/student/{student}', [ReportController::class, 'byStudent'])->name('reports.by-student');
 
-        // Class Report (Berita Acara)
-        Route::get('class-reports/create', [ClassReportController::class, 'create'])->name('class-reports.create');
-        Route::post('class-reports', [ClassReportController::class, 'store'])->name('class-reports.store');
-        Route::get('class-reports/get-schedules-and-students', [ClassReportController::class, 'getSchedulesAndStudents'])->name('class-reports.get-schedules-and-students');
+        // Note: Class Reports are now handled in the global middleware group below
     });
 
     // Parent routes
@@ -102,9 +143,19 @@ Route::middleware('auth')->group(function () {
             return view('parent.reports.index', compact('children'));
         })->name('reports.index');
         
+        // Child Progress Tracking
+        Route::get('progress', [ProgressController::class, 'index'])->name('progress.index');
+        Route::get('progress/child/{child}', [ProgressController::class, 'child'])->name('progress.child');
+        Route::get('progress/child/{child}/materials/{class}', [ProgressController::class, 'childMaterials'])->name('progress.child-materials');
+        Route::get('progress/child/{child}/summary', [ProgressController::class, 'getChildProgressSummary'])->name('progress.child-summary');
+        
         Route::get('child/{student}/reports', [StudentController::class, 'childReports'])->name('child-reports');
         Route::get('child/{student}/schedule', [StudentController::class, 'childSchedule'])->name('child-schedule');
         Route::get('child/{student}/payments', [StudentController::class, 'childPayments'])->name('child-payments');
+        
+        // Curriculum for Parents
+        Route::get('curriculum', [\App\Http\Controllers\Parent\CurriculumController::class, 'index'])->name('curriculum.index');
+        Route::get('curriculum/child/{child}/class/{class}', [\App\Http\Controllers\Parent\CurriculumController::class, 'showChildProgress'])->name('curriculum.child-progress');
     });
 
     // Student routes
@@ -113,8 +164,25 @@ Route::middleware('auth')->group(function () {
         Route::get('schedules', [StudentController::class, 'schedule'])->name('schedules.index');
         Route::get('reports', [StudentController::class, 'reports'])->name('reports');
         Route::get('payments', [StudentController::class, 'payments'])->name('payments');
+        
+        // Materials and Progress
+        Route::get('materials', [StudentMaterialController::class, 'index'])->name('materials.index');
+        Route::get('materials/class/{class}', [StudentMaterialController::class, 'byClass'])->name('materials.by-class');
+        Route::get('materials/{material}', [StudentMaterialController::class, 'show'])->name('materials.show');
+        Route::get('materials/{material}/download', [StudentMaterialController::class, 'download'])->name('materials.download');
+        Route::get('progress/class/{class}', [StudentMaterialController::class, 'progress'])->name('progress.class');
+        
+        // Curriculum for Students
+        Route::get('curriculum', [\App\Http\Controllers\Student\CurriculumController::class, 'index'])->name('curriculum.index');
+        Route::get('curriculum/class/{class}', [\App\Http\Controllers\Student\CurriculumController::class, 'show'])->name('curriculum.show');
     });
 
+    // Class Reports - accessible by all authenticated users (admin, superadmin, teacher)
+    Route::middleware(['role:admin|superadmin|teacher'])->group(function () {
+        Route::resource('class-reports', ClassReportController::class);
+        Route::get('class-reports/get-schedules-and-students', [ClassReportController::class, 'getSchedulesAndStudents'])->name('class-reports.get-schedules-and-students');
+    });
+    
     // Finance routes
     Route::middleware(['role:finance|admin|superadmin'])->prefix('finance')->name('finance.')->group(function () {
         Route::get('transactions', [FinanceController::class, 'index'])->name('transactions.list');

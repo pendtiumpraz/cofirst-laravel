@@ -12,7 +12,7 @@
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Create New Schedule</h3>
                     <form action="{{ route('admin.schedules.store') }}" method="POST">
                         @csrf
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <div>
                                 <label for="class_id" class="block text-sm font-medium text-gray-700">Class</label>
                                 <select name="class_id" id="class_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
@@ -26,16 +26,39 @@
                                 @enderror
                             </div>
                             <div>
-                                <label for="schedule_date" class="block text-sm font-medium text-gray-700">Schedule Date</label>
-                                <input type="date" name="schedule_date" id="schedule_date" value="{{ old('schedule_date', now()->format('Y-m-d')) }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                                @error('schedule_date')
+                                <label for="day_of_week" class="block text-sm font-medium text-gray-700">Day of Week</label>
+                                <select name="day_of_week" id="day_of_week" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                    <option value="">Select Day</option>
+                                    <option value="1" {{ old('day_of_week') == '1' ? 'selected' : '' }}>Monday</option>
+                                    <option value="2" {{ old('day_of_week') == '2' ? 'selected' : '' }}>Tuesday</option>
+                                    <option value="3" {{ old('day_of_week') == '3' ? 'selected' : '' }}>Wednesday</option>
+                                    <option value="4" {{ old('day_of_week') == '4' ? 'selected' : '' }}>Thursday</option>
+                                    <option value="5" {{ old('day_of_week') == '5' ? 'selected' : '' }}>Friday</option>
+                                    <option value="6" {{ old('day_of_week') == '6' ? 'selected' : '' }}>Saturday</option>
+                                    <option value="0" {{ old('day_of_week') == '0' ? 'selected' : '' }}>Sunday</option>
+                                </select>
+                                @error('day_of_week')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                 @enderror
                             </div>
                             <div>
-                                <label for="schedule_time" class="block text-sm font-medium text-gray-700">Schedule Time</label>
-                                <input type="time" name="schedule_time" id="schedule_time" value="{{ old('schedule_time') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                                @error('schedule_time')
+                                <label for="start_time" class="block text-sm font-medium text-gray-700">Start Time</label>
+                                <input type="time" name="start_time" id="start_time" value="{{ old('start_time') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                @error('start_time')
+                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label for="end_time" class="block text-sm font-medium text-gray-700">End Time</label>
+                                <input type="time" name="end_time" id="end_time" value="{{ old('end_time') }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                @error('end_time')
+                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label for="room" class="block text-sm font-medium text-gray-700">Room</label>
+                                <input type="text" name="room" id="room" value="{{ old('room') }}" placeholder="e.g., Room A1, Online" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                @error('room')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                 @enderror
                             </div>
@@ -44,23 +67,47 @@
                                 <select name="teacher_assignment_id" id="teacher_assignment_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
                                     <option value="">Select a Teacher</option>
                                     @foreach ($teachers as $teacher)
-                                        <option value="{{ $teacher->teacherAssignment->id ?? '' }}">{{ $teacher->name }}</option>
+                                        @php
+                                            $firstAssignment = $teacher->teacherAssignments->first();
+                                        @endphp
+                                        @if($firstAssignment)
+                                            <option value="{{ $firstAssignment->id }}" 
+                                                {{ old('teacher_assignment_id') == $firstAssignment->id ? 'selected' : '' }}>
+                                                {{ $teacher->name }}
+                                            </option>
+                                        @else
+                                            <option value="teacher_{{ $teacher->id }}">
+                                                {{ $teacher->name }}
+                                            </option>
+                                        @endif
                                     @endforeach
                                 </select>
                                 @error('teacher_assignment_id')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
                             </div>
                             <div>
                                 <label for="enrollment_id" class="block text-sm font-medium text-gray-700">Student</label>
                                 <select name="enrollment_id" id="enrollment_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
                                     <option value="">Select a Student</option>
-                                    @foreach ($enrollments as $enrollment)
-                                        <option value="{{ $enrollment->id }}">{{ $enrollment->student->name ?? 'N/A' }} ({{ $enrollment->class->name ?? 'N/A' }})</option>
+                                    @foreach ($students as $student)
+                                        @php
+                                            $firstEnrollment = $student->enrollments->first();
+                                        @endphp
+                                        @if($firstEnrollment)
+                                            <option value="{{ $firstEnrollment->id }}" 
+                                                {{ old('enrollment_id') == $firstEnrollment->id ? 'selected' : '' }}>
+                                                {{ $student->name }}
+                                            </option>
+                                        @else
+                                            <option value="student_{{ $student->id }}">
+                                                {{ $student->name }}
+                                            </option>
+                                        @endif
                                     @endforeach
                                 </select>
                                 @error('enrollment_id')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
                             </div>
                             <div>
@@ -94,9 +141,25 @@
                     return;
                 }
 
+                // Get CSRF token from meta tag
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
                 // Fetch Teachers
-                fetch(`/api/v1/schedule-data/teachers/${classId}`)
-                    .then(response => response.json())
+                fetch(`/api/v1/schedule-data/teachers/${classId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         data.forEach(assignment => {
                             const option = document.createElement('option');
@@ -108,8 +171,21 @@
                     .catch(error => console.error('Error fetching teachers:', error));
 
                 // Fetch Enrollments
-                fetch(`/api/v1/schedule-data/enrollments/${classId}`)
-                    .then(response => response.json())
+                fetch(`/api/v1/schedule-data/enrollments/${classId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         data.forEach(enrollment => {
                             const option = document.createElement('option');

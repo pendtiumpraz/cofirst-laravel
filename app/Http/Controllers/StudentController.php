@@ -47,9 +47,15 @@ class StudentController extends Controller
     public function schedule()
     {
         $user = Auth::user();
-        $schedules = Schedule::whereHas('class.enrollments', function($query) use ($user) {
-            $query->where('student_id', $user->id)->where('status', 'active');
-        })->with(['class.course', 'class.teacher'])->get();
+        $schedules = Schedule::forCalendar()
+            ->whereHas('enrollment', function($query) use ($user) {
+                $query->where('student_id', $user->id)
+                      ->where('status', 'active');
+            })
+            ->with(['className.course', 'className.teacher', 'teacherAssignment.teacher'])
+            ->orderBy('day_of_week')
+            ->orderBy('start_time')
+            ->get();
         
         return view('student.schedules.index', compact('schedules'));
     }
@@ -115,9 +121,15 @@ class StudentController extends Controller
         }
         
         $student = User::findOrFail($studentId);
-        $schedules = Schedule::whereHas('class.enrollments', function($query) use ($studentId) {
-            $query->where('student_id', $studentId)->where('status', 'active');
-        })->with(['class.course', 'class.teacher'])->get();
+        $schedules = Schedule::forCalendar()
+            ->whereHas('enrollment', function($query) use ($studentId) {
+                $query->where('student_id', $studentId)
+                      ->where('status', 'active');
+            })
+            ->with(['className.course', 'className.teacher', 'teacherAssignment.teacher'])
+            ->orderBy('day_of_week')
+            ->orderBy('start_time')
+            ->get();
         
         return view('parent.child-schedule', compact('student', 'schedules'));
     }

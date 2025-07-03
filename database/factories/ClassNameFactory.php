@@ -37,6 +37,7 @@ class ClassNameFactory extends Factory
                 'group_class_3_5_kids',
             ]), // Nilai enum yang diperluas
             'curriculum_id' => $curriculums->isNotEmpty() ? $curriculums->random()->id : null, // Kolom baru
+            'is_active' => true, // Kolom is_active dengan default true
         ];
     }
 }

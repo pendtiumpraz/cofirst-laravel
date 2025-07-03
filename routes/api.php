@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\ClassController;
 use App\Http\Controllers\Api\ScheduleController;
+use App\Http\Controllers\Api\ScheduleDataController;
 use App\Http\Controllers\Api\EnrollmentController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\FinancialController;
@@ -173,6 +174,7 @@ Route::get('/v1/docs', function () {
             'reports' => '/api/v1/reports/*',
             'transactions' => '/api/v1/transactions/*',
             'attendance' => '/api/v1/attendance/*',
+            'schedule-data' => '/api/v1/schedule-data/*',
         ]
     ]);
 });
@@ -180,7 +182,6 @@ Route::get('/v1/docs', function () {
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:web');
-
 // API Routes for future mobile app or external integrations
 Route::prefix('v1')->middleware('auth:web')->group(function () {
     // User routes

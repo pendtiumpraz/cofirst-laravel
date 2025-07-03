@@ -16,6 +16,22 @@
                         </a>
                     </div>
 
+                    <!-- Filter by Class Status -->
+                    <div class="mb-4">
+                        <form method="GET" action="{{ route('admin.schedules.index') }}" class="flex items-center space-x-4">
+                            <div>
+                                <label for="class_status" class="block text-sm font-medium text-gray-700">Filter by Class Status:</label>
+                                <select name="class_status" id="class_status" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md" onchange="this.form.submit()">
+                                    <option value="all" {{ $classStatus === 'all' ? 'selected' : '' }}>Semua Status</option>
+                                    <option value="ongoing" {{ $classStatus === 'ongoing' ? 'selected' : '' }}>Kelas Berlangsung</option>
+                                    <option value="planned" {{ $classStatus === 'planned' ? 'selected' : '' }}>Kelas Direncanakan</option>
+                                    <option value="completed" {{ $classStatus === 'completed' ? 'selected' : '' }}>Kelas Selesai</option>
+                                    <option value="cancelled" {{ $classStatus === 'cancelled' ? 'selected' : '' }}>Kelas Dibatalkan</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+
                     @if (session('success'))
                         <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
                             <span class="block sm:inline">{{ session('success') }}</span>
@@ -34,8 +50,10 @@
                                 <tr>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Name</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Status</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teacher</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Active</th>
@@ -46,9 +64,18 @@
                                 @foreach ($schedules as $schedule)
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $schedule->id }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $schedule->className->name ?? 'N/A' }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ \Carbon\Carbon::parse($schedule->schedule_date)->format('M d, Y') }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ \Carbon\Carbon::parse($schedule->schedule_time)->format('H:i') }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ $schedule->className->name ?? 'N/A' }}
+                                            <br><span class="text-xs text-gray-400">{{ $schedule->className->course->name ?? '' }}</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $schedule->className->status_badge_color ?? 'bg-gray-100 text-gray-800' }}">
+                                                {{ $schedule->className->status_label ?? 'N/A' }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $schedule->day_name }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $schedule->time_range }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $schedule->room ?? 'N/A' }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $schedule->teacherAssignment->teacher->name ?? 'N/A' }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $schedule->enrollment->student->name ?? 'N/A' }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -57,7 +84,10 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <a href="{{ route('admin.schedules.edit', $schedule->id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</a>
+                                            <a href="{{ route('admin.schedules.show', $schedule->id) }}" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                                            @if($schedule->className->canShowInCalendar())
+                                                <a href="{{ route('admin.schedules.edit', $schedule->id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</a>
+                                            @endif
                                             <form action="{{ route('admin.schedules.destroy', $schedule->id) }}" method="POST" class="inline-block">
                                                 @csrf
                                                 @method('DELETE')

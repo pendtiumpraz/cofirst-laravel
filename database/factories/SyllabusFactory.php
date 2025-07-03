@@ -16,6 +16,11 @@ class SyllabusFactory extends Factory
             'curriculum_id' => Curriculum::factory(),
             'title' => $this->faker->sentence,
             'description' => $this->faker->paragraph,
+            'meeting_number' => $this->faker->numberBetween(1, 12),
+            'learning_objectives' => $this->faker->paragraph,
+            'activities' => $this->faker->paragraph,
+            'duration_minutes' => $this->faker->randomElement([60, 90, 120]),
+            'status' => $this->faker->randomElement(['active', 'inactive']),
         ];
     }
 }

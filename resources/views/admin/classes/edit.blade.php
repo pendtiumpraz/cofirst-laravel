@@ -21,9 +21,14 @@
                             <div>
                                 <label for="type" class="block text-sm font-medium text-gray-700">Class Type</label>
                                 <select name="type" id="type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-ring-indigo-200 focus:ring-opacity-50">
-                                    <option value="private" {{ old('type', $class->type) == 'private' ? 'selected' : '' }}>Private (1-on-1)</option>
-                                    <option value="group" {{ old('type', $class->type) == 'group' ? 'selected' : '' }}>Group (Max 5 Students)</option>
-                                    <option value="extracurricular" {{ old('type', $class->type) == 'extracurricular' ? 'selected' : '' }}>Extracurricular (School)</option>
+                                    <option value="">Select Type</option>
+                                    <option value="private_home_call" {{ old('type', $class->type) == 'private_home_call' ? 'selected' : '' }}>Private - Home Call</option>
+                                    <option value="private_office_1on1" {{ old('type', $class->type) == 'private_office_1on1' ? 'selected' : '' }}>Private - Office 1-on-1</option>
+                                    <option value="private_online_1on1" {{ old('type', $class->type) == 'private_online_1on1' ? 'selected' : '' }}>Private - Online 1-on-1</option>
+                                    <option value="public_school_extracurricular" {{ old('type', $class->type) == 'public_school_extracurricular' ? 'selected' : '' }}>Public School Extracurricular</option>
+                                    <option value="offline_seminar" {{ old('type', $class->type) == 'offline_seminar' ? 'selected' : '' }}>Offline Seminar</option>
+                                    <option value="online_webinar" {{ old('type', $class->type) == 'online_webinar' ? 'selected' : '' }}>Online Webinar</option>
+                                    <option value="group_class_3_5_kids" {{ old('type', $class->type) == 'group_class_3_5_kids' ? 'selected' : '' }}>Group Class (3-5 Kids)</option>
                                 </select>
                             </div>
                             <div>

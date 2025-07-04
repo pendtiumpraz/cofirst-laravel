@@ -29,6 +29,9 @@
                         <x-nav-link :href="route('admin.materials.index')" :active="request()->routeIs('admin.materials.*')">
                             {{ __('Materi') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('admin.teacher.ranking')" :active="request()->routeIs('admin.teacher.ranking')">
+                            {{ __('Teacher Ranking') }}
+                        </x-nav-link>
                     @endif
 
                     @if(Auth::user()->hasRole('teacher'))
@@ -155,6 +158,9 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.materials.index')" :active="request()->routeIs('admin.materials.*')">
                     {{ __('Materi') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.teacher.ranking')" :active="request()->routeIs('admin.teacher.ranking')">
+                    {{ __('Teacher Ranking') }}
                 </x-responsive-nav-link>
             @endif
 

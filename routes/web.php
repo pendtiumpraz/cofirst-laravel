@@ -42,7 +42,24 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware('auth')->group(function () {
     // Dashboard - Main dashboard for all users
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', function () {
+        $user = Auth::user();
+        
+        if ($user->hasRole('admin')) {
+            return redirect()->route('admin.dashboard');
+        } elseif ($user->hasRole('teacher')) {
+            return redirect()->route('teacher.dashboard');
+        } elseif ($user->hasRole('parent')) {
+            return redirect()->route('parent.dashboard');
+        } elseif ($user->hasRole('student')) {
+            return redirect()->route('student.dashboard');
+        } elseif ($user->hasRole('finance')) {
+            return redirect()->route('finance.dashboard');
+        }
+        
+        // Default fallback
+        return redirect()->route('login');
+    })->name('dashboard');
     
     // Profile routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -51,6 +68,9 @@ Route::middleware('auth')->group(function () {
 
     // Admin routes
     Route::middleware(['role:admin|superadmin'])->prefix('admin')->name('admin.')->group(function () {
+        // Admin Dashboard
+        Route::get('dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+        
         // User Management
         Route::resource('users', UserController::class);
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
@@ -99,6 +119,7 @@ Route::middleware('auth')->group(function () {
 
     // Teacher routes
     Route::middleware(['role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
+        Route::get('dashboard', [\App\Http\Controllers\Teacher\DashboardController::class, 'index'])->name('dashboard');
         Route::get('classes', [TeacherController::class, 'classes'])->name('classes');
         Route::get('classes/{class}', [TeacherController::class, 'classDetail'])->name('class-detail');
         Route::get('students', [TeacherController::class, 'students'])->name('students.index');
@@ -160,9 +181,12 @@ Route::middleware('auth')->group(function () {
 
     // Student routes
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
+        Route::get('dashboard', [\App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
         Route::get('classes', [StudentController::class, 'classes'])->name('classes');
-        Route::get('schedules', [StudentController::class, 'schedule'])->name('schedules.index');
-        Route::get('reports', [StudentController::class, 'reports'])->name('reports');
+        Route::get('courses', [StudentController::class, 'courses'])->name('courses.index');
+        Route::get('schedules', [\App\Http\Controllers\Student\ScheduleController::class, 'index'])->name('schedules.index');
+        Route::get('reports', [\App\Http\Controllers\Student\ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/{report}', [\App\Http\Controllers\Student\ReportController::class, 'show'])->name('reports.show');
         Route::get('payments', [StudentController::class, 'payments'])->name('payments');
         
         // Materials and Progress
@@ -198,257 +222,8 @@ Route::middleware('auth')->group(function () {
         Route::get('reports/export', [FinanceController::class, 'exportReport'])->name('reports.export');
     });
 
-    // Debug routes
-    // Test route for @extends layout
-Route::get('/test-extends-layout', function () {
-    return view('test-extends');
 });
 
-Route::get('/debug-info', function () {
-        return view('debug-info');
-    });
-    
-    Route::get('/simple-debug', function () {
-        $user = auth()->user();
-        return response()->json([
-            'user' => $user->only(['id', 'name', 'email']),
-            'roles' => $user->roles->pluck('name'),
-            'has_admin' => $user->hasRole('admin'),
-            'has_teacher' => $user->hasRole('teacher'),
-            'has_student' => $user->hasRole('student'),
-            'classes_count' => \App\Models\ClassName::count(),
-            'enrollments_count' => \App\Models\Enrollment::count(),
-        ]);
-    });
-    
-    Route::get('/test-student-css', function () {
-        $user = auth()->user();
-        $enrollments = \App\Models\Enrollment::where('student_id', $user->id)
-            ->with(['class.course', 'class.teacher'])
-            ->where('status', 'active')
-            ->get();
-            
-        return view('student.classes.index', compact('enrollments'));
-    });
-    
-    Route::get('/test-teacher-css', function () {
-        $user = auth()->user();
-        $classes = \App\Models\ClassName::where('teacher_id', $user->id)
-            ->with(['course', 'enrollments'])
-            ->withCount('enrollments')
-            ->where('status', 'active')
-            ->get();
-            
-        $totalStudents = $classes->sum('enrollments_count');
-        
-        return view('teacher.classes.index', compact('classes', 'totalStudents'));
-    });
-    
-    Route::get('/test-app-layout', function () {
-        return view('test-app-layout');
-    });
-    
-    Route::get('/test-student-simple', function () {
-        return view('test-student-simple');
-    });
-    
-    Route::get('/test-teacher-simple', function () {
-        return view('test-teacher-simple');
-    });
-    
-    Route::get('/test-student-simple-view', function () {
-        $user = auth()->user();
-        $enrollments = \App\Models\Enrollment::where('student_id', $user->id)
-            ->with(['class.course', 'class.teacher'])
-            ->where('status', 'active')
-            ->get();
-            
-        return view('student.classes.simple-test', compact('enrollments'));
-    });
-});
-
-// Test routes
-Route::get('/test', function () {
-    return view('test');
-});
-
-Route::get('/css-test', function () {
-    return view('test-simple');
-});
-
-Route::get('/layout-test', function () {
-    return '
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Layout Test</title>
-        ' . app(\Illuminate\Foundation\Vite::class)(['resources/css/app.css', 'resources/js/app.js']) . '
-    </head>
-    <body class="bg-gray-100">
-        <div class="container mx-auto px-4 py-8">
-            <h1 class="text-4xl font-bold text-blue-600 mb-6">Direct Layout Test</h1>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-red-500 text-white p-6 rounded-lg">
-                    <h3 class="text-xl font-bold">Red Card</h3>
-                    <p>Should be RED background</p>
-                </div>
-                <div class="bg-green-500 text-white p-6 rounded-lg">
-                    <h3 class="text-xl font-bold">Green Card</h3>
-                    <p>Should be GREEN background</p>
-                </div>
-                <div class="bg-blue-500 text-white p-6 rounded-lg">
-                    <h3 class="text-xl font-bold">Blue Card</h3>
-                    <p>Should be BLUE background</p>
-                </div>
-            </div>
-        </div>
-    </body>
-    </html>';
-});
-
-Route::get('/component-test', function () {
-    return view('test-component');
-});
-
-Route::get('/debug-classes', function () {
-    $classes = \App\Models\ClassName::with(['course', 'teacher'])->withCount('enrollments')->get();
-    return response()->json([
-        'classes' => $classes,
-        'count' => $classes->count()
-    ]);
-});
-
-Route::get('/debug-teacher-classes', function () {
-    $user = auth()->user();
-    if (!$user) {
-        return response()->json(['error' => 'Not authenticated']);
-    }
-    
-    $classes = \App\Models\ClassName::where('teacher_id', $user->id)
-        ->with(['course', 'enrollments.student'])
-        ->withCount('enrollments')
-        ->where('status', 'active')
-        ->get();
-        
-    return response()->json([
-        'user' => $user->only(['id', 'name']),
-        'roles' => $user->roles->pluck('name'),
-        'classes' => $classes,
-        'count' => $classes->count()
-    ]);
-});
-
-Route::get('/debug-student-enrollments', function () {
-    $user = auth()->user();
-    if (!$user) {
-        return response()->json(['error' => 'Not authenticated']);
-    }
-    
-    $enrollments = \App\Models\Enrollment::where('student_id', $user->id)
-        ->with(['class.course', 'class.teacher'])
-        ->where('status', 'active')
-        ->get();
-        
-    return response()->json([
-        'user' => $user->only(['id', 'name']),
-        'roles' => $user->roles->pluck('name'),
-        'enrollments' => $enrollments,
-        'count' => $enrollments->count()
-    ]);
-});
-
-Route::get('/layout-test', function () {
-    return '<!DOCTYPE html>
-<html>
-<head>
-    <title>Layout Test</title>
-    <link rel="stylesheet" href="/build/assets/app--yI5Pw4a.css">
-</head>
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-4xl font-bold text-blue-600 mb-6">Direct Layout Test</h1>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-red-500 text-white p-6 rounded-lg">
-                <h3 class="text-xl font-bold">Red Card</h3>
-                <p>Should be RED background</p>
-            </div>
-            <div class="bg-green-500 text-white p-6 rounded-lg">
-                <h3 class="text-xl font-bold">Green Card</h3>
-                <p>Should be GREEN background</p>
-            </div>
-            <div class="bg-blue-500 text-white p-6 rounded-lg">
-                <h3 class="text-xl font-bold">Blue Card</h3>
-                <p>Should be BLUE background</p>
-            </div>
-        </div>
-    </div>
-</body>
-</html>';
-});
-
-Route::get('/debug-user', function () {
-    $user = auth()->user();
-    if (!$user) {
-        return response()->json(['error' => 'Not authenticated']);
-    }
-    
-    return response()->json([
-        'user' => $user->only(['id', 'name', 'email']),
-        'roles' => $user->roles->pluck('name'),
-        'permissions' => $user->permissions->pluck('name'),
-        'all_permissions' => $user->getAllPermissions()->pluck('name'),
-        'has_admin_role' => $user->hasRole('admin'),
-        'has_teacher_role' => $user->hasRole('teacher'),
-        'has_student_role' => $user->hasRole('student'),
-        'has_parent_role' => $user->hasRole('parent'),
-    ]);
-});
-
-Route::get('/direct-css-test', function () {
-    return '<!DOCTYPE html>
-<html>
-<head>
-    <title>Direct CSS Test</title>
-    <link rel="stylesheet" href="/build/assets/app--yI5Pw4a.css">
-</head>
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-4xl font-bold text-blue-600 mb-6">Direct CSS Test</h1>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-red-500 text-white p-6 rounded-lg">
-                <h3 class="text-xl font-bold">Red Card</h3>
-                <p>Should be RED background</p>
-            </div>
-            <div class="bg-green-500 text-white p-6 rounded-lg">
-                <h3 class="text-xl font-bold">Green Card</h3>
-                <p>Should be GREEN background</p>
-            </div>
-            <div class="bg-blue-500 text-white p-6 rounded-lg">
-                <h3 class="text-xl font-bold">Blue Card</h3>
-                <p>Should be BLUE background</p>
-            </div>
-        </div>
-        <div class="mt-8 p-4 bg-yellow-200 rounded-lg">
-            <p class="text-gray-800">If you see colors, CSS is loading correctly!</p>
-        </div>
-    </div>
-</body>
-</html>';
-});
-
-// Test route for @extends layout
-Route::get('/test-extends-layout', function () {
-    return view('test-extends');
-});
-
-Route::get('/debug-active-classes', function () {
-    $activeClasses = ClassName::active()->get();
-    return response()->json($activeClasses);
-});
-
-Route::get('/debug-active-students', function () {
-    $activeStudents = User::role('student')->active()->get();
-    return response()->json($activeStudents);
-});
+// All debug routes removed - issue resolved ✅
 
 require __DIR__.'/auth.php';

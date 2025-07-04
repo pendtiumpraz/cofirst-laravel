@@ -42,11 +42,20 @@
                             Dashboard
                         </a>
                         
+                        @auth
                         @if(Auth::user()->hasRole('superadmin') || Auth::user()->hasRole('admin'))
                         <!-- Admin Section -->
                         <div class="pt-4">
                             <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
                             <div class="mt-2 space-y-1">
+                                <!-- Admin Dashboard -->
+                                <a href="{{ route('admin.dashboard') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('admin.dashboard') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                    Admin Dashboard
+                                </a>
+                                
                                 <!-- Users Management -->
                                 <a href="{{ route('admin.users.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('admin.users.*') ? 'bg-blue-50 text-blue-600' : '' }}">
                                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -211,7 +220,7 @@
                                     </svg>
                                     Schedule
                                 </a>
-                                <a href="{{ route('student.reports') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('student.reports') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                <a href="{{ route('student.reports.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('student.reports.*') ? 'bg-blue-50 text-blue-600' : '' }}">
                                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                     </svg>
@@ -265,6 +274,7 @@
                             </div>
                         </div>
                         @endif
+                        @endauth
                     </div>
                 </nav>
             </div>
@@ -286,8 +296,8 @@
                         </div>
                         
                         <!-- Profile dropdown -->
-                        <div class="relative flex items-center" x-data="{ open: false }" x-cloak>
-                            <button type="button" class="flex items-center gap-x-3 text-sm text-gray-900 hover:text-gray-600 py-2" @click="open = !open">
+                        <div class="relative flex items-center">
+                            <button type="button" class="flex items-center gap-x-3 text-sm text-gray-900 hover:text-gray-600 py-2" onclick="toggleProfileDropdown()">
                                 <div class="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
                                     <span class="text-sm font-medium text-white">{{ substr(Auth::user()->name, 0, 1) }}</span>
                                 </div>
@@ -297,16 +307,7 @@
                                 </svg>
                             </button>
                             
-                            <div x-show="open" 
-                                 @click.away="open = false" 
-                                 x-transition:enter="transition ease-out duration-200"
-                                 x-transition:enter-start="opacity-0 scale-95"
-                                 x-transition:enter-end="opacity-100 scale-100"
-                                 x-transition:leave="transition ease-in duration-75"
-                                 x-transition:leave-start="opacity-100 scale-100"
-                                 x-transition:leave-end="opacity-0 scale-95"
-                                 class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5"
-                                 style="display: none;">
+                            <div id="profile-dropdown" class="hidden absolute right-0 top-full z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                                 <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
                                 <form method="POST" action="{{ route('logout') }}" id="logout-form">
                                     @csrf
@@ -356,6 +357,23 @@
                 const sidebar = document.getElementById('sidebar');
                 sidebar.classList.toggle('-translate-x-full');
             }
+            
+            function toggleProfileDropdown() {
+                const dropdown = document.getElementById('profile-dropdown');
+                dropdown.classList.toggle('hidden');
+            }
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                const dropdown = document.getElementById('profile-dropdown');
+                const button = event.target.closest('button');
+                
+                if (!button || !button.onclick || button.onclick.toString().indexOf('toggleProfileDropdown') === -1) {
+                    if (!dropdown.contains(event.target)) {
+                        dropdown.classList.add('hidden');
+                    }
+                }
+            });
             
             // Handle logout confirmation
             document.addEventListener('DOMContentLoaded', function() {

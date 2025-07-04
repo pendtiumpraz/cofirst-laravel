@@ -58,7 +58,7 @@ class CurriculumController extends Controller
         $class = ClassName::with([
             'course',
             'curriculum.syllabuses' => function($query) {
-                $query->where('status', 'active')->orderBy('order');
+                $query->where('status', 'active')->orderBy('meeting_number');
             },
             'curriculum.syllabuses.materials' => function($query) {
                 $query->where('status', 'active')->orderBy('order');

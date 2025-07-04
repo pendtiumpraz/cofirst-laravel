@@ -98,6 +98,14 @@
                 </div>
             </div>
 
+            <!-- Schedule Calendar -->
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Jadwal Mengajar 7 Hari Ke Depan</h3>
+                    <x-schedule-calendar :schedules="$schedules" />
+                </div>
+            </div>
+
             <!-- Today's Schedule and Quick Actions -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Today's Schedule -->

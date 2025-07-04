@@ -23,11 +23,16 @@
                         <ul class="space-y-2">
                             @foreach ($daySchedules as $schedule)
                                 <li class="bg-white p-3 rounded-md shadow-sm border border-gray-200">
-                                    <p class="text-sm font-semibold text-gray-900">{{ $schedule->start_time->format('H:i') }} - {{ $schedule->end_time->format('H:i') }}</p>
+                                    @php
+                                        // Handle both string and Carbon object time formats
+                                        $startTime = is_string($schedule->start_time) ? $schedule->start_time : $schedule->start_time->format('H:i');
+                                        $endTime = is_string($schedule->end_time) ? $schedule->end_time : $schedule->end_time->format('H:i');
+                                    @endphp
+                                    <p class="text-sm font-semibold text-gray-900">{{ $startTime }} - {{ $endTime }}</p>
                                     <p class="text-xs text-gray-700">Class: {{ $schedule->className->name ?? 'N/A' }}</p>
-                                    <p class="text-xs text-gray-700">Teacher: {{ $schedule->teacherAssignment->teacher->name ?? 'N/A' }}</p>
-                                    <p class="text-xs text-gray-700">Student: {{ $schedule->enrollment->student->name ?? 'N/A' }}</p>
-                                    @if($schedule->room)
+                                    <p class="text-xs text-gray-700">Teacher: {{ $schedule->teacherAssignment->teacher->name ?? $schedule->className->teacher->name ?? 'N/A' }}</p>
+                                    <p class="text-xs text-gray-700">Student: {{ $schedule->enrollment->student->name ?? 'Current User' }}</p>
+                                    @if(isset($schedule->room) && $schedule->room)
                                         <p class="text-xs text-gray-600">Room: {{ $schedule->room }}</p>
                                     @endif
                                 </li>

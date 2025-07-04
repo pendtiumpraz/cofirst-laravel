@@ -130,6 +130,14 @@
                 </div>
             </div>
 
+            <!-- Schedule Calendar -->
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Jadwal 7 Hari Ke Depan</h3>
+                    <x-schedule-calendar :schedules="$schedules" />
+                </div>
+            </div>
+
             <!-- Management Sections -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Users Management -->

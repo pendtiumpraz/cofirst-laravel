@@ -88,6 +88,30 @@ class StudentController extends Controller
     }
 
     /**
+     * Display available courses for student.
+     */
+    public function courses()
+    {
+        $user = Auth::user();
+        
+        // Get all available courses
+        $courses = \App\Models\Course::where('status', 'active')
+            ->with(['classes' => function($query) {
+                $query->where('status', 'active');
+            }])
+            ->get();
+        
+        // Get student's enrolled courses
+        $enrolledCourseIds = Enrollment::where('student_id', $user->id)
+            ->where('status', 'active')
+            ->join('class_names', 'enrollments.class_id', '=', 'class_names.id')
+            ->pluck('class_names.course_id')
+            ->toArray();
+            
+        return view('student.courses.index', compact('courses', 'enrolledCourseIds'));
+    }
+
+    /**
      * Display child's reports (for parents).
      */
     public function childReports($studentId)

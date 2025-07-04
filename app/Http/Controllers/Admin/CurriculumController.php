@@ -36,7 +36,7 @@ class CurriculumController extends Controller
     {
         $this->authorize('create', Curriculum::class);
         
-        $courses = Course::where('status', 'active')->get();
+        $courses = Course::where('is_active', true)->get();
         $types = Curriculum::getTypes();
         
         return view('admin.curriculums.create', compact('courses', 'types'));
@@ -92,7 +92,7 @@ class CurriculumController extends Controller
     {
         $this->authorize('update', $curriculum);
         
-        $courses = Course::where('status', 'active')->get();
+        $courses = Course::where('is_active', true)->get();
         $types = Curriculum::getTypes();
         
         return view('admin.curriculums.edit', compact('curriculum', 'courses', 'types'));

@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\MaterialController;
 use App\Http\Controllers\Teacher\CurriculumController as TeacherCurriculumController;
 use App\Http\Controllers\Student\MaterialController as StudentMaterialController;
 use App\Http\Controllers\Parent\ProgressController;
+use App\Http\Controllers\ChatController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -220,6 +221,18 @@ Route::middleware('auth')->group(function () {
         Route::get('reports', [FinanceController::class, 'reports'])->name('reports.index');
         Route::get('reports/daily', [FinanceController::class, 'dailyReport'])->name('reports.daily');
         Route::get('reports/export', [FinanceController::class, 'exportReport'])->name('reports.export');
+    });
+
+    // Chat routes - accessible by all authenticated users
+    Route::middleware(['auth'])->prefix('chat')->name('chat.')->group(function () {
+        Route::get('/', [ChatController::class, 'index'])->name('index');
+        Route::post('/start', [ChatController::class, 'startConversation'])->name('start');
+        Route::get('/conversation/{conversation}', [ChatController::class, 'show'])->name('show');
+        Route::post('/conversation/{conversation}/send', [ChatController::class, 'sendMessage'])->name('send');
+        Route::post('/conversation/{conversation}/mark-read', [ChatController::class, 'markAsRead'])->name('mark-read');
+        Route::put('/message/{message}', [ChatController::class, 'editMessage'])->name('message.edit');
+        Route::delete('/message/{message}', [ChatController::class, 'deleteMessage'])->name('message.delete');
+        Route::get('/search', [ChatController::class, 'search'])->name('search');
     });
 
 });

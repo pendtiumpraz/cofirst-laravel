@@ -173,4 +173,46 @@ class User extends Authenticatable
     {
         return $query->where('is_active', true);
     }
+
+    /**
+     * Get user's conversations
+     */
+    public function conversations()
+    {
+        return $this->belongsToMany(Conversation::class, 'conversation_participants')
+            ->withPivot(['joined_at', 'last_read_at', 'unread_count', 'is_admin', 'is_muted', 'muted_until'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Get user's conversation participations
+     */
+    public function conversationParticipants()
+    {
+        return $this->hasMany(ConversationParticipant::class);
+    }
+
+    /**
+     * Get user's sent messages
+     */
+    public function sentMessages()
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
+    /**
+     * Get total unread messages count
+     */
+    public function getUnreadMessagesCountAttribute()
+    {
+        return $this->conversationParticipants()->sum('unread_count');
+    }
+
+    /**
+     * Get conversations with unread messages
+     */
+    public function unreadConversations()
+    {
+        return $this->conversations()->wherePivot('unread_count', '>', 0);
+    }
 }

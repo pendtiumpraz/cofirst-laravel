@@ -13,7 +13,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register CertificateService
+        $this->app->singleton(\App\Services\CertificateService::class, function ($app) {
+            return new \App\Services\CertificateService();
+        });
     }
 
     /**

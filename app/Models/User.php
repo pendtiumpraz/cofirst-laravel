@@ -23,6 +23,8 @@ class User extends Authenticatable
         'email',
         'password',
         'is_active',
+        'profile_photo_path',
+        'photo_crop_data',
     ];
 
     /**
@@ -44,6 +46,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_active' => 'boolean',
+        'photo_crop_data' => 'array',
     ];
 
     /**
@@ -172,5 +175,31 @@ class User extends Authenticatable
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Get the URL to the user's profile photo.
+     */
+    public function getProfilePhotoUrlAttribute()
+    {
+        return $this->profile_photo_path
+            ? asset('storage/' . $this->profile_photo_path)
+            : asset('images/default-avatar.png');
+    }
+
+    /**
+     * Get the user's project galleries.
+     */
+    public function projectGalleries()
+    {
+        return $this->hasMany(ProjectGallery::class, 'student_id');
+    }
+
+    /**
+     * Get the class photos uploaded by this user.
+     */
+    public function uploadedClassPhotos()
+    {
+        return $this->hasMany(ClassPhoto::class, 'uploaded_by');
     }
 }

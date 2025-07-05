@@ -38,5 +38,8 @@ class DatabaseSeeder extends Seeder
         $this->call(ReportSeeder::class);
         $this->call(FinancialTransactionSeeder::class);
         $this->call(AnnouncementSeeder::class);
+        
+        // 9. Seed gamification data (badges and rewards).
+        $this->call(GamificationSeeder::class);
     }
 }

@@ -301,6 +301,8 @@ class User extends Authenticatable
                 'current_streak' => 0,
                 'longest_streak' => 0,
             ]);
+            // Load the relationship after creating
+            $this->load('points');
         }
         
         return $this->points;

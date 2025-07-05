@@ -146,7 +146,7 @@
                                                     Start Class
                                                 </a>
                                             @endif
-                                            <a href="{{ route('teacher.attendance.index', ['schedule' => $schedule]) }}" class="inline-flex items-center px-3 py-1 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                            <a href="#" class="inline-flex items-center px-3 py-1 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed" title="Attendance feature coming soon">
                                                 Attendance
                                             </a>
                                         </div>
@@ -163,7 +163,7 @@
                         </div>
                         
                         <div class="mt-6">
-                            <a href="{{ route('teacher.schedules.index') }}" class="text-sm text-blue-600 hover:text-blue-900">View full schedule →</a>
+                            <a href="{{ route('admin.schedules.index') }}" class="text-sm text-blue-600 hover:text-blue-900">View full schedule →</a>
                         </div>
                     </div>
                 </div>
@@ -182,13 +182,13 @@
                                     </svg>
                                     Create Report
                                 </a>
-                                <a href="{{ route('teacher.attendance.today') }}" class="w-full inline-flex items-center justify-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700">
+                                <a href="#" class="w-full inline-flex items-center justify-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 opacity-75 cursor-not-allowed" title="Attendance feature coming soon">
                                     <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                                     </svg>
                                     Take Attendance
                                 </a>
-                                <a href="{{ route('teacher.curriculum.index') }}" class="w-full inline-flex items-center justify-center px-4 py-2 bg-purple-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-purple-700">
+                                <a href="{{ route('teacher.curriculums.index') }}" class="w-full inline-flex items-center justify-center px-4 py-2 bg-purple-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-purple-700">
                                     <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/>
                                     </svg>

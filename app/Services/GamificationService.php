@@ -7,6 +7,7 @@ use App\Models\Badge;
 use App\Models\PointTransaction;
 use App\Models\UserPoint;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class GamificationService
 {
@@ -16,6 +17,8 @@ class GamificationService
     public function awardDailyLoginPoints(User $user)
     {
         $user->initializePoints();
+        // Load the points relationship to ensure we have the latest data
+        $user->load('points');
         $points = $user->points;
         
         // Check if already awarded today
@@ -234,36 +237,55 @@ class GamificationService
      */
     public function getLeaderboard($type = 'all', $limit = 10)
     {
-        $query = UserPoint::with('user')
-            ->whereHas('user', function ($q) {
-                $q->where('is_active', true);
-            });
-            
         switch ($type) {
             case 'weekly':
-                // Order by points earned this week
-                $query->join('point_transactions', 'user_points.user_id', '=', 'point_transactions.user_id')
-                    ->where('point_transactions.created_at', '>=', Carbon::now()->startOfWeek())
-                    ->where('point_transactions.type', 'earned')
-                    ->groupBy('user_points.id', 'user_points.user_id', 'user_points.points', 'user_points.total_earned', 'user_points.total_spent', 'user_points.level', 'user_points.current_streak', 'user_points.longest_streak', 'user_points.last_activity_date', 'user_points.created_at', 'user_points.updated_at')
-                    ->orderByRaw('SUM(point_transactions.points) DESC');
-                break;
-                
+                // Get points earned this week using subquery
+                $weeklyPoints = DB::table('point_transactions')
+                    ->select('user_id', DB::raw('SUM(points) as weekly_points'))
+                    ->where('created_at', '>=', Carbon::now()->startOfWeek())
+                    ->where('type', 'earned')
+                    ->groupBy('user_id');
+                    
+                return UserPoint::with(['user'])
+                    ->joinSub($weeklyPoints, 'weekly', function ($join) {
+                        $join->on('user_points.user_id', '=', 'weekly.user_id');
+                    })
+                    ->whereHas('user', function ($q) {
+                        $q->where('is_active', true);
+                    })
+                    ->orderBy('weekly.weekly_points', 'desc')
+                    ->limit($limit)
+                    ->get();
+                    
             case 'monthly':
-                // Order by points earned this month
-                $query->join('point_transactions', 'user_points.user_id', '=', 'point_transactions.user_id')
-                    ->where('point_transactions.created_at', '>=', Carbon::now()->startOfMonth())
-                    ->where('point_transactions.type', 'earned')
-                    ->groupBy('user_points.id', 'user_points.user_id', 'user_points.points', 'user_points.total_earned', 'user_points.total_spent', 'user_points.level', 'user_points.current_streak', 'user_points.longest_streak', 'user_points.last_activity_date', 'user_points.created_at', 'user_points.updated_at')
-                    ->orderByRaw('SUM(point_transactions.points) DESC');
-                break;
-                
+                // Get points earned this month using subquery
+                $monthlyPoints = DB::table('point_transactions')
+                    ->select('user_id', DB::raw('SUM(points) as monthly_points'))
+                    ->where('created_at', '>=', Carbon::now()->startOfMonth())
+                    ->where('type', 'earned')
+                    ->groupBy('user_id');
+                    
+                return UserPoint::with(['user'])
+                    ->joinSub($monthlyPoints, 'monthly', function ($join) {
+                        $join->on('user_points.user_id', '=', 'monthly.user_id');
+                    })
+                    ->whereHas('user', function ($q) {
+                        $q->where('is_active', true);
+                    })
+                    ->orderBy('monthly.monthly_points', 'desc')
+                    ->limit($limit)
+                    ->get();
+                    
             default:
                 // All time - order by total earned
-                $query->orderBy('total_earned', 'desc');
+                return UserPoint::with(['user'])
+                    ->whereHas('user', function ($q) {
+                        $q->where('is_active', true);
+                    })
+                    ->orderBy('total_earned', 'desc')
+                    ->limit($limit)
+                    ->get();
         }
-        
-        return $query->limit($limit)->get();
     }
     
     /**

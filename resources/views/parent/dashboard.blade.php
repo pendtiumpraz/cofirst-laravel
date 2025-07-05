@@ -282,7 +282,7 @@
                     </div>
                 </a>
 
-                <a href="#" class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                <a href="{{ route('parent.contact-admin') }}" class="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
                     <div class="flex items-center">
                         <div class="p-3 rounded-full bg-red-100 text-red-600">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,7 +318,7 @@
                                 <span class="px-2 py-1 bg-{{ $child->is_active ? 'green' : 'red' }}-100 text-{{ $child->is_active ? 'green' : 'red' }}-800 text-xs font-medium rounded-full">
                                     {{ $child->is_active ? 'Aktif' : 'Non-aktif' }}
                                 </span>
-                                <a href="#" class="text-blue-600 hover:text-blue-800">
+                                <a href="{{ route('parent.class-photos.index') }}" class="text-blue-600 hover:text-blue-800">
                                     Lihat Detail →
                                 </a>
                             </div>
@@ -335,7 +335,7 @@
                     </svg>
                     <h3 class="text-lg font-semibold text-gray-800 mb-2">Belum Ada Anak Terdaftar</h3>
                     <p class="text-gray-600 mb-4">Hubungi admin untuk mendaftarkan anak Anda ke program Coding First</p>
-                    <a href="#" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <a href="{{ route('parent.contact-admin') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
                         Hubungi Admin
                     </a>
                 </div>

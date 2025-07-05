@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Kurikulum Kelas Saya') }}
+            {{ __('Curriculums') }}
         </h2>
     </x-slot>
 
@@ -9,46 +9,20 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    @if($curriculums->count() > 0)
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            @foreach($curriculums as $curriculum)
-                                <div class="bg-white border border-gray-200 rounded-lg shadow-md p-6">
-                                    <h3 class="text-lg font-semibold text-gray-900 mb-2">
-                                        {{ $curriculum->name }}
-                                    </h3>
-                                    <p class="text-sm text-gray-600 mb-2">
-                                        {{ $curriculum->course->name }}
-                                    </p>
-                                    @if($curriculum->description)
-                                        <p class="text-gray-600 text-sm mb-4">
-                                            {{ Str::limit($curriculum->description, 100) }}
-                                        </p>
-                                    @endif
-                                    <div class="flex justify-between items-center">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            {{ $curriculum->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                            {{ ucfirst($curriculum->status) }}
-                                        </span>
-                                        <div class="flex space-x-2">
-                                            <a href="{{ route('teacher.curriculums.show', $curriculum) }}" 
-                                               class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
-                                                Lihat
-                                            </a>
-                                            <a href="{{ route('teacher.curriculums.materials', $curriculum) }}" 
-                                               class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm">
-                                                Materi
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
+                    <div class="text-center py-12">
+                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                            </svg>
                         </div>
-                    @else
-                        <div class="text-center py-12">
-                            <h3 class="text-lg font-medium text-gray-900">Tidak ada kurikulum</h3>
-                            <p class="text-gray-500">Belum ada kurikulum yang tersedia untuk kelas yang Anda ajar.</p>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Curriculums feature is coming soon!' }}</h3>
+                        <p class="mt-1 text-sm text-gray-500">This feature will show all available curriculums for your classes.</p>
+                        <div class="mt-6">
+                            <a href="{{ route('teacher.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                Back to Dashboard
+                            </a>
                         </div>
-                    @endif
+                    </div>
                 </div>
             </div>
         </div>

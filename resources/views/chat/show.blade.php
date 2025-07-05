@@ -147,7 +147,7 @@ function sendMessage() {
         }
     }
     
-    fetch(`{{ route('chat.send', '') }}/${conversationId}`, {
+    fetch(`{{ route('chat.send', $conversation->id) }}`, {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
@@ -242,7 +242,7 @@ function clearFilePreview() {
 }
 
 function markMessageAsRead(messageId) {
-    fetch(`{{ route('chat.mark-read', '') }}/${conversationId}`, {
+    fetch(`{{ route('chat.mark-read', $conversation->id) }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

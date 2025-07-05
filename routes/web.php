@@ -61,7 +61,7 @@ Route::middleware('auth')->group(function () {
         } elseif ($user->hasRole('student')) {
             return redirect()->route('student.dashboard');
         } elseif ($user->hasRole('finance')) {
-            return redirect()->route('finance.dashboard');
+            return redirect()->route('dashboard');
         }
         
         // Default fallback
@@ -127,6 +127,22 @@ Route::middleware('auth')->group(function () {
         // Schedule Management
         Route::resource('schedules', \App\Http\Controllers\Admin\ScheduleController::class);
         
+        // Photo Gallery Management
+        Route::resource('class-photos', \App\Http\Controllers\Admin\ClassPhotoController::class);
+        Route::post('class-photos/{photo}/toggle-status', [\App\Http\Controllers\Admin\ClassPhotoController::class, 'toggleStatus'])->name('class-photos.toggle-status');
+        
+        // Certificate Templates Management
+        Route::resource('certificate-templates', \App\Http\Controllers\Admin\CertificateTemplateController::class);
+        Route::post('certificate-templates/{template}/toggle-status', [\App\Http\Controllers\Admin\CertificateTemplateController::class, 'toggleStatus'])->name('certificate-templates.toggle-status');
+        
+        // Certificate Bulk Generation
+        Route::get('certificates/bulk-generate', [\App\Http\Controllers\Admin\CertificateController::class, 'bulkGenerate'])->name('certificates.bulk-generate');
+        Route::post('certificates/bulk-generate', [\App\Http\Controllers\Admin\CertificateController::class, 'processBulkGenerate'])->name('certificates.process-bulk-generate');
+        
+        // Testimonials Management
+        Route::resource('testimonials', \App\Http\Controllers\Admin\TestimonialController::class);
+        Route::post('testimonials/{testimonial}/toggle-status', [\App\Http\Controllers\Admin\TestimonialController::class, 'toggleStatus'])->name('testimonials.toggle-status');
+        
         // Gamification Management
         Route::resource('badges', \App\Http\Controllers\Admin\BadgeController::class);
         Route::post('badges/{badge}/toggle-status', [\App\Http\Controllers\Admin\BadgeController::class, 'toggleStatus'])->name('badges.toggle-status');
@@ -169,6 +185,26 @@ Route::middleware('auth')->group(function () {
         Route::resource('reports', ReportController::class);
         Route::get('reports/class/{class}', [ReportController::class, 'byClass'])->name('reports.by-class');
         Route::get('reports/student/{student}', [ReportController::class, 'byStudent'])->name('reports.by-student');
+        
+        // Teacher Handover Management
+        Route::resource('handovers', \App\Http\Controllers\Teacher\HandoverController::class);
+        Route::post('handovers/{handover}/approve', [\App\Http\Controllers\Teacher\HandoverController::class, 'approve'])->name('handovers.approve');
+        
+        // Teacher Class Photos
+        Route::resource('class-photos', \App\Http\Controllers\Teacher\ClassPhotoController::class);
+        Route::get('class-photos/upload/{class}', [\App\Http\Controllers\Teacher\ClassPhotoController::class, 'upload'])->name('class-photos.upload');
+        
+        // Teacher Certificate Generation
+        Route::get('certificates/generate', [\App\Http\Controllers\Teacher\CertificateController::class, 'generate'])->name('certificates.generate');
+        Route::post('certificates/generate', [\App\Http\Controllers\Teacher\CertificateController::class, 'processGenerate'])->name('certificates.process-generate');
+        
+        // Teacher Student Progress (Gamification)
+        Route::get('student-progress', [\App\Http\Controllers\Teacher\StudentProgressController::class, 'index'])->name('student-progress.index');
+        Route::get('student-progress/{student}', [\App\Http\Controllers\Teacher\StudentProgressController::class, 'show'])->name('student-progress.show');
+        
+        // Teacher Attendance (placeholder for future implementation)
+        Route::get('attendance', [\App\Http\Controllers\Teacher\AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/today', [\App\Http\Controllers\Teacher\AttendanceController::class, 'today'])->name('attendance.today');
 
         // Note: Class Reports are now handled in the global middleware group below
     });
@@ -203,6 +239,19 @@ Route::middleware('auth')->group(function () {
         // Curriculum for Parents
         Route::get('curriculum', [\App\Http\Controllers\Parent\CurriculumController::class, 'index'])->name('curriculum.index');
         Route::get('curriculum/child/{child}/class/{class}', [\App\Http\Controllers\Parent\CurriculumController::class, 'showChildProgress'])->name('curriculum.child-progress');
+        
+        // Parent Class Photos
+        Route::get('class-photos', [\App\Http\Controllers\Parent\ClassPhotoController::class, 'index'])->name('class-photos.index');
+        Route::get('class-photos/{photo}', [\App\Http\Controllers\Parent\ClassPhotoController::class, 'show'])->name('class-photos.show');
+        
+        // Parent Testimonials
+        Route::get('testimonials/create', [\App\Http\Controllers\Parent\TestimonialController::class, 'create'])->name('testimonials.create');
+        Route::post('testimonials', [\App\Http\Controllers\Parent\TestimonialController::class, 'store'])->name('testimonials.store');
+        Route::get('testimonials', [\App\Http\Controllers\Parent\TestimonialController::class, 'index'])->name('testimonials.index');
+        
+        // Parent Contact Admin
+        Route::get('contact-admin', [\App\Http\Controllers\Parent\ContactController::class, 'index'])->name('contact-admin');
+        Route::post('contact-admin', [\App\Http\Controllers\Parent\ContactController::class, 'send'])->name('contact-admin.send');
     });
 
     // Student routes

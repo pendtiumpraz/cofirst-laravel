@@ -1,30 +1,28 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Attendance Management
+            {{ __('Attendance Management') }}
         </h2>
     </x-slot>
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <!-- Welcome Section -->
-            <div class="bg-gradient-to-r from-blue-500 to-purple-600 overflow-hidden shadow-sm sm:rounded-lg mb-6">
-                <div class="p-6 text-white">
-                    <h1 class="text-2xl font-bold mb-2">Attendance Management</h1>
-                    <p class="text-blue-100">Track and manage student attendance for your classes.</p>
-                </div>
-            </div>
-
-            <!-- Coming Soon Message -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-center">
-                    <div class="mx-auto h-24 w-24 text-gray-400 mb-4">
-                        <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                        </svg>
+                <div class="p-6 text-gray-900">
+                    <div class="text-center py-12">
+                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                            </svg>
+                        </div>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Attendance management feature is coming soon!' }}</h3>
+                        <p class="mt-1 text-sm text-gray-500">This feature will allow you to manage student attendance.</p>
+                        <div class="mt-6">
+                            <a href="{{ route('teacher.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                Back to Dashboard
+                            </a>
+                        </div>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Attendance Feature Coming Soon</h3>
-                    <p class="text-gray-600">We're working on a comprehensive attendance management system for teachers.</p>
                 </div>
             </div>
         </div>

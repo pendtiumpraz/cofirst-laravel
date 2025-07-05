@@ -126,6 +126,15 @@ Route::middleware('auth')->group(function () {
 
         // Schedule Management
         Route::resource('schedules', \App\Http\Controllers\Admin\ScheduleController::class);
+        
+        // Gamification Management
+        Route::resource('badges', \App\Http\Controllers\Admin\BadgeController::class);
+        Route::post('badges/{badge}/toggle-status', [\App\Http\Controllers\Admin\BadgeController::class, 'toggleStatus'])->name('badges.toggle-status');
+        
+        Route::resource('rewards', \App\Http\Controllers\Admin\RewardController::class);
+        Route::post('rewards/{reward}/toggle-status', [\App\Http\Controllers\Admin\RewardController::class, 'toggleStatus'])->name('rewards.toggle-status');
+        Route::get('reward-redemptions', [\App\Http\Controllers\Admin\RewardController::class, 'redemptions'])->name('reward-redemptions.index');
+        Route::post('reward-redemptions/{redemption}/process', [\App\Http\Controllers\Admin\RewardController::class, 'processRedemption'])->name('reward-redemptions.process');
 
         // Role and Permission Management (SuperAdmin only)
         Route::middleware(['role:superadmin'])->group(function () {
@@ -269,6 +278,18 @@ Route::middleware('auth')->group(function () {
         Route::put('/message/{message}', [ChatController::class, 'editMessage'])->name('message.edit');
         Route::delete('/message/{message}', [ChatController::class, 'deleteMessage'])->name('message.delete');
         Route::get('/search', [ChatController::class, 'search'])->name('search');
+    });
+
+    // Gamification routes - accessible by all authenticated users
+    Route::middleware(['auth'])->prefix('gamification')->name('gamification.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\GamificationController::class, 'index'])->name('index');
+        Route::get('/leaderboard', [\App\Http\Controllers\GamificationController::class, 'leaderboard'])->name('leaderboard');
+        Route::get('/badges', [\App\Http\Controllers\GamificationController::class, 'badges'])->name('badges');
+        Route::post('/badges/{badge}/toggle-featured', [\App\Http\Controllers\GamificationController::class, 'toggleBadgeFeatured'])->name('badges.toggle-featured');
+        Route::get('/rewards', [\App\Http\Controllers\GamificationController::class, 'rewards'])->name('rewards');
+        Route::post('/rewards/{reward}/redeem', [\App\Http\Controllers\GamificationController::class, 'redeemReward'])->name('rewards.redeem');
+        Route::get('/redemptions', [\App\Http\Controllers\GamificationController::class, 'redemptions'])->name('redemptions');
+        Route::get('/point-history', [\App\Http\Controllers\GamificationController::class, 'pointHistory'])->name('point-history');
     });
 
 });

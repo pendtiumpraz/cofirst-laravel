@@ -244,4 +244,98 @@ class User extends Authenticatable
     {
         return $this->conversations()->wherePivot('unread_count', '>', 0);
     }
+
+    /**
+     * Get user's points
+     */
+    public function points()
+    {
+        return $this->hasOne(UserPoint::class);
+    }
+
+    /**
+     * Get user's point transactions
+     */
+    public function pointTransactions()
+    {
+        return $this->hasMany(PointTransaction::class);
+    }
+
+    /**
+     * Get user's badges
+     */
+    public function badges()
+    {
+        return $this->belongsToMany(Badge::class, 'user_badges')
+            ->withPivot(['earned_at', 'earned_for', 'is_featured'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Get user's featured badges
+     */
+    public function featuredBadges()
+    {
+        return $this->badges()->wherePivot('is_featured', true);
+    }
+
+    /**
+     * Get user's reward redemptions
+     */
+    public function rewardRedemptions()
+    {
+        return $this->hasMany(RewardRedemption::class);
+    }
+
+    /**
+     * Initialize points for user if not exists
+     */
+    public function initializePoints()
+    {
+        if (!$this->points) {
+            $this->points()->create([
+                'points' => 0,
+                'total_earned' => 0,
+                'total_spent' => 0,
+                'level' => 1,
+                'current_streak' => 0,
+                'longest_streak' => 0,
+            ]);
+        }
+        
+        return $this->points;
+    }
+
+    /**
+     * Add points to user
+     */
+    public function addPoints($amount, $reason, $description = null, $relatedModel = null)
+    {
+        $this->initializePoints();
+        return $this->points->addPoints($amount, $reason, $description, $relatedModel);
+    }
+
+    /**
+     * Check if user has enough points
+     */
+    public function hasPoints($amount)
+    {
+        return $this->points && $this->points->points >= $amount;
+    }
+
+    /**
+     * Get user's current level
+     */
+    public function getCurrentLevelAttribute()
+    {
+        return $this->points ? $this->points->level : 1;
+    }
+
+    /**
+     * Get user's current points
+     */
+    public function getCurrentPointsAttribute()
+    {
+        return $this->points ? $this->points->points : 0;
+    }
 }

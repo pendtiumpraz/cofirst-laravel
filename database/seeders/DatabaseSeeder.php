@@ -41,5 +41,8 @@ class DatabaseSeeder extends Seeder
         
         // 9. Seed gamification data (badges and rewards).
         $this->call(GamificationSeeder::class);
+        
+        // 10. Seed testimonials from parents.
+        $this->call(TestimonialSeeder::class);
     }
 }

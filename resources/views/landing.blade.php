@@ -20,71 +20,25 @@
         }
         
         .section {
-            height: 100vh;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
-        }
-        
-        .scroll-indicator {
-            position: fixed;
-            right: 2rem;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 50;
-        }
-        
-        .scroll-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            margin: 8px 0;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .scroll-dot.active {
-            background: white;
-            transform: scale(1.2);
-        }
-        
-        .floating-nav {
-            position: fixed;
-            top: 2rem;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 50;
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 50px;
-            padding: 0.5rem 1rem;
-        }
-        
-        .parallax-bg {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 120%;
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            z-index: -1;
+            padding: 4rem 0;
         }
         
         .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(to right, #60A5FA, #A78BFA, #F472B6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
         
-        .animate-float {
-            animation: float 6s ease-in-out infinite;
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         @keyframes float {
@@ -92,157 +46,64 @@
             50% { transform: translateY(-20px); }
         }
         
-        .glass-effect {
-            backdrop-filter: blur(20px);
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .scroll-down {
-            position: absolute;
-            bottom: 2rem;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            animation: bounce 2s infinite;
-        }
-        
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
-            40% { transform: translateX(-50%) translateY(-10px); }
-            60% { transform: translateX(-50%) translateY(-5px); }
+        .float-animation {
+            animation: float 6s ease-in-out infinite;
         }
     </style>
 </head>
-<body class="antialiased">
-    <!-- Floating Navigation -->
-    <nav class="floating-nav">
-        <div class="flex items-center space-x-6">
-            <div class="text-white font-bold text-lg">Coding First</div>
-            <div class="hidden md:flex items-center space-x-4">
-                <a href="#hero" class="text-white/80 hover:text-white transition-colors text-sm">Home</a>
-                <a href="#about" class="text-white/80 hover:text-white transition-colors text-sm">About</a>
-                <a href="#courses" class="text-white/80 hover:text-white transition-colors text-sm">Courses</a>
-                <a href="#contact" class="text-white/80 hover:text-white transition-colors text-sm">Contact</a>
-                @auth
-                    <a href="{{ route('dashboard') }}" class="bg-white/20 text-white px-4 py-2 rounded-full hover:bg-white/30 transition-colors text-sm">Dashboard</a>
-                @else
-                    <a href="{{ route('login') }}" class="text-white/80 hover:text-white transition-colors text-sm">Login</a>
-                    <a href="{{ route('register') }}" class="bg-white/20 text-white px-4 py-2 rounded-full hover:bg-white/30 transition-colors text-sm">Register</a>
-                @endauth
+<body class="bg-black text-white">
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass-effect">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-xl">CF</span>
+                    </div>
+                    <span class="text-xl font-bold text-white">Coding First</span>
+                </div>
+                
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#home" class="text-white/80 hover:text-white transition">Home</a>
+                    <a href="#courses" class="text-white/80 hover:text-white transition">Courses</a>
+                    <a href="#teachers" class="text-white/80 hover:text-white transition">Teachers</a>
+                    <a href="#students" class="text-white/80 hover:text-white transition">Students</a>
+                    <a href="#testimonials" class="text-white/80 hover:text-white transition">Testimonials</a>
+                    @auth
+                        <a href="{{ route('dashboard') }}" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-purple-700 transition">
+                            Dashboard
+                        </a>
+                    @else
+                        <a href="{{ route('login') }}" class="text-white/80 hover:text-white transition">Login</a>
+                        <a href="{{ route('register') }}" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-purple-700 transition">
+                            Register
+                        </a>
+                    @endauth
+                </div>
             </div>
         </div>
     </nav>
 
-    <!-- Scroll Indicator -->
-    <div class="scroll-indicator">
-        <div class="scroll-dot active" data-section="hero"></div>
-        <div class="scroll-dot" data-section="about"></div>
-        <div class="scroll-dot" data-section="courses"></div>
-        <div class="scroll-dot" data-section="stats"></div>
-        <div class="scroll-dot" data-section="contact"></div>
-    </div>
-
     <!-- Hero Section -->
-    <section id="hero" class="section bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-hidden">
-        <div class="parallax-bg bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900"></div>
-        
-        <!-- Animated Background Elements -->
-        <div class="absolute inset-0 overflow-hidden">
-            <div class="absolute -top-4 -right-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float"></div>
-            <div class="absolute -bottom-8 -left-4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float" style="animation-delay: 2s;"></div>
-            <div class="absolute top-1/2 left-1/2 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float" style="animation-delay: 4s;"></div>
-        </div>
-        
-        <div class="container mx-auto px-6 text-center relative z-10">
-            <h1 class="text-6xl md:text-8xl font-bold text-white mb-6 leading-tight">
-                Coding <span class="gradient-text">First</span>
-            </h1>
-            <p class="text-xl md:text-2xl text-white/80 mb-8 max-w-3xl mx-auto">
-                Belajar Programming dari Praktisi Profesional Jepang
-            </p>
-            <p class="text-lg text-white/60 mb-12 max-w-2xl mx-auto">
-                Dapatkan skill programming yang dibutuhkan industri global dengan pengajar berpengalaman internasional
-            </p>
-            
-            <div class="flex flex-col sm:flex-row gap-6 justify-center">
-                <a href="#courses" class="glass-effect text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white/20 transition-all transform hover:scale-105">
-                    Explore Courses
-                </a>
-                <a href="#about" class="border-2 border-white/30 text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white/10 transition-all transform hover:scale-105">
-                    Learn More
-                </a>
-            </div>
-        </div>
-        
-        <div class="scroll-down">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-            </svg>
-        </div>
-    </section>
-
-    <!-- About Section -->
-    <section id="about" class="section bg-gradient-to-br from-gray-900 via-gray-800 to-black relative">
+    <section id="home" class="section bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 relative">
+        <div class="absolute inset-0 bg-black/40"></div>
         <div class="container mx-auto px-6 relative z-10">
-            <div class="grid lg:grid-cols-2 gap-16 items-center">
-                <div>
-                    <h2 class="text-5xl md:text-6xl font-bold text-white mb-8">
-                        Why <span class="gradient-text">Choose Us?</span>
-                    </h2>
-                    <p class="text-xl text-white/80 mb-8">
-                        Kami berkomitmen memberikan pendidikan programming terbaik dengan standar internasional dari pengajar yang berpengalaman di perusahaan Jepang.
-                    </p>
-                    
-                    <div class="space-y-6">
-                        <div class="flex items-start space-x-4">
-                            <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-xl font-bold text-white mb-2">Expert Instructors</h3>
-                                <p class="text-white/70">Professional programmers dari perusahaan Jepang terkemuka</p>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-start space-x-4">
-                            <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-xl font-bold text-white mb-2">Modern Curriculum</h3>
-                                <p class="text-white/70">Kurikulum selalu update sesuai kebutuhan industri terkini</p>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-start space-x-4">
-                            <div class="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-xl font-bold text-white mb-2">Personal Mentoring</h3>
-                                <p class="text-white/70">Bimbingan personal untuk memastikan pemahaman optimal</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="relative">
-                    <div class="glass-effect rounded-3xl p-8 text-center">
-                        <div class="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mx-auto mb-6 flex items-center justify-center">
-                            <svg class="w-12 h-12 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3z"/>
-                            </svg>
-                        </div>
-                        <h3 class="text-3xl font-bold text-white mb-4">1000+ Graduates</h3>
-                        <p class="text-white/80">Berhasil berkarir di perusahaan teknologi terkemuka</p>
-                    </div>
+            <div class="text-center">
+                <h1 class="text-6xl md:text-8xl font-bold mb-6">
+                    Learn to <span class="gradient-text">Code</span>
+                    <span class="block text-4xl md:text-6xl mt-4">From Industry Experts</span>
+                </h1>
+                <p class="text-xl md:text-2xl text-white/80 mb-12 max-w-3xl mx-auto">
+                    Bergabunglah dengan Coding First dan raih karir impian Anda di dunia teknologi. 
+                    Belajar langsung dari praktisi dengan pengalaman perusahaan multinasional.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="#courses" class="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105">
+                        Explore Courses
+                    </a>
+                    <a href="{{ route('register') }}" class="px-8 py-4 glass-effect text-white font-semibold rounded-lg hover:bg-white/20 transition-all transform hover:scale-105">
+                        Get Started Free
+                    </a>
                 </div>
             </div>
         </div>
@@ -298,55 +159,166 @@
                     @endforeach
                 </div>
             @else
+                <div class="text-center">
+                    <p class="text-white/60 text-lg">No courses available at the moment.</p>
+                </div>
+            @endif
+        </div>
+    </section>
+
+    <!-- Teachers Section -->
+    <section id="teachers" class="section bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 relative">
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl md:text-6xl font-bold text-white mb-6">
+                    Expert <span class="gradient-text">Instructors</span>
+                </h2>
+                <p class="text-xl text-white/80 max-w-3xl mx-auto">
+                    Belajar langsung dari praktisi profesional dengan pengalaman industri
+                </p>
+            </div>
+            
+            @if($featuredTeachers->count() > 0)
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    @foreach($featuredTeachers as $teacher)
+                        <div class="glass-effect rounded-2xl p-6 text-center hover:bg-white/20 transition-all transform hover:scale-105">
+                            <div class="mb-4">
+                                @if($teacher->profile_photo_path)
+                                    <img src="{{ $teacher->profile_photo_url }}" alt="{{ $teacher->name }}" 
+                                         class="w-24 h-24 rounded-full mx-auto object-cover border-4 border-white/20">
+                                @else
+                                    <div class="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mx-auto flex items-center justify-center">
+                                        <span class="text-white text-3xl font-bold">{{ substr($teacher->name, 0, 1) }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-1">{{ $teacher->name }}</h3>
+                            @if($teacher->profile && $teacher->profile->specialization)
+                                <p class="text-sm text-white/70 mb-3">{{ $teacher->profile->specialization }}</p>
+                            @else
+                                <p class="text-sm text-white/70 mb-3">Expert Developer</p>
+                            @endif
+                            <div class="flex justify-center space-x-2">
+                                @for($i = 0; $i < 5; $i++)
+                                    <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                    </svg>
+                                @endfor
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </section>
+
+    <!-- Top Students Section -->
+    <section id="students" class="section bg-gradient-to-br from-blue-900 via-teal-900 to-green-900 relative">
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl md:text-6xl font-bold text-white mb-6">
+                    Top <span class="gradient-text">Students</span>
+                </h2>
+                <p class="text-xl text-white/80 max-w-3xl mx-auto">
+                    Siswa-siswa berprestasi dengan dedikasi tinggi dalam pembelajaran
+                </p>
+            </div>
+            
+            @if($topStudents->count() > 0)
                 <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <div class="glass-effect rounded-2xl p-6">
-                        <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-6 flex items-center justify-center">
-                            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                            </svg>
+                    @foreach($topStudents as $student)
+                        <div class="glass-effect rounded-2xl p-6 hover:bg-white/20 transition-all transform hover:scale-105">
+                            <div class="flex items-center mb-4">
+                                @if($student->profile_photo_path)
+                                    <img src="{{ $student->profile_photo_url }}" alt="{{ $student->name }}" 
+                                         class="w-16 h-16 rounded-full object-cover border-2 border-white/20">
+                                @else
+                                    <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center">
+                                        <span class="text-white text-xl font-bold">{{ substr($student->name, 0, 1) }}</span>
+                                    </div>
+                                @endif
+                                <div class="ml-4 flex-1">
+                                    <h3 class="text-lg font-bold text-white">{{ $student->name }}</h3>
+                                    @if($student->points)
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-sm text-white/70">Level {{ $student->points->level }}</span>
+                                            <span class="text-sm text-yellow-400 font-medium">{{ number_format($student->points->total_earned) }} pts</span>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                            @if($student->featuredBadges && $student->featuredBadges->count() > 0)
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach($student->featuredBadges->take(3) as $badge)
+                                        <span class="px-2 py-1 bg-white/20 text-white text-xs font-medium rounded-full">
+                                            {{ $badge->name }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
-                        <h3 class="text-xl font-bold text-white mb-3">Web Development</h3>
-                        <p class="text-white/70 mb-6">Full-stack web development dengan React, Node.js, dan database modern</p>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-white/60">12 weeks</span>
-                            <span class="text-2xl font-bold text-white">Rp 2.500.000</span>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </section>
+
+    <!-- Parent Testimonials Section -->
+    <section id="testimonials" class="section bg-gradient-to-br from-green-900 via-teal-900 to-blue-900 relative">
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="text-center mb-16">
+                <h2 class="text-5xl md:text-6xl font-bold text-white mb-6">
+                    Parent <span class="gradient-text">Testimonials</span>
+                </h2>
+                <p class="text-xl text-white/80 max-w-3xl mx-auto">
+                    Apa kata orang tua tentang perkembangan anak-anak mereka di Coding First
+                </p>
+            </div>
+            
+            @if($testimonials->count() > 0)
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    @foreach($testimonials as $testimonial)
+                        <div class="glass-effect rounded-2xl p-8 hover:bg-white/20 transition-all">
+                            <div class="flex mb-4">
+                                @for($i = 1; $i <= 5; $i++)
+                                    <svg class="w-5 h-5 {{ $i <= $testimonial->rating ? 'text-yellow-400' : 'text-white/30' }}" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                    </svg>
+                                @endfor
+                            </div>
+                            
+                            <h3 class="text-xl font-bold text-white mb-3">{{ $testimonial->title }}</h3>
+                            <p class="text-white/80 mb-6 italic">"{{ $testimonial->content }}"</p>
+                            
+                            <div class="flex items-center">
+                                @if($testimonial->user->profile_photo_path)
+                                    <img src="{{ $testimonial->user->profile_photo_url }}" alt="{{ $testimonial->user->name }}" 
+                                         class="w-12 h-12 rounded-full object-cover border-2 border-white/20">
+                                @else
+                                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
+                                        <span class="text-white font-bold">{{ substr($testimonial->user->name, 0, 1) }}</span>
+                                    </div>
+                                @endif
+                                <div class="ml-3">
+                                    <p class="text-white font-medium">{{ $testimonial->user->name }}</p>
+                                    @if($testimonial->child_name)
+                                        <p class="text-sm text-white/60">Orang tua dari {{ $testimonial->child_name }}</p>
+                                    @endif
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="glass-effect rounded-2xl p-6">
-                        <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-blue-600 rounded-2xl mb-6 flex items-center justify-center">
-                            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                            </svg>
-                        </div>
-                        <h3 class="text-xl font-bold text-white mb-3">Mobile Development</h3>
-                        <p class="text-white/70 mb-6">Pengembangan aplikasi mobile dengan React Native dan Flutter</p>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-white/60">10 weeks</span>
-                            <span class="text-2xl font-bold text-white">Rp 2.000.000</span>
-                        </div>
-                    </div>
-                    
-                    <div class="glass-effect rounded-2xl p-6">
-                        <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl mb-6 flex items-center justify-center">
-                            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                            </svg>
-                        </div>
-                        <h3 class="text-xl font-bold text-white mb-3">Data Science</h3>
-                        <p class="text-white/70 mb-6">Analisis data dan machine learning dengan Python dan R</p>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-white/60">16 weeks</span>
-                            <span class="text-2xl font-bold text-white">Rp 3.000.000</span>
-                        </div>
-                    </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="text-center py-8">
+                    <p class="text-white/60 text-lg">Testimonials coming soon...</p>
                 </div>
             @endif
         </div>
     </section>
 
     <!-- Statistics Section -->
-    <section id="stats" class="section bg-gradient-to-br from-gray-900 to-black relative">
+    <section class="section bg-gradient-to-br from-gray-900 to-black relative">
         <div class="container mx-auto px-6 relative z-10">
             <div class="text-center mb-16">
                 <h2 class="text-5xl md:text-6xl font-bold text-white mb-6">
@@ -375,67 +347,44 @@
         </div>
     </section>
 
-    <!-- Contact Section -->
-    <section id="contact" class="section bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 relative">
+    <!-- CTA Section -->
+    <section class="section bg-gradient-to-br from-purple-900 via-pink-900 to-red-900">
         <div class="container mx-auto px-6 text-center relative z-10">
-            <h2 class="text-5xl md:text-6xl font-bold text-white mb-8">
-                Ready to <span class="gradient-text">Start?</span>
+            <h2 class="text-5xl md:text-7xl font-bold text-white mb-8">
+                Ready to Start Your
+                <span class="block gradient-text">Coding Journey?</span>
             </h2>
-            <p class="text-xl text-white/80 mb-12 max-w-2xl mx-auto">
-                Bergabunglah dengan ribuan siswa yang telah berhasil mengembangkan karir di bidang teknologi
+            <p class="text-xl text-white/80 mb-12 max-w-3xl mx-auto">
+                Bergabunglah dengan ribuan siswa yang telah sukses mengubah karir mereka.
+                Dapatkan konsultasi gratis dengan expert kami sekarang.
             </p>
-            
-            <div class="flex flex-col sm:flex-row gap-6 justify-center">
-                @auth
-                    <a href="{{ route('dashboard') }}" class="glass-effect text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white/20 transition-all transform hover:scale-105">
-                        Go to Dashboard
-                    </a>
-                @else
-                    <a href="{{ route('register') }}" class="glass-effect text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white/20 transition-all transform hover:scale-105">
-                        Join Now
-                    </a>
-                    <a href="{{ route('login') }}" class="border-2 border-white/30 text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white/10 transition-all transform hover:scale-105">
-                        Sign In
-                    </a>
-                @endauth
-            </div>
-            
-            <div class="mt-16 grid md:grid-cols-3 gap-8">
-                <div class="glass-effect rounded-2xl p-6">
-                    <div class="w-12 h-12 bg-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-semibold text-white mb-2">Email</h3>
-                    <p class="text-white/70">info@codingfirst.id</p>
-                </div>
-                
-                <div class="glass-effect rounded-2xl p-6">
-                    <div class="w-12 h-12 bg-green-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-semibold text-white mb-2">Phone</h3>
-                    <p class="text-white/70">+62 812-3456-7890</p>
-                </div>
-                
-                <div class="glass-effect rounded-2xl p-6">
-                    <div class="w-12 h-12 bg-purple-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-semibold text-white mb-2">Address</h3>
-                    <p class="text-white/70">Jakarta, Indonesia</p>
-                </div>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{{ route('register') }}" class="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105">
+                    Start Learning Now
+                </a>
+                <a href="#" class="px-8 py-4 bg-white/10 backdrop-blur-md text-white font-semibold rounded-lg hover:bg-white/20 transition-all transform hover:scale-105">
+                    Schedule Consultation
+                </a>
             </div>
         </div>
     </section>
 
-    <!-- JavaScript for smooth scrolling and interactions -->
+    <!-- Footer -->
+    <footer class="bg-black/80 py-12">
+        <div class="container mx-auto px-6">
+            <div class="text-center">
+                <div class="flex items-center justify-center space-x-2 mb-4">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-xl">CF</span>
+                    </div>
+                    <span class="text-xl font-bold text-white">Coding First</span>
+                </div>
+                <p class="text-white/60">© 2024 Coding First. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript for smooth scrolling -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Smooth scrolling for navigation links
@@ -451,41 +400,7 @@
                     }
                 });
             });
-
-            // Scroll indicator functionality
-            const sections = document.querySelectorAll('.section');
-            const scrollDots = document.querySelectorAll('.scroll-dot');
-
-            function updateActiveSection() {
-                const scrollPosition = window.scrollY + window.innerHeight / 2;
-
-                sections.forEach((section, index) => {
-                    const sectionTop = section.offsetTop;
-                    const sectionBottom = sectionTop + section.offsetHeight;
-
-                    if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
-                        scrollDots.forEach(dot => dot.classList.remove('active'));
-                        scrollDots[index].classList.add('active');
-                    }
-                });
-            }
-
-            // Scroll dot click handlers
-            scrollDots.forEach((dot, index) => {
-                dot.addEventListener('click', () => {
-                    sections[index].scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                });
-            });
-
-            // Update active section on scroll
-            window.addEventListener('scroll', updateActiveSection);
-            
-            // Initialize
-            updateActiveSection();
         });
     </script>
 </body>
-</html> 
+</html>

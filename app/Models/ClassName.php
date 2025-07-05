@@ -14,6 +14,7 @@ class ClassName extends Model
         'teacher_id',
         'name',
         'description',
+        'photo_path',
         'start_date',
         'end_date',
         'max_students',
@@ -122,5 +123,15 @@ class ClassName extends Model
             'cancelled' => 'Dibatalkan',
             default => 'Tidak Diketahui'
         };
+    }
+
+    /**
+     * Get the URL to the class photo.
+     */
+    public function getPhotoUrlAttribute()
+    {
+        return $this->photo_path
+            ? asset('storage/' . $this->photo_path)
+            : asset('images/default-class-photo.png');
     }
 }

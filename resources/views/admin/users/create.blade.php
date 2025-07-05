@@ -11,7 +11,7 @@
                 <p class="text-gray-600">Add a new user to the system</p>
             </div>
 
-            <form method="POST" action="{{ route('admin.users.store') }}" class="space-y-6">
+            <form method="POST" action="{{ route('admin.users.store') }}" class="space-y-6" enctype="multipart/form-data">
                 @csrf
 
                 <!-- Name -->
@@ -30,6 +30,19 @@
                     <input type="email" name="email" id="email" value="{{ old('email') }}" 
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent @error('email') border-red-500 @enderror">
                     @error('email')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Profile Photo -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
+                    <x-photo-upload 
+                        name="photo"
+                        :max-size="5120"
+                        accept="image/jpeg,image/png,image/jpg,image/gif"
+                    />
+                    @error('photo')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>

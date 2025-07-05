@@ -20,6 +20,7 @@ use App\Http\Controllers\Student\MaterialController as StudentMaterialController
 use App\Http\Controllers\Parent\ProgressController;
 use App\Http\Controllers\PhotoUploadController;
 use App\Http\Controllers\ProjectGalleryController;
+use App\Http\Controllers\CertificateController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +34,9 @@ Route::get('/', [LandingController::class, 'index'])->name('landing');
 Route::get('/about', [LandingController::class, 'about'])->name('about');
 Route::get('/courses', [LandingController::class, 'courses'])->name('courses');
 Route::get('/contact', [LandingController::class, 'contact'])->name('contact');
+
+// Certificate verification (public)
+Route::get('/certificate/verify/{code}', [CertificateController::class, 'verify'])->name('certificate.verify');
 
 // Authenticated routes
 // Role switching routes
@@ -232,6 +236,26 @@ Route::middleware('auth')->group(function () {
         Route::get('reports', [FinanceController::class, 'reports'])->name('reports.index');
         Route::get('reports/daily', [FinanceController::class, 'dailyReport'])->name('reports.daily');
         Route::get('reports/export', [FinanceController::class, 'exportReport'])->name('reports.export');
+    });
+
+    // Certificate routes - accessible by all authenticated users with role-based filtering
+    Route::middleware(['role:admin|superadmin|teacher|student|parent'])->group(function () {
+        Route::get('certificates', [CertificateController::class, 'index'])->name('certificates.index');
+        Route::get('certificates/{certificate}', [CertificateController::class, 'show'])->name('certificates.show');
+        Route::get('certificates/{certificate}/download', [CertificateController::class, 'download'])->name('certificates.download');
+    });
+
+    // Certificate management - admin and teachers only
+    Route::middleware(['role:admin|superadmin|teacher'])->group(function () {
+        Route::get('certificates/create', [CertificateController::class, 'create'])->name('certificates.create');
+        Route::post('certificates', [CertificateController::class, 'store'])->name('certificates.store');
+        Route::get('certificates/bulk/create', [CertificateController::class, 'bulkCreate'])->name('certificates.bulk-create');
+        Route::post('certificates/bulk', [CertificateController::class, 'bulkStore'])->name('certificates.bulk-store');
+    });
+
+    // Certificate invalidation - admin only
+    Route::middleware(['role:admin|superadmin'])->group(function () {
+        Route::patch('certificates/{certificate}/invalidate', [CertificateController::class, 'invalidate'])->name('certificates.invalidate');
     });
 
 });

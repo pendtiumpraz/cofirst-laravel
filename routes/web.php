@@ -18,6 +18,8 @@ use App\Http\Controllers\Admin\MaterialController;
 use App\Http\Controllers\Teacher\CurriculumController as TeacherCurriculumController;
 use App\Http\Controllers\Student\MaterialController as StudentMaterialController;
 use App\Http\Controllers\Parent\ProgressController;
+use App\Http\Controllers\PhotoUploadController;
+use App\Http\Controllers\ProjectGalleryController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -65,6 +67,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    // Photo upload routes
+    Route::post('/profile/photo', [PhotoUploadController::class, 'uploadProfilePhoto'])->name('profile.photo.upload');
+    Route::delete('/profile/photo', [PhotoUploadController::class, 'deleteProfilePhoto'])->name('profile.photo.delete');
+    
+    // Project Gallery routes (accessible by students, teachers, and parents)
+    Route::middleware(['role:student|teacher|parent|admin|superadmin'])->group(function () {
+        Route::resource('project-gallery', ProjectGalleryController::class);
+        Route::get('project-gallery/featured', [ProjectGalleryController::class, 'featured'])->name('project-gallery.featured');
+    });
 
     // Admin routes
     Route::middleware(['role:admin|superadmin'])->prefix('admin')->name('admin.')->group(function () {

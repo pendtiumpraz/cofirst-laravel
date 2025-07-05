@@ -7,6 +7,8 @@ use App\Models\ClassName;
 use App\Models\Course;
 use App\Models\User;
 use App\Models\Enrollment;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Facades\Image;
 
 class ClassController extends Controller
 {
@@ -60,10 +62,11 @@ class ClassController extends Controller
             'capacity' => 'required|integer|min:1',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
         ]);
 
-        $class = ClassName::create([
+        $classData = [
             'name' => $request->name,
             'type' => $request->type,
             'course_id' => $request->course_id,
@@ -72,7 +75,26 @@ class ClassController extends Controller
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'status' => $request->boolean('is_active', true) ? 'active' : 'planned',
-        ]);
+        ];
+
+        // Handle photo upload
+        if ($request->hasFile('photo')) {
+            $photo = $request->file('photo');
+            $filename = 'class-photos/' . uniqid() . '-' . time() . '.' . $photo->getClientOriginalExtension();
+            
+            // Process image with Intervention
+            $image = Image::make($photo);
+            $image->resize(800, null, function ($constraint) {
+                $constraint->aspectRatio();
+                $constraint->upsize();
+            });
+            
+            // Save to storage
+            Storage::disk('public')->put($filename, $image->encode());
+            $classData['photo_path'] = $filename;
+        }
+
+        $class = ClassName::create($classData);
 
         // Record initial teacher assignment
         \App\Models\TeacherAssignment::create([
@@ -116,7 +138,8 @@ class ClassController extends Controller
             'capacity' => 'required|integer|min:1',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
         ]);
 
         // Check if teacher has changed
@@ -134,7 +157,7 @@ class ClassController extends Controller
             ]);
         }
 
-        $class->update([
+        $classData = [
             'name' => $request->name,
             'type' => $request->type,
             'course_id' => $request->course_id,
@@ -143,7 +166,31 @@ class ClassController extends Controller
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'status' => $request->boolean('is_active', true) ? 'active' : 'planned',
-        ]);
+        ];
+
+        // Handle photo upload
+        if ($request->hasFile('photo')) {
+            // Delete old photo if exists
+            if ($class->photo_path) {
+                Storage::disk('public')->delete($class->photo_path);
+            }
+
+            $photo = $request->file('photo');
+            $filename = 'class-photos/' . $class->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
+            
+            // Process image with Intervention
+            $image = Image::make($photo);
+            $image->resize(800, null, function ($constraint) {
+                $constraint->aspectRatio();
+                $constraint->upsize();
+            });
+            
+            // Save to storage
+            Storage::disk('public')->put($filename, $image->encode());
+            $classData['photo_path'] = $filename;
+        }
+
+        $class->update($classData);
 
         return redirect()->route('admin.classes.index')->with('success', 'Class updated successfully.');
     }

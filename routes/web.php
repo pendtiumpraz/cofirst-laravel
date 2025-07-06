@@ -343,8 +343,9 @@ Route::middleware('auth')->group(function () {
     
     // Finance routes
     Route::middleware(['role:finance|admin|superadmin'])->prefix('finance')->name('finance.')->group(function () {
-        Route::get('dashboard', [FinanceController::class, 'dashboard'])->name('dashboard');
-        Route::get('transactions', [FinanceController::class, 'index'])->name('transactions.index');
+            Route::get('dashboard', [FinanceController::class, 'dashboard'])->name('dashboard');
+    Route::get('chart-data', [FinanceController::class, 'getChartDataAjax'])->name('chart-data');
+    Route::get('transactions', [FinanceController::class, 'index'])->name('transactions.index');
         Route::get('transactions/create', [FinanceController::class, 'create'])->name('transactions.create');
         Route::post('transactions', [FinanceController::class, 'store'])->name('transactions.store');
         Route::get('transactions/{transaction}/edit', [FinanceController::class, 'edit'])->name('transactions.edit');

@@ -12,7 +12,7 @@ class FinanceController extends Controller
     /**
      * Display finance dashboard.
      */
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         // Today's revenue (paid transactions today)
         $todaysRevenue = FinancialTransaction::where('status', 'paid')
@@ -45,6 +45,13 @@ class FinanceController extends Controller
             ->limit(5)
             ->get();
             
+        // Chart data based on filter
+        $filter = $request->get('filter', '7days');
+        $month = $request->get('month', now()->month);
+        $year = $request->get('year', now()->year);
+        
+        $chartData = $this->getChartData($filter, $month, $year);
+            
         return view('finance.dashboard', compact(
             'todaysRevenue', 
             'monthlyRevenue', 
@@ -52,8 +59,91 @@ class FinanceController extends Controller
             'pendingAmount', 
             'pendingPayments',
             'newStudentsToday',
-            'recentTransactions'
+            'recentTransactions',
+            'chartData',
+            'filter',
+            'month',
+            'year'
         ));
+    }
+
+    /**
+     * Get chart data for different date ranges
+     */
+    private function getChartData($filter = '7days', $month = null, $year = null)
+    {
+        $labels = [];
+        $data = [];
+        
+        switch ($filter) {
+            case '7days':
+                // Last 7 days
+                for ($i = 6; $i >= 0; $i--) {
+                    $date = now()->subDays($i);
+                    $labels[] = $date->format('M j');
+                    
+                    $dailyRevenue = FinancialTransaction::where('status', 'paid')
+                        ->whereDate('created_at', $date->toDateString())
+                        ->sum('amount');
+                        
+                    $data[] = $dailyRevenue;
+                }
+                break;
+                
+            case '1month':
+                // Last 30 days
+                for ($i = 29; $i >= 0; $i--) {
+                    $date = now()->subDays($i);
+                    $labels[] = $date->format('M j');
+                    
+                    $dailyRevenue = FinancialTransaction::where('status', 'paid')
+                        ->whereDate('created_at', $date->toDateString())
+                        ->sum('amount');
+                        
+                    $data[] = $dailyRevenue;
+                }
+                break;
+                
+            case 'custom':
+                // Custom month and year
+                $startDate = \Carbon\Carbon::create($year, $month, 1);
+                $endDate = $startDate->copy()->endOfMonth();
+                $daysInMonth = $endDate->day;
+                
+                for ($day = 1; $day <= $daysInMonth; $day++) {
+                    $date = \Carbon\Carbon::create($year, $month, $day);
+                    $labels[] = $date->format('M j');
+                    
+                    $dailyRevenue = FinancialTransaction::where('status', 'paid')
+                        ->whereDate('created_at', $date->toDateString())
+                        ->sum('amount');
+                        
+                    $data[] = $dailyRevenue;
+                }
+                break;
+        }
+        
+        return [
+            'labels' => $labels,
+            'data' => $data,
+            'filter' => $filter,
+            'month' => $month,
+            'year' => $year,
+        ];
+    }
+
+    /**
+     * Get chart data via AJAX
+     */
+    public function getChartDataAjax(Request $request)
+    {
+        $filter = $request->get('filter', '7days');
+        $month = $request->get('month', now()->month);
+        $year = $request->get('year', now()->year);
+        
+        $chartData = $this->getChartData($filter, $month, $year);
+        
+        return response()->json($chartData);
     }
 
     /**

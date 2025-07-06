@@ -135,6 +135,7 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead>
                                     <tr>
+                                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.</th>
                                         <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                                         <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
                                         <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -143,8 +144,11 @@
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
-                                    @forelse($recentTransactions ?? [] as $transaction)
+                                    @forelse($recentTransactions ?? [] as $index => $transaction)
                                         <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {{ $index + 1 }}
+                                            </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                 {{ $transaction->student->name }}
                                             </td>
@@ -175,7 +179,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
+                                            <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
                                                 No transactions found
                                             </td>
                                         </tr>
@@ -189,92 +193,292 @@
                 <!-- Revenue Chart -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Revenue Overview (Last 7 Days)</h3>
-                        <div id="revenue-chart" class="h-64">
-                            <div class="flex items-center justify-center h-full text-gray-500">
-                                <svg class="w-12 h-12 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                </svg>
-                                <span>Chart will be loaded here</span>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">Revenue Overview</h3>
+                            
+                            <!-- Filter Controls -->
+                            <div class="flex items-center space-x-4">
+                                <div class="flex items-center space-x-2">
+                                    <label class="text-sm font-medium text-gray-700">Filter:</label>
+                                    <select id="chartFilter" class="border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                        <option value="7days" {{ $filter == '7days' ? 'selected' : '' }}>7 Hari Terakhir</option>
+                                        <option value="1month" {{ $filter == '1month' ? 'selected' : '' }}>1 Bulan Terakhir</option>
+                                        <option value="custom" {{ $filter == 'custom' ? 'selected' : '' }}>Pilih Bulan/Tahun</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- Custom Date Selectors -->
+                                <div id="customDateSelectors" class="flex items-center space-x-2" style="display: {{ $filter == 'custom' ? 'flex' : 'none' }};">
+                                    <select id="monthSelect" class="border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                        @for($i = 1; $i <= 12; $i++)
+                                            <option value="{{ $i }}" {{ $month == $i ? 'selected' : '' }}>
+                                                {{ \Carbon\Carbon::create()->month($i)->format('F') }}
+                                            </option>
+                                        @endfor
+                                    </select>
+                                    <select id="yearSelect" class="border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
+                                        @for($i = 2023; $i <= now()->year + 1; $i++)
+                                            <option value="{{ $i }}" {{ $year == $i ? 'selected' : '' }}>{{ $i }}</option>
+                                        @endfor
+                                    </select>
+                                </div>
+                                
+                                <button id="refreshChart" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                    </svg>
+                                    Refresh
+                                </button>
                             </div>
+                        </div>
+                        
+                        <!-- Loading State -->
+                        <div id="chartLoading" class="hidden h-64 flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                        </div>
+                        
+                        <!-- Chart Container -->
+                        <div id="chartContainer" class="h-64">
+                            <canvas id="revenueChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Daily Summary -->
-            <div class="mt-6 bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Daily Summary</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Payment Methods</h4>
-                            <div class="space-y-2">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Cash</span>
-                                    <span class="text-sm font-semibold">{{ $paymentMethods['cash'] ?? 'Rp 0' }}</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Transfer</span>
-                                    <span class="text-sm font-semibold">{{ $paymentMethods['transfer'] ?? 'Rp 0' }}</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">E-Wallet</span>
-                                    <span class="text-sm font-semibold">{{ $paymentMethods['ewallet'] ?? 'Rp 0' }}</span>
-                                </div>
+            <!-- Additional Statistics -->
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6">
+                        <h4 class="text-lg font-semibold text-gray-900 mb-3">Payment Methods</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Cash</span>
+                                <span class="text-sm font-semibold">65%</span>
                             </div>
-                        </div>
-                        
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Student Attendance</h4>
-                            <div class="space-y-2">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Present</span>
-                                    <span class="text-sm font-semibold">{{ $attendance['present'] ?? 0 }} students</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Absent</span>
-                                    <span class="text-sm font-semibold">{{ $attendance['absent'] ?? 0 }} students</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Attendance Rate</span>
-                                    <span class="text-sm font-semibold">{{ $attendance['rate'] ?? '0' }}%</span>
-                                </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Bank Transfer</span>
+                                <span class="text-sm font-semibold">30%</span>
                             </div>
-                        </div>
-                        
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Quick Stats</h4>
-                            <div class="space-y-2">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Active Classes</span>
-                                    <span class="text-sm font-semibold">{{ $stats['active_classes'] ?? 0 }}</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Teachers Present</span>
-                                    <span class="text-sm font-semibold">{{ $stats['teachers_present'] ?? 0 }}</span>
-                                </div>
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-gray-600">Pending Reports</span>
-                                    <span class="text-sm font-semibold">{{ $stats['pending_reports'] ?? 0 }}</span>
-                                </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Others</span>
+                                <span class="text-sm font-semibold">5%</span>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="mt-6 pt-6 border-t border-gray-200">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-500">Report generated at: {{ now()->format('d M Y H:i') }}</span>
-                            <a href="{{ route('finance.reports.export') }}" class="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                <svg class="mr-2 -ml-0.5 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                                </svg>
-                                Export Report
-                            </a>
+                </div>
+
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6">
+                        <h4 class="text-lg font-semibold text-gray-900 mb-3">Top Courses</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Scratch</span>
+                                <span class="text-sm font-semibold">45%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Python</span>
+                                <span class="text-sm font-semibold">25%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Robotics</span>
+                                <span class="text-sm font-semibold">30%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6">
+                        <h4 class="text-lg font-semibold text-gray-900 mb-3">Quick Stats</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Avg. Transaction</span>
+                                <span class="text-sm font-semibold">Rp 1.5M</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Total Students</span>
+                                <span class="text-sm font-semibold">{{ \App\Models\User::role('student')->count() }}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Active Courses</span>
+                                <span class="text-sm font-semibold">{{ \App\Models\Course::count() }}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Chart Script -->
+    <script>
+        let revenueChart;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            const chartFilter = document.getElementById('chartFilter');
+            const monthSelect = document.getElementById('monthSelect');
+            const yearSelect = document.getElementById('yearSelect');
+            const refreshChart = document.getElementById('refreshChart');
+            const customDateSelectors = document.getElementById('customDateSelectors');
+            const chartLoading = document.getElementById('chartLoading');
+            const chartContainer = document.getElementById('chartContainer');
+            
+            // Initialize chart with current data
+            initChart(@json($chartData));
+            
+            // Filter change handler
+            chartFilter.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    customDateSelectors.style.display = 'flex';
+                } else {
+                    customDateSelectors.style.display = 'none';
+                }
+                updateChart();
+            });
+            
+            // Month/Year change handlers
+            monthSelect.addEventListener('change', updateChart);
+            yearSelect.addEventListener('change', updateChart);
+            
+            // Refresh button handler
+            refreshChart.addEventListener('click', updateChart);
+            
+            function initChart(chartData) {
+                // Format data for display (in millions)
+                const formattedData = chartData.data.map(value => value / 1000000);
+                
+                revenueChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.labels,
+                        datasets: [{
+                            label: 'Revenue (Juta Rupiah)',
+                            data: formattedData,
+                            borderColor: 'rgb(34, 197, 94)',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: 'rgb(34, 197, 94)',
+                            pointBorderColor: 'rgb(34, 197, 94)',
+                            pointBorderWidth: 2,
+                            pointRadius: 6,
+                            pointHoverRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: getChartTitle(chartData.filter),
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                }
+                            },
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: 'white',
+                                bodyColor: 'white',
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Revenue: Rp ' + (context.parsed.y * 1000000).toLocaleString('id-ID');
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return 'Rp ' + value + 'M';
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        },
+                        elements: {
+                            point: {
+                                hoverBackgroundColor: 'rgb(34, 197, 94)'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function updateChart() {
+                // Show loading state
+                chartLoading.classList.remove('hidden');
+                chartContainer.classList.add('hidden');
+                
+                const filter = chartFilter.value;
+                const month = monthSelect.value;
+                const year = yearSelect.value;
+                
+                // Make AJAX request
+                fetch(`{{ route('finance.chart-data') }}?filter=${filter}&month=${month}&year=${year}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Update chart data
+                        const formattedData = data.data.map(value => value / 1000000);
+                        
+                        revenueChart.data.labels = data.labels;
+                        revenueChart.data.datasets[0].data = formattedData;
+                        revenueChart.options.plugins.title.text = getChartTitle(filter);
+                        revenueChart.update();
+                        
+                        // Hide loading state
+                        chartLoading.classList.add('hidden');
+                        chartContainer.classList.remove('hidden');
+                    })
+                    .catch(error => {
+                        console.error('Error updating chart:', error);
+                        // Hide loading state
+                        chartLoading.classList.add('hidden');
+                        chartContainer.classList.remove('hidden');
+                        
+                        // Show error message
+                        alert('Error updating chart. Please try again.');
+                    });
+            }
+            
+            function getChartTitle(filter) {
+                switch(filter) {
+                    case '7days':
+                        return 'Daily Revenue Trend (Last 7 Days)';
+                    case '1month':
+                        return 'Daily Revenue Trend (Last 30 Days)';
+                    case 'custom':
+                        return `Daily Revenue Trend (${getMonthName(monthSelect.value)} ${yearSelect.value})`;
+                    default:
+                        return 'Daily Revenue Trend';
+                }
+            }
+            
+            function getMonthName(month) {
+                const monthNames = [
+                    'January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'
+                ];
+                return monthNames[month - 1];
+            }
+        });
+    </script>
 </x-app-layout>

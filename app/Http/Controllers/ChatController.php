@@ -20,11 +20,6 @@ class ChatController extends Controller
     {
         $user = Auth::user();
         
-        // Super Admin cannot access chat
-        if ($user->hasRole('superadmin')) {
-            abort(403, 'Super Admin is not allowed to access chat functionality.');
-        }
-        
         // Get user's conversations
         $conversations = $user->conversations()
             ->with(['latestMessage.sender', 'users' => function ($query) use ($user) {
@@ -45,11 +40,6 @@ class ChatController extends Controller
     public function show(Conversation $conversation)
     {
         $user = Auth::user();
-
-        // Super Admin cannot access chat
-        if ($user->hasRole('superadmin')) {
-            abort(403, 'Super Admin is not allowed to access chat functionality.');
-        }
 
         // Check if user is participant
         if (!$conversation->hasParticipant($user->id)) {
@@ -82,11 +72,6 @@ class ChatController extends Controller
 
         $user = Auth::user();
         
-        // Super Admin cannot access chat
-        if ($user->hasRole('superadmin')) {
-            return response()->json(['error' => 'Super Admin is not allowed to access chat functionality.'], 403);
-        }
-        
         $otherUserId = $request->user_id;
 
         // Check if user can chat with this person
@@ -116,11 +101,6 @@ class ChatController extends Controller
         ]);
 
         $user = Auth::user();
-
-        // Super Admin cannot access chat
-        if ($user->hasRole('superadmin')) {
-            return response()->json(['error' => 'Super Admin is not allowed to access chat functionality.'], 403);
-        }
 
         // Check if user is participant
         if (!$conversation->hasParticipant($user->id)) {

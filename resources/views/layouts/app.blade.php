@@ -31,7 +31,7 @@
                 </div>
                 
                 <!-- Navigation -->
-                <nav class="mt-8 px-4">
+                <nav class="mt-8 px-4 pb-4 overflow-y-auto max-h-[calc(100vh-6rem)]">
                     <div class="space-y-2">
                         <!-- Dashboard -->
                         <a href="{{ route('dashboard') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('dashboard') ? 'bg-blue-50 text-blue-600' : '' }}">
@@ -203,7 +203,7 @@
                                 </a>
                                 
                                 <!-- Reward Redemptions -->
-                                <a href="{{ route('admin.reward-redemptions.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('admin.reward-redemptions.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                <a href="{{ route('admin.rewards.redemptions') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('admin.rewards.redemptions') ? 'bg-blue-50 text-blue-600' : '' }}">
                                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
                                     </svg>
@@ -222,6 +222,14 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                                     </svg>
                                     Reports
+                                </a>
+                                
+                                <!-- Finance Dashboard (Admin) -->
+                                <a href="{{ route('admin.finance.dashboard') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('admin.finance.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                    Finance Dashboard
                                 </a>
                                 
                                 <!-- Finance Reports -->
@@ -246,10 +254,31 @@
                                 </a>
                             </div>
                         </div>
+                        
+                        <!-- Communication -->
+                        <div class="pt-4">
+                            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Communication</p>
+                            <div class="mt-2 space-y-1">
+                                <a href="{{ route('chat.index') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('chat.*') ? 'bg-blue-50 text-blue-600' : '' }}">
+                                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                    </svg>
+                                    Chat/Messages
+                                    @php
+                                        $unreadCount = Auth::user()->unread_messages_count;
+                                    @endphp
+                                    @if($unreadCount > 0)
+                                        <span class="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                                            {{ $unreadCount > 99 ? '99+' : $unreadCount }}
+                                        </span>
+                                    @endif
+                                </a>
+                            </div>
+                        </div>
                         @endif
 
                         <!-- Communication Section -->
-                        @if(!Auth::user()->hasRole('superadmin') && !Auth::user()->hasRole('finance'))
+                        @if(!Auth::user()->hasRole('superadmin') && !Auth::user()->hasRole('admin') && !Auth::user()->hasRole('finance'))
                         <div class="pt-4">
                             <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Communication</p>
                             <div class="mt-2 space-y-1">

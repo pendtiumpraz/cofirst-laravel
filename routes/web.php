@@ -92,11 +92,11 @@ Route::middleware('auth')->group(function () {
         
         // User Management
         Route::resource('users', UserController::class);
-        Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+                    Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
         
         // Course Management
         Route::resource('courses', CourseController::class);
-        Route::post('courses/{course}/toggle-status', [CourseController::class, 'toggleStatus'])->name('courses.toggle-status');
+                    Route::post('courses/{course}/toggle-status', [CourseController::class, 'toggleStatus'])->name('courses.toggle-status');
         
         // Class Management
         Route::resource('classes', ClassController::class);
@@ -106,16 +106,16 @@ Route::middleware('auth')->group(function () {
         
         // Curriculum Management
         Route::resource('curriculums', CurriculumController::class);
-        Route::post('curriculums/{curriculum}/toggle-status', [CurriculumController::class, 'toggleStatus'])->name('curriculums.toggle-status');
+                    Route::post('curriculums/{curriculum}/toggle-status', [CurriculumController::class, 'toggleStatus'])->name('curriculums.toggle-status');
         
         // Syllabus Management
         Route::resource('syllabuses', SyllabusController::class);
-        Route::post('syllabuses/{syllabus}/toggle-status', [SyllabusController::class, 'toggleStatus'])->name('syllabuses.toggle-status');
+                    Route::post('syllabuses/{syllabus}/toggle-status', [SyllabusController::class, 'toggleStatus'])->name('syllabuses.toggle-status');
         Route::get('syllabuses/by-curriculum/{curriculum}', [SyllabusController::class, 'getByCurriculum'])->name('syllabuses.by-curriculum');
         
         // Material Management
         Route::resource('materials', MaterialController::class);
-        Route::post('materials/{material}/toggle-status', [MaterialController::class, 'toggleStatus'])->name('materials.toggle-status');
+                    Route::post('materials/{material}/toggle-status', [MaterialController::class, 'toggleStatus'])->name('materials.toggle-status');
         Route::get('materials/{material}/download', [MaterialController::class, 'download'])->name('materials.download');
         Route::get('materials/by-syllabus/{syllabus}', [MaterialController::class, 'getBySyllabus'])->name('materials.by-syllabus');
         
@@ -139,21 +139,26 @@ Route::middleware('auth')->group(function () {
         
         // Certificate Bulk Generation
         Route::get('certificates/bulk-generate', [\App\Http\Controllers\Admin\CertificateController::class, 'bulkGenerate'])->name('certificates.bulk-generate');
-        Route::post('certificates/bulk-generate', [\App\Http\Controllers\Admin\CertificateController::class, 'processBulkGenerate'])->name('certificates.process-bulk-generate');
+        Route::post('certificates/bulk-generate', [\App\Http\Controllers\Admin\CertificateController::class, 'processBulkGenerate'])->name('certificates.bulk-generate.process');
         
         // Testimonials Management
         Route::resource('testimonials', \App\Http\Controllers\Admin\TestimonialController::class);
-        Route::post('testimonials/{testimonial}/toggle-status', [\App\Http\Controllers\Admin\TestimonialController::class, 'toggleStatus'])->name('testimonials.toggle-status');
-        Route::post('testimonials/{testimonial}/toggle-featured', [\App\Http\Controllers\Admin\TestimonialController::class, 'toggleFeatured'])->name('testimonials.toggle-featured');
+                    Route::post('testimonials/{testimonial}/toggle-status', [\App\Http\Controllers\Admin\TestimonialController::class, 'toggleStatus'])->name('testimonials.toggle-status');
+                    Route::post('testimonials/{testimonial}/toggle-featured', [\App\Http\Controllers\Admin\TestimonialController::class, 'toggleFeatured'])->name('testimonials.toggle-featured');
         
         // Gamification Management
-        Route::resource('badges', \App\Http\Controllers\Admin\BadgeController::class);
-        Route::post('badges/{badge}/toggle-status', [\App\Http\Controllers\Admin\BadgeController::class, 'toggleStatus'])->name('badges.toggle-status');
+                    Route::resource('badges', \App\Http\Controllers\Admin\BadgeController::class);
+            Route::post('badges/{badge}/toggle-status', [\App\Http\Controllers\Admin\BadgeController::class, 'toggleStatus'])->name('badges.toggle-status');
         
+        Route::get('rewards/redemptions', [\App\Http\Controllers\Admin\RewardController::class, 'redemptions'])->name('rewards.redemptions');
+        Route::post('rewards/redemptions/{redemption}/process', [\App\Http\Controllers\Admin\RewardController::class, 'processRedemption'])->name('rewards.redemptions.process');
         Route::resource('rewards', \App\Http\Controllers\Admin\RewardController::class);
-        Route::post('rewards/{reward}/toggle-status', [\App\Http\Controllers\Admin\RewardController::class, 'toggleStatus'])->name('rewards.toggle-status');
-        Route::get('reward-redemptions', [\App\Http\Controllers\Admin\RewardController::class, 'redemptions'])->name('reward-redemptions.index');
-        Route::post('reward-redemptions/{redemption}/process', [\App\Http\Controllers\Admin\RewardController::class, 'processRedemption'])->name('reward-redemptions.process');
+                    Route::post('rewards/{reward}/toggle-status', [\App\Http\Controllers\Admin\RewardController::class, 'toggleStatus'])->name('rewards.toggle-status');
+        
+        // Finance Reports for Admin
+        Route::get('finance/dashboard', [\App\Http\Controllers\Admin\FinanceReportController::class, 'dashboard'])->name('finance.dashboard');
+        Route::get('finance/reports', [\App\Http\Controllers\Admin\FinanceReportController::class, 'reports'])->name('finance.reports');
+        Route::get('finance/export', [\App\Http\Controllers\Admin\FinanceReportController::class, 'export'])->name('finance.export');
 
         // Role and Permission Management (SuperAdmin only)
         Route::middleware(['role:superadmin'])->group(function () {
@@ -395,7 +400,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [\App\Http\Controllers\GamificationController::class, 'index'])->name('index');
         Route::get('/leaderboard', [\App\Http\Controllers\GamificationController::class, 'leaderboard'])->name('leaderboard');
         Route::get('/badges', [\App\Http\Controllers\GamificationController::class, 'badges'])->name('badges');
-        Route::post('/badges/{badge}/toggle-featured', [\App\Http\Controllers\GamificationController::class, 'toggleBadgeFeatured'])->name('badges.toggle-featured');
+        Route::post('/badges/{badge}/toggle-featured', [\App\Http\Controllers\GamificationController::class, 'toggleBadgeFeatured'])->name('gamification.badges.toggle-featured');
         Route::get('/rewards', [\App\Http\Controllers\GamificationController::class, 'rewards'])->name('rewards');
         Route::post('/rewards/{reward}/redeem', [\App\Http\Controllers\GamificationController::class, 'redeemReward'])->name('rewards.redeem');
         Route::get('/redemptions', [\App\Http\Controllers\GamificationController::class, 'redemptions'])->name('redemptions');

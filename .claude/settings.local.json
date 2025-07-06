@@ -37,7 +37,8 @@
       "Bash(ln:*)",
       "Bash(rg:*)",
       "Bash(curl:*)",
-      "Bash(readlink:*)"
+      "Bash(readlink:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

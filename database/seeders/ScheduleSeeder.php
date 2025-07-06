@@ -101,6 +101,66 @@ class ScheduleSeeder extends Seeder
             }
             $this->command->info("Jadwal dibuat untuk kelas: {$class->name} ({$classType}) - {$selectedDay} {$selectedTime[0]}-{$selectedTime[1]} dengan {$enrollments->count()} siswa dan teacher: {$teacherAssignment->teacher->name}");
         }
+        
+        // Create additional dummy schedules if we don't have enough
+        $currentCount = Schedule::count();
+        $targetCount = 25;
+        
+        if ($currentCount < $targetCount) {
+            $additionalNeeded = $targetCount - $currentCount;
+            $this->command->info("Creating {$additionalNeeded} additional schedules for pagination testing...");
+            
+            // Get available data for creating dummy schedules
+            $availableClasses = ClassName::where('status', 'active')->get();
+            $availableEnrollments = Enrollment::where('status', 'active')->get();
+            $availableTeacherAssignments = TeacherAssignment::all();
+            
+            if ($availableClasses->isNotEmpty() && $availableEnrollments->isNotEmpty() && $availableTeacherAssignments->isNotEmpty()) {
+                for ($i = 0; $i < $additionalNeeded; $i++) {
+                    $randomClass = $availableClasses->random();
+                    $randomEnrollment = $availableEnrollments->random();
+                    $randomTeacherAssignment = $availableTeacherAssignments->random();
+                    
+                    // Random schedule data
+                    $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    $times = [
+                        ['08:00:00', '10:00:00'],
+                        ['10:00:00', '12:00:00'],
+                        ['13:00:00', '15:00:00'],
+                        ['15:00:00', '17:00:00'],
+                        ['19:00:00', '21:00:00']
+                    ];
+                    $rooms = ['Room A', 'Room B', 'Room C', 'Room D', 'Online', 'Home Visit'];
+                    
+                    $selectedDay = collect($days)->random();
+                    $selectedTime = collect($times)->random();
+                    $selectedRoom = collect($rooms)->random();
+                    
+                    // Check if schedule already exists
+                    $existingSchedule = Schedule::where('class_id', $randomClass->id)
+                        ->where('enrollment_id', $randomEnrollment->id)
+                        ->where('teacher_assignment_id', $randomTeacherAssignment->id)
+                        ->where('day_of_week', $this->getDayNumber($selectedDay))
+                        ->where('start_time', $selectedTime[0])
+                        ->first();
+                    
+                    if (!$existingSchedule) {
+                        Schedule::create([
+                            'class_id' => $randomClass->id,
+                            'enrollment_id' => $randomEnrollment->id,
+                            'teacher_assignment_id' => $randomTeacherAssignment->id,
+                            'day_of_week' => $this->getDayNumber($selectedDay),
+                            'start_time' => $selectedTime[0],
+                            'end_time' => $selectedTime[1],
+                            'room' => $selectedRoom,
+                            'is_active' => true
+                        ]);
+                    }
+                }
+            }
+        }
+        
+        $this->command->info("Total schedules created: " . Schedule::count());
     }
 
     /**

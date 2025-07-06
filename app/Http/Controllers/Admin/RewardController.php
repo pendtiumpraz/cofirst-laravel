@@ -13,11 +13,41 @@ class RewardController extends Controller
     /**
      * Display a listing of rewards
      */
-    public function index()
+    public function index(Request $request)
     {
-        $rewards = Reward::withCount('redemptions')
-            ->latest()
-            ->paginate(20);
+        $query = Reward::withCount('redemptions');
+        
+        // Search functionality
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+        
+        // Filter by type
+        if ($request->has('type') && $request->type) {
+            $query->where('type', $request->type);
+        }
+        
+        // Filter by status
+        if ($request->has('status') && $request->status !== '') {
+            $query->where('is_active', $request->status === 'active');
+        }
+        
+        // Sorting
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+        
+        if (in_array($sortField, ['name', 'type', 'points_cost', 'created_at'])) {
+            $query->orderBy($sortField, $sortDirection);
+        } else {
+            $query->latest();
+        }
+        
+        $rewards = $query->paginate($request->get('per_page', 20))
+                        ->appends($request->query());
             
         return view('admin.rewards.index', compact('rewards'));
     }

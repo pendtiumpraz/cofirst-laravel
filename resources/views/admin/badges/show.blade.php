@@ -12,11 +12,11 @@
                 <p class="text-gray-600 mt-2">{{ $badge->description }}</p>
             </div>
             <div class="flex space-x-2">
-                <a href="{{ route('badges.edit', $badge->id) }}" 
+                <a href="{{ route('admin.badges.edit', $badge->id) }}" 
                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                     Edit Badge
                 </a>
-                <form action="{{ route('badges.toggle-status', $badge->id) }}" method="POST" class="inline">
+                <form action="{{ route('admin.badges.toggle-status', $badge->id) }}" method="POST" class="inline">
                     @csrf
                     @method('PATCH')
                     <button type="submit" 
@@ -171,7 +171,7 @@
                                     {{ ucfirst($user->getRoleNames()->first()) }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $user->pivot->earned_at->format('M d, Y') }}
+                                    {{ $user->pivot->earned_at ? \Carbon\Carbon::parse($user->pivot->earned_at)->format('M d, Y') : 'N/A' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     @if($user->pivot->is_featured)

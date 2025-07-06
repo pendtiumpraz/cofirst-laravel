@@ -64,7 +64,7 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Class Photo</label>
                                 <x-photo-upload 
                                     name="photo"
-                                    :max-size="5120"
+                                    :maxSize="5120"
                                     accept="image/jpeg,image/png,image/jpg,image/gif"
                                 />
                                 @error('photo')

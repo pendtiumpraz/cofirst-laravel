@@ -70,12 +70,14 @@
                                     @if($class->photo_path)
                                         <br>Direct URL: {{ asset('storage/' . $class->photo_path) }}
                                         <br>File exists: {{ \Storage::disk('public')->exists($class->photo_path) ? 'Yes' : 'No' }}
+                                        <br>Test image:
+                                        <img src="{{ $class->photo_url }}" alt="Test" class="w-20 h-20 object-cover rounded">
                                     @endif
                                 </div>
                                 <x-photo-upload 
                                     name="photo"
-                                    :current-photo="$class->photo_url"
-                                    :max-size="5120"
+                                    :currentPhoto="$class->photo_url"
+                                    :maxSize="5120"
                                     accept="image/jpeg,image/png,image/jpg,image/gif"
                                 />
                                 @error('photo')

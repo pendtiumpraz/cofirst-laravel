@@ -14,10 +14,13 @@
 >
     <div class="space-y-4">
         <!-- Current Photo Preview -->
+        <!-- Debug: currentPhoto = {{ $currentPhoto ?? 'null' }} -->
         @if($currentPhoto)
         <div class="current-photo">
             <img src="{{ $currentPhoto }}" alt="Current photo" class="w-32 h-32 object-cover rounded-lg">
         </div>
+        @else
+        <!-- No current photo -->
         @endif
 
         <!-- Upload Area -->

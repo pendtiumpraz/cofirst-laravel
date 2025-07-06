@@ -20,11 +20,10 @@
                         </div>
                     @endif
 
-                    <div class="overflow-x-auto shadow-sm rounded-lg border border-gray-200">
-                        <table class="min-w-full divide-y divide-gray-200">
+                    <div class="table-wrapper overflow-x-auto shadow-sm rounded-lg border border-gray-200">
+                        <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">ID</th>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Nama Silabus</th>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Kurikulum</th>
                                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Mata Pelajaran</th>
@@ -36,11 +35,6 @@
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse($syllabuses as $syllabus)
                                     <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            <span class="inline-flex items-center justify-center w-8 h-8 bg-indigo-100 text-indigo-800 rounded-full text-xs font-semibold">
-                                                {{ $syllabus->id }}
-                                            </span>
-                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm font-medium text-gray-900">{{ $syllabus->name }}</div>
                                             @if($syllabus->description)

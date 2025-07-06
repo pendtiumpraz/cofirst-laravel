@@ -21,12 +21,11 @@
                     @endif
 
                     @if($materials->count() > 0)
-                        <div class="shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+                        <div class="table-wrapper shadow-sm rounded-lg border border-gray-200 overflow-hidden">
                     <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
+                                <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
                                 <thead class="bg-gray-50">
                                 <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Judul</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Silabus</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kurikulum</th>
@@ -38,13 +37,6 @@
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     @foreach($materials as $material)
                                         <tr class="hover:bg-gray-50 transition-colors">
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="flex items-center">
-                                                    <div class="h-8 w-8 flex-shrink-0 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                                                        <span class="text-xs font-medium text-white">{{ $material->id }}</span>
-                                                    </div>
-                                                </div>
-                                            </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div class="text-sm font-medium text-gray-900">{{ $material->title }}</div>
                                                 @if($material->description)

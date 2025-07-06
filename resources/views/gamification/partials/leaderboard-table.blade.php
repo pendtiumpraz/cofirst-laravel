@@ -1,4 +1,5 @@
-<table class="min-w-full">
+<div class="table-wrapper">
+<table class="min-w-full" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
     <thead class="bg-gray-50">
         <tr>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -85,4 +86,5 @@
             </tr>
         @endif
     </tbody>
-</table> 
+</table>
+</div> 

@@ -83,8 +83,9 @@
                         
                         @if($curriculum->syllabuses && $curriculum->syllabuses->count() > 0)
                             <div class="shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-                            <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200">
+                                <div class="table-wrapper">
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
                                     <thead class="bg-gray-50">
                                         <tr>
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pertemuan</th>
@@ -153,7 +154,8 @@
                                             </tr>
                                         @endforeach
                                     </tbody>
-                                </table>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         @else
@@ -176,8 +178,9 @@
                     @if($curriculum->classes && $curriculum->classes->count() > 0)
                         <div>
                             <h3 class="text-lg font-semibold mb-4">Kelas yang Menggunakan Kurikulum Ini</h3>
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full bg-white border border-gray-200">
+                            <div class="table-wrapper">
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full bg-white border border-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
                                     <thead class="bg-gray-50">
                                         <tr>
                                             <th class="py-2 px-4 border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Kelas</th>
@@ -200,7 +203,8 @@
                                             </tr>
                                         @endforeach
                                     </tbody>
-                                </table>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     @endif

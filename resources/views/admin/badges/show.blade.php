@@ -134,8 +134,9 @@
         <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-4">Users Who Earned This Badge</h2>
             @if($badge->users->count() > 0)
-                <div class="overflow-x-auto">
-                    <table class="min-w-full">
+                <div class="table-wrapper">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
@@ -186,7 +187,8 @@
                             </tr>
                             @endforeach
                         </tbody>
-                    </table>
+                        </table>
+                    </div>
                 </div>
             @else
                 <p class="text-gray-500">No users have earned this badge yet.</p>

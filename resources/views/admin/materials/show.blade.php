@@ -173,8 +173,9 @@
                     <div>
                         <h3 class="text-lg font-semibold text-gray-800 mb-3">Log Akses Terbaru</h3>
                         <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
+                            <div class="table-wrapper">
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
                                     <thead class="bg-gray-50">
                                         <tr>
                                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Siswa</th>
@@ -205,7 +206,8 @@
                                         </tr>
                                         @endforeach
                                     </tbody>
-                                </table>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>

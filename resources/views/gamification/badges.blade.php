@@ -95,7 +95,13 @@
                     <!-- Tooltip -->
                     <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 w-48">
                         <p>{{ $userBadge->description }}</p>
-                        <p class="mt-1 text-gray-300">{{ $userBadge->criteria }}</p>
+                        <p class="mt-1 text-gray-300">
+                            @if(is_array($userBadge->criteria))
+                                {{ implode(', ', $userBadge->criteria) }}
+                            @else
+                                {{ $userBadge->criteria }}
+                            @endif
+                        </p>
                     </div>
                 </div>
                 @endforeach
@@ -129,8 +135,14 @@
                         <!-- Tooltip -->
                         <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 w-48">
                             <p>{{ $badge->description }}</p>
-                            <p class="mt-1 text-gray-300">{{ $badge->criteria }}</p>
-                            <p class="mt-1 text-yellow-300">+{{ $badge->points }} points</p>
+                            <p class="mt-1 text-gray-300">
+                                @if(is_array($badge->criteria))
+                                    {{ implode(', ', $badge->criteria) }}
+                                @else
+                                    {{ $badge->criteria }}
+                                @endif
+                            </p>
+                            <p class="mt-1 text-yellow-300">+{{ $badge->points_required }} points</p>
                         </div>
                     </div>
                     @endforeach

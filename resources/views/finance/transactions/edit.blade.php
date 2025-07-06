@@ -1,20 +1,21 @@
 @extends('layouts.app')
 
-@section('title', 'Create Transaction')
+@section('title', 'Edit Transaction')
 
 @section('content')
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-2xl mx-auto">
         <!-- Header -->
         <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">Create New Transaction</h1>
-            <p class="text-gray-600 mt-2">Add a new financial transaction to the system</p>
+            <h1 class="text-3xl font-bold text-gray-900">Edit Transaction</h1>
+            <p class="text-gray-600 mt-2">Update transaction details</p>
         </div>
 
-        <!-- Create Form -->
+        <!-- Edit Form -->
         <div class="bg-white rounded-lg shadow-md p-6">
-            <form action="{{ route('finance.transactions.store') }}" method="POST">
+            <form action="{{ route('finance.transactions.update', $transaction) }}" method="POST">
                 @csrf
+                @method('PUT')
                 
                 <!-- Student Selection -->
                 <div class="mb-6">
@@ -22,7 +23,7 @@
                     <select name="student_id" id="student_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
                         <option value="">Select a student</option>
                         @foreach($students as $student)
-                            <option value="{{ $student->id }}" {{ old('student_id') == $student->id ? 'selected' : '' }}>
+                            <option value="{{ $student->id }}" {{ (old('student_id', $transaction->student_id) == $student->id) ? 'selected' : '' }}>
                                 {{ $student->name }} ({{ $student->email }})
                             </option>
                         @endforeach
@@ -35,7 +36,7 @@
                 <!-- Amount -->
                 <div class="mb-6">
                     <label for="amount" class="block text-sm font-medium text-gray-700 mb-2">Amount</label>
-                    <input type="number" name="amount" id="amount" step="0.01" min="0" value="{{ old('amount') }}" 
+                    <input type="number" name="amount" id="amount" step="0.01" min="0" value="{{ old('amount', $transaction->amount) }}" 
                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
                     @error('amount')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -45,7 +46,7 @@
                 <!-- Description -->
                 <div class="mb-6">
                     <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <input type="text" name="description" id="description" value="{{ old('description') }}" 
+                    <input type="text" name="description" id="description" value="{{ old('description', $transaction->description) }}" 
                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
                     @error('description')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -57,8 +58,8 @@
                     <label for="type" class="block text-sm font-medium text-gray-700 mb-2">Type</label>
                     <select name="type" id="type" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
                         <option value="">Select type</option>
-                        <option value="payment" {{ old('type') == 'payment' ? 'selected' : '' }}>Payment</option>
-                        <option value="refund" {{ old('type') == 'refund' ? 'selected' : '' }}>Refund</option>
+                        <option value="payment" {{ old('type', $transaction->type) == 'payment' ? 'selected' : '' }}>Payment</option>
+                        <option value="refund" {{ old('type', $transaction->type) == 'refund' ? 'selected' : '' }}>Refund</option>
                     </select>
                     @error('type')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -70,9 +71,9 @@
                     <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
                     <select name="status" id="status" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
                         <option value="">Select status</option>
-                        <option value="pending" {{ old('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                        <option value="paid" {{ old('status') == 'paid' ? 'selected' : '' }}>Paid</option>
-                        <option value="cancelled" {{ old('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                        <option value="pending" {{ old('status', $transaction->status) == 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="paid" {{ old('status', $transaction->status) == 'paid' ? 'selected' : '' }}>Paid</option>
+                        <option value="cancelled" {{ old('status', $transaction->status) == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                     </select>
                     @error('status')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -85,11 +86,11 @@
                         Cancel
                     </a>
                     <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                        Create Transaction
+                        Update Transaction
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-@endsection
+@endsection 

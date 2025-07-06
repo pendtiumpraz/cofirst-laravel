@@ -194,9 +194,9 @@
         </div>
 
         <!-- Back Link -->
-        <div class="mt-6">
-            <a href="{{ route('badges.index') }}" class="text-blue-600 hover:text-blue-800">
-                ← Back to Badges List
+        <div class="mt-6 text-center">
+            <a href="{{ route('admin.badges.index') }}" class="text-blue-600 hover:text-blue-800">
+                ← Back to Badges
             </a>
         </div>
     </div>

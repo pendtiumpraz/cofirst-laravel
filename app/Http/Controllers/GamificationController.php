@@ -41,7 +41,18 @@ class GamificationController extends Controller
             ->get();
             
         $rank = $this->gamificationService->getUserRank($user);
-        $leaderboard = $this->gamificationService->getLeaderboard('weekly', 5);
+        
+        // Get appropriate leaderboard based on user role
+        if ($user->hasRole(['admin', 'superadmin'])) {
+            // Admin can see student leaderboard as default
+            $leaderboard = $this->gamificationService->getLeaderboard('weekly', 5, ['student']);
+        } elseif ($user->hasRole(['teacher', 'finance'])) {
+            // Teachers see teacher leaderboard
+            $leaderboard = $this->gamificationService->getLeaderboard('weekly', 5, ['teacher']);
+        } else {
+            // Students and parents see student leaderboard
+            $leaderboard = $this->gamificationService->getLeaderboard('weekly', 5, ['student']);
+        }
         
         return view('gamification.index', compact(
             'user',
@@ -60,12 +71,40 @@ class GamificationController extends Controller
     public function leaderboard(Request $request)
     {
         $type = $request->get('type', 'all');
-        $leaderboard = $this->gamificationService->getLeaderboard($type, 50);
-        
         $user = Auth::user();
         $userRank = $this->gamificationService->getUserRank($user);
         
-        return view('gamification.leaderboard', compact('leaderboard', 'type', 'userRank'));
+        // Determine what leaderboards to show based on user role
+        if ($user->hasRole(['admin', 'superadmin'])) {
+            // Admin & Super Admin: Show both student and teacher leaderboards separately
+            $studentLeaderboard = $this->gamificationService->getLeaderboard($type, 50, ['student']);
+            $teacherLeaderboard = $this->gamificationService->getLeaderboard($type, 50, ['teacher']);
+            
+            return view('gamification.leaderboard', compact(
+                'studentLeaderboard', 
+                'teacherLeaderboard', 
+                'type', 
+                'userRank'
+            ));
+        } elseif ($user->hasRole(['teacher', 'finance'])) {
+            // Teachers & Finance: Only show teacher leaderboard
+            $leaderboard = $this->gamificationService->getLeaderboard($type, 50, ['teacher']);
+            
+            return view('gamification.leaderboard', compact(
+                'leaderboard', 
+                'type', 
+                'userRank'
+            ));
+        } else {
+            // Parents & Students: Only show student leaderboard
+            $leaderboard = $this->gamificationService->getLeaderboard($type, 50, ['student']);
+            
+            return view('gamification.leaderboard', compact(
+                'leaderboard', 
+                'type', 
+                'userRank'
+            ));
+        }
     }
     
     /**

@@ -9,7 +9,7 @@
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-2xl font-bold text-gray-900">{{ $user->name }}'s Progress</h2>
-                <span class="text-sm text-gray-500">Rank #{{ $rank }}</span>
+                <span class="text-sm text-gray-500">Rank #{{ $rank['rank'] ?? 'N/A' }}</span>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">

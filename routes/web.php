@@ -52,7 +52,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
         $user = Auth::user();
         
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('superadmin')) {
+            return redirect()->route('admin.dashboard');
+        } elseif ($user->hasRole('admin')) {
             return redirect()->route('admin.dashboard');
         } elseif ($user->hasRole('teacher')) {
             return redirect()->route('teacher.dashboard');
@@ -61,7 +63,7 @@ Route::middleware('auth')->group(function () {
         } elseif ($user->hasRole('student')) {
             return redirect()->route('student.dashboard');
         } elseif ($user->hasRole('finance')) {
-            return redirect()->route('dashboard');
+            return redirect()->route('finance.dashboard');
         }
         
         // Default fallback
@@ -284,7 +286,8 @@ Route::middleware('auth')->group(function () {
     
     // Finance routes
     Route::middleware(['role:finance|admin|superadmin'])->prefix('finance')->name('finance.')->group(function () {
-        Route::get('transactions', [FinanceController::class, 'index'])->name('transactions.list');
+        Route::get('dashboard', [FinanceController::class, 'dashboard'])->name('dashboard');
+        Route::get('transactions', [FinanceController::class, 'index'])->name('transactions.index');
         Route::get('transactions/create', [FinanceController::class, 'create'])->name('transactions.create');
         Route::post('transactions', [FinanceController::class, 'store'])->name('transactions.store');
         Route::get('transactions/{transaction}/edit', [FinanceController::class, 'edit'])->name('transactions.edit');

@@ -9,6 +9,24 @@ use App\Models\User;
 class FinanceController extends Controller
 {
     /**
+     * Display finance dashboard.
+     */
+    public function dashboard()
+    {
+        $totalRevenue = FinancialTransaction::where('status', 'paid')->sum('amount');
+        $pendingAmount = FinancialTransaction::where('status', 'pending')->sum('amount');
+        $monthlyRevenue = FinancialTransaction::where('status', 'paid')
+            ->whereMonth('created_at', now()->month)
+            ->sum('amount');
+        $recentTransactions = FinancialTransaction::with(['student'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+            
+        return view('finance.dashboard', compact('totalRevenue', 'pendingAmount', 'monthlyRevenue', 'recentTransactions'));
+    }
+
+    /**
      * Display a listing of transactions.
      */
     public function index()
@@ -44,7 +62,7 @@ class FinanceController extends Controller
 
         FinancialTransaction::create($request->all());
 
-        return redirect()->route('finance.transactions.list')->with('success', 'Transaction created successfully.');
+        return redirect()->route('finance.transactions.index')->with('success', 'Transaction created successfully.');
     }
 
     /**
@@ -71,7 +89,7 @@ class FinanceController extends Controller
 
         $transaction->update($request->all());
 
-        return redirect()->route('finance.transactions.list')->with('success', 'Transaction updated successfully.');
+        return redirect()->route('finance.transactions.index')->with('success', 'Transaction updated successfully.');
     }
 
     /**
@@ -80,7 +98,7 @@ class FinanceController extends Controller
     public function destroy(FinancialTransaction $transaction)
     {
         $transaction->delete();
-        return redirect()->route('finance.transactions.list')->with('success', 'Transaction deleted successfully.');
+        return redirect()->route('finance.transactions.index')->with('success', 'Transaction deleted successfully.');
     }
 
     /**
@@ -89,7 +107,7 @@ class FinanceController extends Controller
     public function markPaid(FinancialTransaction $transaction)
     {
         $transaction->update(['status' => 'paid']);
-        return redirect()->route('finance.transactions.list')->with('success', 'Transaction marked as paid.');
+        return redirect()->route('finance.transactions.index')->with('success', 'Transaction marked as paid.');
     }
 
     /**

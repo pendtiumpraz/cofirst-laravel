@@ -268,7 +268,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Badge::class, 'user_badges')
             ->withPivot(['earned_at', 'earned_for', 'is_featured'])
-            ->withTimestamps();
+            ->withTimestamps()
+            ->as('pivot')
+            ->using(UserBadge::class);
     }
 
     /**

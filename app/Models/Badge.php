@@ -14,6 +14,7 @@ class Badge extends Model
         'slug',
         'description',
         'icon',
+        'image_path',
         'category',
         'level',
         'points_required',

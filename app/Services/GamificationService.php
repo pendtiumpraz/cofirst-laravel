@@ -235,7 +235,7 @@ class GamificationService
     /**
      * Get leaderboard data
      */
-    public function getLeaderboard($type = 'all', $limit = 10)
+    public function getLeaderboard($type = 'all', $limit = 10, $roles = null)
     {
         switch ($type) {
             case 'weekly':
@@ -246,16 +246,22 @@ class GamificationService
                     ->where('type', 'earned')
                     ->groupBy('user_id');
                     
-                return UserPoint::with(['user'])
+                $query = UserPoint::with(['user'])
                     ->joinSub($weeklyPoints, 'weekly', function ($join) {
                         $join->on('user_points.user_id', '=', 'weekly.user_id');
                     })
-                    ->whereHas('user', function ($q) {
+                    ->whereHas('user', function ($q) use ($roles) {
                         $q->where('is_active', true);
+                        if ($roles) {
+                            $q->whereHas('roles', function ($roleQuery) use ($roles) {
+                                $roleQuery->whereIn('name', is_array($roles) ? $roles : [$roles]);
+                            });
+                        }
                     })
                     ->orderBy('weekly.weekly_points', 'desc')
-                    ->limit($limit)
-                    ->get();
+                    ->limit($limit);
+                    
+                return $query->get();
                     
             case 'monthly':
                 // Get points earned this month using subquery
@@ -265,26 +271,38 @@ class GamificationService
                     ->where('type', 'earned')
                     ->groupBy('user_id');
                     
-                return UserPoint::with(['user'])
+                $query = UserPoint::with(['user'])
                     ->joinSub($monthlyPoints, 'monthly', function ($join) {
                         $join->on('user_points.user_id', '=', 'monthly.user_id');
                     })
-                    ->whereHas('user', function ($q) {
+                    ->whereHas('user', function ($q) use ($roles) {
                         $q->where('is_active', true);
+                        if ($roles) {
+                            $q->whereHas('roles', function ($roleQuery) use ($roles) {
+                                $roleQuery->whereIn('name', is_array($roles) ? $roles : [$roles]);
+                            });
+                        }
                     })
                     ->orderBy('monthly.monthly_points', 'desc')
-                    ->limit($limit)
-                    ->get();
+                    ->limit($limit);
+                    
+                return $query->get();
                     
             default:
                 // All time - order by total earned
-                return UserPoint::with(['user'])
-                    ->whereHas('user', function ($q) {
+                $query = UserPoint::with(['user'])
+                    ->whereHas('user', function ($q) use ($roles) {
                         $q->where('is_active', true);
+                        if ($roles) {
+                            $q->whereHas('roles', function ($roleQuery) use ($roles) {
+                                $roleQuery->whereIn('name', is_array($roles) ? $roles : [$roles]);
+                            });
+                        }
                     })
                     ->orderBy('total_earned', 'desc')
-                    ->limit($limit)
-                    ->get();
+                    ->limit($limit);
+                    
+                return $query->get();
         }
     }
     
@@ -299,6 +317,9 @@ class GamificationService
         
         $rank = UserPoint::where('total_earned', '>', $user->points->total_earned)->count() + 1;
         
-        return $rank;
+        return [
+            'rank' => $rank,
+            'points' => $user->points->total_earned
+        ];
     }
 }

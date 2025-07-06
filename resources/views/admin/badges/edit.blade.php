@@ -209,7 +209,7 @@
 
             <!-- Form Actions -->
             <div class="flex justify-end space-x-3">
-                <a href="{{ route('badges.index') }}" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                <a href="{{ route('admin.badges.index') }}" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
                     Cancel
                 </a>
                 <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">

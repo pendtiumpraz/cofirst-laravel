@@ -601,7 +601,11 @@
                     
                     <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
                         <div class="flex flex-1 items-center">
-                            <h1 class="text-lg font-semibold text-gray-900">@yield('title', 'Dashboard')</h1>
+                            @isset($header)
+                                {{ $header }}
+                            @else
+                                <h1 class="text-lg font-semibold text-gray-900">@yield('title', 'Dashboard')</h1>
+                            @endisset
                         </div>
                         
                         <!-- Profile dropdown -->

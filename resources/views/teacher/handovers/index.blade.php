@@ -1,30 +1,28 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Teacher Handovers
+            {{ __('Student Handovers') }}
         </h2>
     </x-slot>
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <!-- Welcome Section -->
-            <div class="bg-gradient-to-r from-yellow-500 to-orange-600 overflow-hidden shadow-sm sm:rounded-lg mb-6">
-                <div class="p-6 text-white">
-                    <h1 class="text-2xl font-bold mb-2">Teacher Handovers</h1>
-                    <p class="text-yellow-100">Manage class handovers and transitions between teachers.</p>
-                </div>
-            </div>
-
-            <!-- Coming Soon Message -->
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-center">
-                    <div class="mx-auto h-24 w-24 text-gray-400 mb-4">
-                        <svg fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
-                        </svg>
+                <div class="p-6 text-gray-900">
+                    <div class="text-center py-12">
+                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                            </svg>
+                        </div>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Student handover feature is coming soon!' }}</h3>
+                        <p class="mt-1 text-sm text-gray-500">This feature will allow you to manage student handovers.</p>
+                        <div class="mt-6">
+                            <a href="{{ route('teacher.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                Back to Dashboard
+                            </a>
+                        </div>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Handover Feature Coming Soon</h3>
-                    <p class="text-gray-600">We're developing a comprehensive handover system for seamless teacher transitions.</p>
                 </div>
             </div>
         </div>

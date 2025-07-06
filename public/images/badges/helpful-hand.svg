@@ -1,0 +1,20 @@
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad7" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF9800;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF5722;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow7">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Badge Circle -->
+  <circle cx="50" cy="50" r="45" fill="url(#grad7)" filter="url(#shadow7)"/>
+  
+  <!-- Hand -->
+  <path d="M35 35 L45 25 L50 30 L55 25 L65 35 L60 45 L55 50 L50 55 L45 50 L40 45 Z" fill="white" opacity="0.9"/>
+  
+  <!-- Heart -->
+  <path d="M50 60 Q45 55 40 60 Q35 55 30 60 Q35 65 40 70 Q45 65 50 70 Q55 65 60 70 Q65 65 70 60 Q65 55 60 60 Q55 55 50 60" fill="#E91E63"/>
+</svg> 

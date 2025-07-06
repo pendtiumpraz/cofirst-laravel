@@ -18,6 +18,10 @@ use App\Http\Controllers\Admin\MaterialController;
 use App\Http\Controllers\Teacher\CurriculumController as TeacherCurriculumController;
 use App\Http\Controllers\Student\MaterialController as StudentMaterialController;
 use App\Http\Controllers\Parent\ProgressController;
+use App\Http\Controllers\PhotoUploadController;
+use App\Http\Controllers\ProjectGalleryController;
+use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\ChatController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +36,9 @@ Route::get('/about', [LandingController::class, 'about'])->name('about');
 Route::get('/courses', [LandingController::class, 'courses'])->name('courses');
 Route::get('/contact', [LandingController::class, 'contact'])->name('contact');
 
+// Certificate verification (public)
+Route::get('/certificate/verify/{code}', [CertificateController::class, 'verify'])->name('certificate.verify');
+
 // Authenticated routes
 // Role switching routes
 Route::middleware('auth')->group(function () {
@@ -45,7 +52,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
         $user = Auth::user();
         
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('superadmin')) {
+            return redirect()->route('admin.dashboard');
+        } elseif ($user->hasRole('admin')) {
             return redirect()->route('admin.dashboard');
         } elseif ($user->hasRole('teacher')) {
             return redirect()->route('teacher.dashboard');
@@ -65,6 +74,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    // Photo upload routes
+    Route::post('/profile/photo', [PhotoUploadController::class, 'uploadProfilePhoto'])->name('profile.photo.upload');
+    Route::delete('/profile/photo', [PhotoUploadController::class, 'deleteProfilePhoto'])->name('profile.photo.delete');
+    
+    // Project Gallery routes (accessible by students, teachers, and parents)
+    Route::middleware(['role:student|teacher|parent|admin|superadmin'])->group(function () {
+        Route::resource('project-gallery', ProjectGalleryController::class);
+        Route::get('project-gallery/featured', [ProjectGalleryController::class, 'featured'])->name('project-gallery.featured');
+    });
 
     // Admin routes
     Route::middleware(['role:admin|superadmin'])->prefix('admin')->name('admin.')->group(function () {
@@ -109,6 +128,32 @@ Route::middleware('auth')->group(function () {
 
         // Schedule Management
         Route::resource('schedules', \App\Http\Controllers\Admin\ScheduleController::class);
+        
+        // Photo Gallery Management
+        Route::resource('class-photos', \App\Http\Controllers\Admin\ClassPhotoController::class);
+        Route::post('class-photos/{photo}/toggle-status', [\App\Http\Controllers\Admin\ClassPhotoController::class, 'toggleStatus'])->name('class-photos.toggle-status');
+        
+        // Certificate Templates Management
+        Route::resource('certificate-templates', \App\Http\Controllers\Admin\CertificateTemplateController::class);
+        Route::post('certificate-templates/{template}/toggle-status', [\App\Http\Controllers\Admin\CertificateTemplateController::class, 'toggleStatus'])->name('certificate-templates.toggle-status');
+        
+        // Certificate Bulk Generation
+        Route::get('certificates/bulk-generate', [\App\Http\Controllers\Admin\CertificateController::class, 'bulkGenerate'])->name('certificates.bulk-generate');
+        Route::post('certificates/bulk-generate', [\App\Http\Controllers\Admin\CertificateController::class, 'processBulkGenerate'])->name('certificates.process-bulk-generate');
+        
+        // Testimonials Management
+        Route::resource('testimonials', \App\Http\Controllers\Admin\TestimonialController::class);
+        Route::post('testimonials/{testimonial}/toggle-status', [\App\Http\Controllers\Admin\TestimonialController::class, 'toggleStatus'])->name('testimonials.toggle-status');
+        Route::post('testimonials/{testimonial}/toggle-featured', [\App\Http\Controllers\Admin\TestimonialController::class, 'toggleFeatured'])->name('testimonials.toggle-featured');
+        
+        // Gamification Management
+        Route::resource('badges', \App\Http\Controllers\Admin\BadgeController::class);
+        Route::post('badges/{badge}/toggle-status', [\App\Http\Controllers\Admin\BadgeController::class, 'toggleStatus'])->name('badges.toggle-status');
+        
+        Route::resource('rewards', \App\Http\Controllers\Admin\RewardController::class);
+        Route::post('rewards/{reward}/toggle-status', [\App\Http\Controllers\Admin\RewardController::class, 'toggleStatus'])->name('rewards.toggle-status');
+        Route::get('reward-redemptions', [\App\Http\Controllers\Admin\RewardController::class, 'redemptions'])->name('reward-redemptions.index');
+        Route::post('reward-redemptions/{redemption}/process', [\App\Http\Controllers\Admin\RewardController::class, 'processRedemption'])->name('reward-redemptions.process');
 
         // Role and Permission Management (SuperAdmin only)
         Route::middleware(['role:superadmin'])->group(function () {
@@ -143,6 +188,26 @@ Route::middleware('auth')->group(function () {
         Route::resource('reports', ReportController::class);
         Route::get('reports/class/{class}', [ReportController::class, 'byClass'])->name('reports.by-class');
         Route::get('reports/student/{student}', [ReportController::class, 'byStudent'])->name('reports.by-student');
+        
+        // Teacher Handover Management
+        Route::resource('handovers', \App\Http\Controllers\Teacher\HandoverController::class);
+        Route::post('handovers/{handover}/approve', [\App\Http\Controllers\Teacher\HandoverController::class, 'approve'])->name('handovers.approve');
+        
+        // Teacher Class Photos
+        Route::resource('class-photos', \App\Http\Controllers\Teacher\ClassPhotoController::class);
+        Route::get('class-photos/upload/{class}', [\App\Http\Controllers\Teacher\ClassPhotoController::class, 'upload'])->name('class-photos.upload');
+        
+        // Teacher Certificate Generation
+        Route::get('certificates/generate', [\App\Http\Controllers\Teacher\CertificateController::class, 'generate'])->name('certificates.generate');
+        Route::post('certificates/generate', [\App\Http\Controllers\Teacher\CertificateController::class, 'processGenerate'])->name('certificates.process-generate');
+        
+        // Teacher Student Progress (Gamification)
+        Route::get('student-progress', [\App\Http\Controllers\Teacher\StudentProgressController::class, 'index'])->name('student-progress.index');
+        Route::get('student-progress/{student}', [\App\Http\Controllers\Teacher\StudentProgressController::class, 'show'])->name('student-progress.show');
+        
+        // Teacher Attendance (placeholder for future implementation)
+        Route::get('attendance', [\App\Http\Controllers\Teacher\AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('attendance/today', [\App\Http\Controllers\Teacher\AttendanceController::class, 'today'])->name('attendance.today');
 
         // Note: Class Reports are now handled in the global middleware group below
     });
@@ -150,8 +215,64 @@ Route::middleware('auth')->group(function () {
     // Parent routes
     Route::middleware(['role:parent'])->prefix('parent')->name('parent.')->group(function () {
         Route::get('dashboard', function () {
-            $children = Auth::user()->children()->with('studentReports', 'enrollments')->get();
-            return view('parent.dashboard', compact('children'));
+            $children = Auth::user()->children()->with('studentReports', 'enrollments.className')->get();
+            
+            // Calculate stats for dashboard
+            $stats = [
+                'total_children' => $children->count(),
+                'active_classes' => $children->sum(function ($child) {
+                    return $child->enrollments->where('status', 'active')->count();
+                }),
+                'available_classes' => \App\Models\ClassName::where('is_active', true)
+                    ->whereIn('status', ['planned', 'active'])
+                    ->count(),
+                'total_spent' => $children->sum(function ($child) {
+                    return $child->enrollments->sum(function ($enrollment) {
+                        return $enrollment->className->course->price ?? 0;
+                    });
+                })
+            ];
+            
+            // Get purchased classes
+            $purchasedClasses = collect();
+            foreach ($children as $child) {
+                foreach ($child->enrollments as $enrollment) {
+                    if ($enrollment->status === 'active' && $enrollment->className) {
+                        $purchasedClasses->push([
+                            'child' => $child,
+                            'class' => $enrollment->className,
+                            'enrollment' => $enrollment
+                        ]);
+                    }
+                }
+            }
+            
+            // Get available classes
+            $availableClasses = \App\Models\ClassName::where('is_active', true)
+                ->whereIn('status', ['planned', 'active'])
+                ->with('course', 'teacher')
+                ->get();
+            
+            // Get schedules for current week (weekly recurring schedules)
+            $childrenIds = Auth::user()->children()->get()->pluck('id');
+            $schedules = \App\Models\Schedule::whereHas('enrollment', function ($query) use ($childrenIds) {
+                $query->whereIn('student_id', $childrenIds);
+            })
+            ->where('is_active', true)
+            ->with(['enrollment.student', 'className'])
+            ->get();
+            
+            // Get today's schedules (based on current day of week)
+            $todayDayOfWeek = now()->dayOfWeek === 0 ? 7 : now()->dayOfWeek; // Convert Sunday from 0 to 7
+            $todaySchedules = \App\Models\Schedule::whereHas('enrollment', function ($query) use ($childrenIds) {
+                $query->whereIn('student_id', $childrenIds);
+            })
+            ->where('is_active', true)
+            ->where('day_of_week', $todayDayOfWeek)
+            ->with(['enrollment.student', 'className'])
+            ->get();
+            
+            return view('parent.dashboard', compact('children', 'stats', 'purchasedClasses', 'availableClasses', 'schedules', 'todaySchedules'));
         })->name('dashboard');
         
         Route::get('children', function () {
@@ -177,6 +298,19 @@ Route::middleware('auth')->group(function () {
         // Curriculum for Parents
         Route::get('curriculum', [\App\Http\Controllers\Parent\CurriculumController::class, 'index'])->name('curriculum.index');
         Route::get('curriculum/child/{child}/class/{class}', [\App\Http\Controllers\Parent\CurriculumController::class, 'showChildProgress'])->name('curriculum.child-progress');
+        
+        // Parent Class Photos
+        Route::get('class-photos', [\App\Http\Controllers\Parent\ClassPhotoController::class, 'index'])->name('class-photos.index');
+        Route::get('class-photos/{photo}', [\App\Http\Controllers\Parent\ClassPhotoController::class, 'show'])->name('class-photos.show');
+        
+        // Parent Testimonials
+        Route::get('testimonials/create', [\App\Http\Controllers\Parent\TestimonialController::class, 'create'])->name('testimonials.create');
+        Route::post('testimonials', [\App\Http\Controllers\Parent\TestimonialController::class, 'store'])->name('testimonials.store');
+        Route::get('testimonials', [\App\Http\Controllers\Parent\TestimonialController::class, 'index'])->name('testimonials.index');
+        
+        // Parent Contact Admin
+        Route::get('contact-admin', [\App\Http\Controllers\Parent\ContactController::class, 'index'])->name('contact-admin');
+        Route::post('contact-admin', [\App\Http\Controllers\Parent\ContactController::class, 'send'])->name('contact-admin.send');
     });
 
     // Student routes
@@ -209,7 +343,9 @@ Route::middleware('auth')->group(function () {
     
     // Finance routes
     Route::middleware(['role:finance|admin|superadmin'])->prefix('finance')->name('finance.')->group(function () {
-        Route::get('transactions', [FinanceController::class, 'index'])->name('transactions.list');
+            Route::get('dashboard', [FinanceController::class, 'dashboard'])->name('dashboard');
+    Route::get('chart-data', [FinanceController::class, 'getChartDataAjax'])->name('chart-data');
+    Route::get('transactions', [FinanceController::class, 'index'])->name('transactions.index');
         Route::get('transactions/create', [FinanceController::class, 'create'])->name('transactions.create');
         Route::post('transactions', [FinanceController::class, 'store'])->name('transactions.store');
         Route::get('transactions/{transaction}/edit', [FinanceController::class, 'edit'])->name('transactions.edit');
@@ -220,6 +356,50 @@ Route::middleware('auth')->group(function () {
         Route::get('reports', [FinanceController::class, 'reports'])->name('reports.index');
         Route::get('reports/daily', [FinanceController::class, 'dailyReport'])->name('reports.daily');
         Route::get('reports/export', [FinanceController::class, 'exportReport'])->name('reports.export');
+    });
+
+    // Certificate routes - accessible by all authenticated users with role-based filtering
+    Route::middleware(['role:admin|superadmin|teacher|student|parent'])->group(function () {
+        Route::get('certificates', [CertificateController::class, 'index'])->name('certificates.index');
+        Route::get('certificates/{certificate}', [CertificateController::class, 'show'])->name('certificates.show');
+        Route::get('certificates/{certificate}/download', [CertificateController::class, 'download'])->name('certificates.download');
+    });
+
+    // Certificate management - admin and teachers only
+    Route::middleware(['role:admin|superadmin|teacher'])->group(function () {
+        Route::get('certificates/create', [CertificateController::class, 'create'])->name('certificates.create');
+        Route::post('certificates', [CertificateController::class, 'store'])->name('certificates.store');
+        Route::get('certificates/bulk/create', [CertificateController::class, 'bulkCreate'])->name('certificates.bulk-create');
+        Route::post('certificates/bulk', [CertificateController::class, 'bulkStore'])->name('certificates.bulk-store');
+    });
+
+    // Certificate invalidation - admin only
+    Route::middleware(['role:admin|superadmin'])->group(function () {
+        Route::patch('certificates/{certificate}/invalidate', [CertificateController::class, 'invalidate'])->name('certificates.invalidate');
+    });
+
+    // Chat routes - accessible by all authenticated users
+    Route::middleware(['auth'])->prefix('chat')->name('chat.')->group(function () {
+        Route::get('/', [ChatController::class, 'index'])->name('index');
+        Route::post('/start', [ChatController::class, 'startConversation'])->name('start');
+        Route::get('/conversation/{conversation}', [ChatController::class, 'show'])->name('show');
+        Route::post('/conversation/{conversation}/send', [ChatController::class, 'sendMessage'])->name('send');
+        Route::post('/conversation/{conversation}/mark-read', [ChatController::class, 'markAsRead'])->name('mark-read');
+        Route::put('/message/{message}', [ChatController::class, 'editMessage'])->name('message.edit');
+        Route::delete('/message/{message}', [ChatController::class, 'deleteMessage'])->name('message.delete');
+        Route::get('/search', [ChatController::class, 'search'])->name('search');
+    });
+
+    // Gamification routes - accessible by all authenticated users
+    Route::middleware(['auth'])->prefix('gamification')->name('gamification.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\GamificationController::class, 'index'])->name('index');
+        Route::get('/leaderboard', [\App\Http\Controllers\GamificationController::class, 'leaderboard'])->name('leaderboard');
+        Route::get('/badges', [\App\Http\Controllers\GamificationController::class, 'badges'])->name('badges');
+        Route::post('/badges/{badge}/toggle-featured', [\App\Http\Controllers\GamificationController::class, 'toggleBadgeFeatured'])->name('badges.toggle-featured');
+        Route::get('/rewards', [\App\Http\Controllers\GamificationController::class, 'rewards'])->name('rewards');
+        Route::post('/rewards/{reward}/redeem', [\App\Http\Controllers\GamificationController::class, 'redeemReward'])->name('rewards.redeem');
+        Route::get('/redemptions', [\App\Http\Controllers\GamificationController::class, 'redemptions'])->name('redemptions');
+        Route::get('/point-history', [\App\Http\Controllers\GamificationController::class, 'pointHistory'])->name('point-history');
     });
 
 });

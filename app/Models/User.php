@@ -23,6 +23,8 @@ class User extends Authenticatable
         'email',
         'password',
         'is_active',
+        'profile_photo_path',
+        'photo_crop_data',
     ];
 
     /**
@@ -44,6 +46,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_active' => 'boolean',
+        'photo_crop_data' => 'array',
     ];
 
     /**
@@ -83,7 +86,8 @@ class User extends Authenticatable
      */
     public function children()
     {
-        return $this->belongsToMany(User::class, 'parent_student', 'parent_id', 'student_id');
+        return $this->belongsToMany(User::class, 'parent_student', 'parent_id', 'student_id')
+            ->select('users.*'); // Explicitly select columns from users table to avoid ambiguity
     }
 
     /**
@@ -91,7 +95,8 @@ class User extends Authenticatable
      */
     public function parents()
     {
-        return $this->belongsToMany(User::class, 'parent_student', 'student_id', 'parent_id');
+        return $this->belongsToMany(User::class, 'parent_student', 'student_id', 'parent_id')
+            ->select('users.*'); // Explicitly select columns from users table to avoid ambiguity
     }
 
     /**
@@ -172,5 +177,171 @@ class User extends Authenticatable
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Get the URL to the user's profile photo.
+     */
+    public function getProfilePhotoUrlAttribute()
+    {
+        return $this->profile_photo_path
+            ? asset('storage/' . $this->profile_photo_path)
+            : asset('images/default-avatar.png');
+    }
+
+    /**
+     * Get the user's project galleries.
+     */
+    public function projectGalleries()
+    {
+        return $this->hasMany(ProjectGallery::class, 'student_id');
+    }
+
+    /**
+     * Get the class photos uploaded by this user.
+     */
+    public function uploadedClassPhotos()
+    {
+        return $this->hasMany(ClassPhoto::class, 'uploaded_by');
+    }
+
+    /**
+     * Get user's conversations
+     */
+    public function conversations()
+    {
+        return $this->belongsToMany(Conversation::class, 'conversation_participants')
+            ->withPivot(['joined_at', 'last_read_at', 'unread_count', 'is_admin', 'is_muted', 'muted_until'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Get user's conversation participations
+     */
+    public function conversationParticipants()
+    {
+        return $this->hasMany(ConversationParticipant::class);
+    }
+
+    /**
+     * Get user's sent messages
+     */
+    public function sentMessages()
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
+    /**
+     * Get total unread messages count
+     */
+    public function getUnreadMessagesCountAttribute()
+    {
+        return $this->conversationParticipants()->sum('unread_count');
+    }
+
+    /**
+     * Get conversations with unread messages
+     */
+    public function unreadConversations()
+    {
+        return $this->conversations()->wherePivot('unread_count', '>', 0);
+    }
+
+    /**
+     * Get user's points
+     */
+    public function points()
+    {
+        return $this->hasOne(UserPoint::class);
+    }
+
+    /**
+     * Get user's point transactions
+     */
+    public function pointTransactions()
+    {
+        return $this->hasMany(PointTransaction::class);
+    }
+
+    /**
+     * Get user's badges
+     */
+    public function badges()
+    {
+        return $this->belongsToMany(Badge::class, 'user_badges')
+            ->withPivot(['earned_at', 'earned_for', 'is_featured'])
+            ->withTimestamps()
+            ->as('pivot')
+            ->using(UserBadge::class);
+    }
+
+    /**
+     * Get user's featured badges
+     */
+    public function featuredBadges()
+    {
+        return $this->badges()->wherePivot('is_featured', true);
+    }
+
+    /**
+     * Get user's reward redemptions
+     */
+    public function rewardRedemptions()
+    {
+        return $this->hasMany(RewardRedemption::class);
+    }
+
+    /**
+     * Initialize points for user if not exists
+     */
+    public function initializePoints()
+    {
+        if (!$this->points) {
+            $this->points()->create([
+                'points' => 0,
+                'total_earned' => 0,
+                'total_spent' => 0,
+                'level' => 1,
+                'current_streak' => 0,
+                'longest_streak' => 0,
+            ]);
+            // Load the relationship after creating
+            $this->load('points');
+        }
+        
+        return $this->points;
+    }
+
+    /**
+     * Add points to user
+     */
+    public function addPoints($amount, $reason, $description = null, $relatedModel = null)
+    {
+        $this->initializePoints();
+        return $this->points->addPoints($amount, $reason, $description, $relatedModel);
+    }
+
+    /**
+     * Check if user has enough points
+     */
+    public function hasPoints($amount)
+    {
+        return $this->points && $this->points->points >= $amount;
+    }
+
+    /**
+     * Get user's current level
+     */
+    public function getCurrentLevelAttribute()
+    {
+        return $this->points ? $this->points->level : 1;
+    }
+
+    /**
+     * Get user's current points
+     */
+    public function getCurrentPointsAttribute()
+    {
+        return $this->points ? $this->points->points : 0;
     }
 }

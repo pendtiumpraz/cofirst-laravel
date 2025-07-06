@@ -40,6 +40,14 @@ class Enrollment extends Model
     }
 
     /**
+     * Get the class for this enrollment (alias for consistency).
+     */
+    public function className()
+    {
+        return $this->belongsTo(ClassName::class, 'class_id');
+    }
+
+    /**
      * Scope to get only active enrollments.
      */
     public function scopeActive($query)

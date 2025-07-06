@@ -10,6 +10,13 @@
         <p class="text-gray-600">Manage your account settings and preferences</p>
     </div>
 
+    <!-- Profile Photo -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="max-w-xl">
+            @include('profile.partials.update-photo')
+        </div>
+    </div>
+
     <!-- Profile Information -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <div class="max-w-xl">

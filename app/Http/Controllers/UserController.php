@@ -6,7 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Intervention\Image\Facades\Image;
 
 class UserController extends Controller
 {
@@ -38,16 +40,32 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|exists:roles,name',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
         ]);
 
-        $user = User::create([
+        $userData = [
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'is_active' => $request->boolean('is_active', true),
-        ]);
+        ];
 
+        // Handle photo upload
+        if ($request->hasFile('photo')) {
+            $photo = $request->file('photo');
+            $filename = 'profile-photos/' . uniqid() . '-' . time() . '.' . $photo->getClientOriginalExtension();
+            
+            // Process image with Intervention
+            $image = Image::make($photo);
+            $image->fit(300, 300);
+            
+            // Save to storage
+            Storage::disk('public')->put($filename, $image->encode());
+            $userData['profile_photo_path'] = $filename;
+        }
+
+        $user = User::create($userData);
         $user->assignRole($request->role);
 
         return redirect()->route('admin.users.index')->with('success', 'User created successfully.');
@@ -81,14 +99,36 @@ class UserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:8|confirmed',
             'role' => 'required|exists:roles,name',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
         ]);
 
-        $user->update([
+        $userData = [
             'name' => $request->name,
             'email' => $request->email,
             'is_active' => $request->boolean('is_active', true),
-        ]);
+        ];
+
+        // Handle photo upload
+        if ($request->hasFile('photo')) {
+            // Delete old photo if exists
+            if ($user->profile_photo_path) {
+                Storage::disk('public')->delete($user->profile_photo_path);
+            }
+
+            $photo = $request->file('photo');
+            $filename = 'profile-photos/' . $user->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
+            
+            // Process image with Intervention
+            $image = Image::make($photo);
+            $image->fit(300, 300);
+            
+            // Save to storage
+            Storage::disk('public')->put($filename, $image->encode());
+            $userData['profile_photo_path'] = $filename;
+        }
+
+        $user->update($userData);
 
         if ($request->filled('password')) {
             $user->update(['password' => Hash::make($request->password)]);

@@ -9,56 +9,19 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-2xl font-semibold text-gray-800">{{ $class->name }}</h3>
-                        <a href="{{ route('teacher.classes') }}" class="text-blue-600 hover:text-blue-800 transition-colors">
-                            &larr; Back to My Classes
-                        </a>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Class Information -->
-                        <div class="bg-gray-50 p-6 rounded-lg">
-                            <h4 class="text-lg font-bold text-gray-700 mb-4">Class Information</h4>
-                            <dl class="space-y-4">
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Course</dt>
-                                    <dd class="mt-1 text-md text-gray-900">{{ $class->course->name }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Type</dt>
-                                    <dd class="mt-1 text-md text-gray-900">{{ ucfirst($class->type) }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Capacity</dt>
-                                    <dd class="mt-1 text-md text-gray-900">{{ $class->enrollments->count() }} / {{ $class->max_students }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Status</dt>
-                                    <dd class="mt-1">
-                                        <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $class->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                                            {{ ucfirst($class->status) }}
-                                        </span>
-                                    </dd>
-                                </div>
-                            </dl>
+                    <div class="text-center py-12">
+                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
                         </div>
-
-                        <!-- Enrolled Students -->
-                        <div class="bg-gray-50 p-6 rounded-lg">
-                            <h4 class="text-lg font-bold text-gray-700 mb-4">Enrolled Students</h4>
-                            @if($class->enrollments->count() > 0)
-                                <ul class="divide-y divide-gray-200">
-                                    @foreach($class->enrollments as $enrollment)
-                                        <li class="py-3 flex justify-between items-center">
-                                            <span class="text-md text-gray-800">{{ $enrollment->student->name }}</span>
-                                            <span class="text-sm text-gray-500">{{ $enrollment->student->email }}</span>
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            @else
-                                <p class="text-gray-500">No students are currently enrolled in this class.</p>
-                            @endif
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Class details feature is coming soon!' }}</h3>
+                        <p class="mt-1 text-sm text-gray-500">This feature will show detailed information about a specific class.</p>
+                        <div class="mt-6">
+                            <a href="{{ route('teacher.classes') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                Back to Classes
+                            </a>
                         </div>
                     </div>
                 </div>

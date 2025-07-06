@@ -8,7 +8,6 @@ use App\Models\Course;
 use App\Models\User;
 use App\Models\Enrollment;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Facades\Image;
 
 class ClassController extends Controller
 {
@@ -82,16 +81,9 @@ class ClassController extends Controller
             $photo = $request->file('photo');
             $filename = 'class-photos/' . uniqid() . '-' . time() . '.' . $photo->getClientOriginalExtension();
             
-            // Process image with Intervention
-            $image = Image::make($photo);
-            $image->resize(800, null, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            });
-            
-            // Save to storage
-            Storage::disk('public')->put($filename, $image->encode());
-            $classData['photo_path'] = $filename;
+            // Store the file directly
+            $path = $photo->storeAs('class-photos', basename($filename), 'public');
+            $classData['photo_path'] = $path;
         }
 
         $class = ClassName::create($classData);
@@ -178,16 +170,9 @@ class ClassController extends Controller
             $photo = $request->file('photo');
             $filename = 'class-photos/' . $class->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
             
-            // Process image with Intervention
-            $image = Image::make($photo);
-            $image->resize(800, null, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            });
-            
-            // Save to storage
-            Storage::disk('public')->put($filename, $image->encode());
-            $classData['photo_path'] = $filename;
+            // Store the file directly
+            $path = $photo->storeAs('class-photos', basename($filename), 'public');
+            $classData['photo_path'] = $path;
         }
 
         $class->update($classData);

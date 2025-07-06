@@ -6,7 +6,6 @@ use App\Models\ProjectGallery;
 use App\Models\ClassName;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Facades\Image;
 
 class ProjectGalleryController extends Controller
 {
@@ -72,18 +71,11 @@ class ProjectGalleryController extends Controller
         // Create thumbnail
         $thumbnailFilename = 'project-galleries/thumbnails/' . $user->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
         
-        // Process main image
-        $image = Image::make($photo);
-        $image->resize(1200, null, function ($constraint) {
-            $constraint->aspectRatio();
-            $constraint->upsize();
-        });
-        Storage::disk('public')->put($filename, $image->encode());
+        // Store main image
+        $path = $photo->storeAs('project-galleries', basename($filename), 'public');
         
-        // Process thumbnail
-        $thumbnail = Image::make($photo);
-        $thumbnail->fit(400, 300);
-        Storage::disk('public')->put($thumbnailFilename, $thumbnail->encode());
+        // Store thumbnail (same image for now, resize can be done on frontend)
+        $thumbnailPath = $photo->storeAs('project-galleries/thumbnails', basename($thumbnailFilename), 'public');
 
         // Create gallery entry
         $gallery = ProjectGallery::create([
@@ -91,8 +83,8 @@ class ProjectGalleryController extends Controller
             'class_id' => $request->class_id,
             'title' => $request->title,
             'description' => $request->description,
-            'photo_path' => $filename,
-            'thumbnail_path' => $thumbnailFilename,
+            'photo_path' => $path,
+            'thumbnail_path' => $thumbnailPath,
             'is_featured' => $request->boolean('is_featured', false)
         ]);
 
@@ -163,20 +155,12 @@ class ProjectGalleryController extends Controller
             $filename = 'project-galleries/' . auth()->id() . '-' . time() . '.' . $photo->getClientOriginalExtension();
             $thumbnailFilename = 'project-galleries/thumbnails/' . auth()->id() . '-' . time() . '.' . $photo->getClientOriginalExtension();
             
-            // Process images
-            $image = Image::make($photo);
-            $image->resize(1200, null, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            });
-            Storage::disk('public')->put($filename, $image->encode());
-            
-            $thumbnail = Image::make($photo);
-            $thumbnail->fit(400, 300);
-            Storage::disk('public')->put($thumbnailFilename, $thumbnail->encode());
+            // Store images
+            $path = $photo->storeAs('project-galleries', basename($filename), 'public');
+            $thumbnailPath = $photo->storeAs('project-galleries/thumbnails', basename($thumbnailFilename), 'public');
 
-            $data['photo_path'] = $filename;
-            $data['thumbnail_path'] = $thumbnailFilename;
+            $data['photo_path'] = $path;
+            $data['thumbnail_path'] = $thumbnailPath;
         }
 
         $projectGallery->update($data);

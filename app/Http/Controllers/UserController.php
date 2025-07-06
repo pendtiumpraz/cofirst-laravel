@@ -8,7 +8,6 @@ use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use Intervention\Image\Facades\Image;
 
 class UserController extends Controller
 {
@@ -56,13 +55,9 @@ class UserController extends Controller
             $photo = $request->file('photo');
             $filename = 'profile-photos/' . uniqid() . '-' . time() . '.' . $photo->getClientOriginalExtension();
             
-            // Process image with Intervention
-            $image = Image::make($photo);
-            $image->fit(300, 300);
-            
-            // Save to storage
-            Storage::disk('public')->put($filename, $image->encode());
-            $userData['profile_photo_path'] = $filename;
+            // Store the file directly
+            $path = $photo->storeAs('profile-photos', basename($filename), 'public');
+            $userData['profile_photo_path'] = $path;
         }
 
         $user = User::create($userData);
@@ -119,13 +114,9 @@ class UserController extends Controller
             $photo = $request->file('photo');
             $filename = 'profile-photos/' . $user->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
             
-            // Process image with Intervention
-            $image = Image::make($photo);
-            $image->fit(300, 300);
-            
-            // Save to storage
-            Storage::disk('public')->put($filename, $image->encode());
-            $userData['profile_photo_path'] = $filename;
+            // Store the file directly
+            $path = $photo->storeAs('profile-photos', basename($filename), 'public');
+            $userData['profile_photo_path'] = $path;
         }
 
         $user->update($userData);

@@ -8,6 +8,7 @@ use App\Models\Course;
 use App\Models\User;
 use App\Models\Enrollment;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class ClassController extends Controller
 {
@@ -21,7 +22,7 @@ class ClassController extends Controller
             ->paginate(20);
             
         // Debug logging
-        \Log::info('Admin Classes Debug', [
+        Log::info('Admin Classes Debug', [
             'classes_count' => $classes->count(),
             'total_classes' => $classes->total(),
             'current_page' => $classes->currentPage(),
@@ -85,7 +86,7 @@ class ClassController extends Controller
             $path = $photo->storeAs('class-photos', $filename, 'public');
             $classData['photo_path'] = $path;
             
-            \Log::info('Photo uploaded for class creation', [
+            Log::info('Photo uploaded for class creation', [
                 'filename' => $filename,
                 'path' => $path,
                 'full_path' => storage_path('app/public/' . $path),
@@ -122,7 +123,7 @@ class ClassController extends Controller
         $courses = Course::where('is_active', true)->get();
         $teachers = User::role('teacher')->where('is_active', true)->get();
         
-        \Log::info('Editing class', [
+        Log::info('Editing class', [
             'class_id' => $class->id,
             'photo_path' => $class->photo_path,
             'photo_url' => $class->photo_url,
@@ -189,7 +190,7 @@ class ClassController extends Controller
             $path = $photo->storeAs('class-photos', $filename, 'public');
             $classData['photo_path'] = $path;
             
-            \Log::info('Photo uploaded for class update', [
+            Log::info('Photo uploaded for class update', [
                 'class_id' => $class->id,
                 'old_path' => $class->photo_path,
                 'new_path' => $path,
@@ -198,6 +199,13 @@ class ClassController extends Controller
         }
 
         $class->update($classData);
+        
+        // Debug after update
+        Log::info('Class after update', [
+            'class_id' => $class->id,
+            'photo_path' => $class->fresh()->photo_path,
+            'classData' => $classData
+        ]);
 
         return redirect()->route('admin.classes.index')->with('success', 'Class updated successfully.');
     }

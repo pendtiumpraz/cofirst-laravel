@@ -17,7 +17,9 @@ class ClassController extends Controller
      */
     public function index()
     {
-        $classes = ClassName::with(['course', 'teacher'])
+        $classes = ClassName::with(['course', 'teacher', 'classPhotos' => function($query) {
+                $query->latest()->limit(1);
+            }])
             ->withCount('enrollments')
             ->paginate(20);
             

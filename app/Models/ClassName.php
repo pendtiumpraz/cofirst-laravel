@@ -56,6 +56,11 @@ class ClassName extends Model
         return $this->belongsTo(Curriculum::class); // Relasi baru
     }
 
+    public function classPhotos()
+    {
+        return $this->hasMany(ClassPhoto::class, 'class_id');
+    }
+
     /**
      * Scope untuk kelas yang aktif dan belum selesai
      */

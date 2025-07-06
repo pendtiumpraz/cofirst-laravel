@@ -149,12 +149,26 @@ function addNumberColumn(table) {
     noHeader.dataset.sortable = 'false';
     headerRow.insertBefore(noHeader, headerRow.firstChild);
     
+    // Calculate starting number based on pagination
+    let startNumber = 1;
+    
+    // Look for Laravel pagination info - search for "Showing X to Y"
+    const paginationText = document.querySelector('nav[aria-label="Pagination Navigation"] p.text-sm');
+    if (paginationText) {
+        // Extract first number from "Showing X to Y of Z results"
+        const text = paginationText.textContent;
+        const match = text.match(/\b(\d+)\b/); // Find first number
+        if (match) {
+            startNumber = parseInt(match[1]);
+        }
+    }
+    
     // Add cells
     const rows = tbody.querySelectorAll('tr');
     rows.forEach((row, index) => {
         const noCell = document.createElement('td');
         noCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-900';
-        noCell.textContent = index + 1;
+        noCell.textContent = startNumber + index;
         row.insertBefore(noCell, row.firstChild);
     });
 }

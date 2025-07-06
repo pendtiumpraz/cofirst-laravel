@@ -74,17 +74,7 @@
                             </div>
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Class Photo</label>
-                                <!-- Debug info -->
-                                <div class="mb-2 text-xs text-gray-500">
-                                    Debug: photo_path = {{ $class->photo_path ?? 'null' }}, 
-                                    photo_url = {{ $class->photo_url ?? 'null' }}
-                                    @if($class->photo_path)
-                                        <br>Direct URL: {{ asset('storage/' . $class->photo_path) }}
-                                        <br>File exists: {{ \Storage::disk('public')->exists($class->photo_path) ? 'Yes' : 'No' }}
-                                        <br>Test image:
-                                        <img src="{{ $class->photo_url }}" alt="Test" class="w-20 h-20 object-cover rounded">
-                                    @endif
-                                </div>
+                                
                                 <x-photo-upload 
                                     name="photo"
                                     :currentPhoto="$class->photo_url"

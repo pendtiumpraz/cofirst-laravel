@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClassPhoto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ClassPhotoController extends Controller
 {
@@ -12,10 +14,11 @@ class ClassPhotoController extends Controller
      */
     public function index()
     {
-        return view('admin.class-photos.index')->with([
-            'message' => 'Class Photos management feature is coming soon!',
-            'photos' => collect() // Empty collection for now
-        ]);
+        $classPhotos = ClassPhoto::with(['class', 'teacher.user'])
+            ->latest()
+            ->paginate(20);
+        
+        return view('admin.class-photos.index', compact('classPhotos'));
     }
 
     /**
@@ -42,10 +45,9 @@ class ClassPhotoController extends Controller
      */
     public function show(string $id)
     {
-        return view('admin.class-photos.show')->with([
-            'message' => 'Class Photos viewing feature is coming soon!',
-            'photo' => null
-        ]);
+        $classPhoto = ClassPhoto::with(['class', 'teacher.user'])->findOrFail($id);
+        
+        return view('admin.class-photos.show', compact('classPhoto'));
     }
 
     /**
@@ -53,10 +55,9 @@ class ClassPhotoController extends Controller
      */
     public function edit(string $id)
     {
-        return view('admin.class-photos.edit')->with([
-            'message' => 'Class Photos editing feature is coming soon!',
-            'photo' => null
-        ]);
+        $classPhoto = ClassPhoto::with(['class', 'teacher.user'])->findOrFail($id);
+        
+        return view('admin.class-photos.edit', compact('classPhoto'));
     }
 
     /**
@@ -64,8 +65,39 @@ class ClassPhotoController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        return redirect()->route('admin.class-photos.index')
-            ->with('info', 'Class Photos editing feature is coming soon!');
+        $classPhoto = ClassPhoto::findOrFail($id);
+        
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'date_taken' => 'required|date',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
+        ]);
+        
+        // Update basic fields
+        $classPhoto->title = $request->title;
+        $classPhoto->description = $request->description;
+        $classPhoto->date_taken = $request->date_taken;
+        
+        // Handle photo upload if new photo is provided
+        if ($request->hasFile('photo')) {
+            // Delete old photo if exists
+            if ($classPhoto->photo_path) {
+                Storage::disk('public')->delete($classPhoto->photo_path);
+            }
+            
+            // Store new photo
+            $file = $request->file('photo');
+            $filename = uniqid() . '-' . time() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('class-photos', $filename, 'public');
+            
+            $classPhoto->photo_path = $path;
+        }
+        
+        $classPhoto->save();
+        
+        return redirect()->route('admin.class-photos.show', $classPhoto)
+            ->with('success', 'Class photo updated successfully!');
     }
 
     /**
@@ -73,8 +105,18 @@ class ClassPhotoController extends Controller
      */
     public function destroy(string $id)
     {
+        $classPhoto = ClassPhoto::findOrFail($id);
+        
+        // Delete the photo file if exists
+        if ($classPhoto->photo_path) {
+            Storage::disk('public')->delete($classPhoto->photo_path);
+        }
+        
+        // Delete the record
+        $classPhoto->delete();
+        
         return redirect()->route('admin.class-photos.index')
-            ->with('info', 'Class Photos deletion feature is coming soon!');
+            ->with('success', 'Class photo deleted successfully!');
     }
 
     /**

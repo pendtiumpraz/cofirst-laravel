@@ -404,6 +404,4 @@ Route::middleware('auth')->group(function () {
 
 });
 
-// All debug routes removed - issue resolved ✅
-
 require __DIR__.'/auth.php';

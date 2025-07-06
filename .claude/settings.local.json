@@ -33,7 +33,8 @@
       "Bash(rm:*)",
       "Bash(npm run build:*)",
       "Bash(npm install:*)",
-      "Bash(/usr/bin/php artisan make:migration:*)"
+      "Bash(/usr/bin/php artisan make:migration:*)",
+      "Bash(ln:*)"
     ],
     "deny": []
   }

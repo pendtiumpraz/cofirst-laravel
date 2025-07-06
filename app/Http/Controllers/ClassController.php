@@ -79,11 +79,18 @@ class ClassController extends Controller
         // Handle photo upload
         if ($request->hasFile('photo')) {
             $photo = $request->file('photo');
-            $filename = 'class-photos/' . uniqid() . '-' . time() . '.' . $photo->getClientOriginalExtension();
+            $filename = uniqid() . '-' . time() . '.' . $photo->getClientOriginalExtension();
             
             // Store the file directly
-            $path = $photo->storeAs('class-photos', basename($filename), 'public');
+            $path = $photo->storeAs('class-photos', $filename, 'public');
             $classData['photo_path'] = $path;
+            
+            \Log::info('Photo uploaded for class creation', [
+                'filename' => $filename,
+                'path' => $path,
+                'full_path' => storage_path('app/public/' . $path),
+                'exists' => Storage::disk('public')->exists($path)
+            ]);
         }
 
         $class = ClassName::create($classData);
@@ -114,6 +121,14 @@ class ClassController extends Controller
     {
         $courses = Course::where('is_active', true)->get();
         $teachers = User::role('teacher')->where('is_active', true)->get();
+        
+        \Log::info('Editing class', [
+            'class_id' => $class->id,
+            'photo_path' => $class->photo_path,
+            'photo_url' => $class->photo_url,
+            'photo_exists' => $class->photo_path ? Storage::disk('public')->exists($class->photo_path) : false
+        ]);
+        
         return view('admin.classes.edit', compact('class', 'courses', 'teachers'));
     }
 
@@ -168,11 +183,18 @@ class ClassController extends Controller
             }
 
             $photo = $request->file('photo');
-            $filename = 'class-photos/' . $class->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
+            $filename = $class->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
             
             // Store the file directly
-            $path = $photo->storeAs('class-photos', basename($filename), 'public');
+            $path = $photo->storeAs('class-photos', $filename, 'public');
             $classData['photo_path'] = $path;
+            
+            \Log::info('Photo uploaded for class update', [
+                'class_id' => $class->id,
+                'old_path' => $class->photo_path,
+                'new_path' => $path,
+                'exists' => Storage::disk('public')->exists($path)
+            ]);
         }
 
         $class->update($classData);

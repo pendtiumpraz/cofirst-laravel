@@ -144,6 +144,7 @@ Route::middleware('auth')->group(function () {
         // Testimonials Management
         Route::resource('testimonials', \App\Http\Controllers\Admin\TestimonialController::class);
         Route::post('testimonials/{testimonial}/toggle-status', [\App\Http\Controllers\Admin\TestimonialController::class, 'toggleStatus'])->name('testimonials.toggle-status');
+        Route::post('testimonials/{testimonial}/toggle-featured', [\App\Http\Controllers\Admin\TestimonialController::class, 'toggleFeatured'])->name('testimonials.toggle-featured');
         
         // Gamification Management
         Route::resource('badges', \App\Http\Controllers\Admin\BadgeController::class);
@@ -214,8 +215,64 @@ Route::middleware('auth')->group(function () {
     // Parent routes
     Route::middleware(['role:parent'])->prefix('parent')->name('parent.')->group(function () {
         Route::get('dashboard', function () {
-            $children = Auth::user()->children()->with('studentReports', 'enrollments')->get();
-            return view('parent.dashboard', compact('children'));
+            $children = Auth::user()->children()->with('studentReports', 'enrollments.className')->get();
+            
+            // Calculate stats for dashboard
+            $stats = [
+                'total_children' => $children->count(),
+                'active_classes' => $children->sum(function ($child) {
+                    return $child->enrollments->where('status', 'active')->count();
+                }),
+                'available_classes' => \App\Models\ClassName::where('is_active', true)
+                    ->whereIn('status', ['planned', 'active'])
+                    ->count(),
+                'total_spent' => $children->sum(function ($child) {
+                    return $child->enrollments->sum(function ($enrollment) {
+                        return $enrollment->className->course->price ?? 0;
+                    });
+                })
+            ];
+            
+            // Get purchased classes
+            $purchasedClasses = collect();
+            foreach ($children as $child) {
+                foreach ($child->enrollments as $enrollment) {
+                    if ($enrollment->status === 'active' && $enrollment->className) {
+                        $purchasedClasses->push([
+                            'child' => $child,
+                            'class' => $enrollment->className,
+                            'enrollment' => $enrollment
+                        ]);
+                    }
+                }
+            }
+            
+            // Get available classes
+            $availableClasses = \App\Models\ClassName::where('is_active', true)
+                ->whereIn('status', ['planned', 'active'])
+                ->with('course', 'teacher')
+                ->get();
+            
+            // Get schedules for current week (weekly recurring schedules)
+            $childrenIds = Auth::user()->children()->get()->pluck('id');
+            $schedules = \App\Models\Schedule::whereHas('enrollment', function ($query) use ($childrenIds) {
+                $query->whereIn('student_id', $childrenIds);
+            })
+            ->where('is_active', true)
+            ->with(['enrollment.student', 'className'])
+            ->get();
+            
+            // Get today's schedules (based on current day of week)
+            $todayDayOfWeek = now()->dayOfWeek === 0 ? 7 : now()->dayOfWeek; // Convert Sunday from 0 to 7
+            $todaySchedules = \App\Models\Schedule::whereHas('enrollment', function ($query) use ($childrenIds) {
+                $query->whereIn('student_id', $childrenIds);
+            })
+            ->where('is_active', true)
+            ->where('day_of_week', $todayDayOfWeek)
+            ->with(['enrollment.student', 'className'])
+            ->get();
+            
+            return view('parent.dashboard', compact('children', 'stats', 'purchasedClasses', 'availableClasses', 'schedules', 'todaySchedules'));
         })->name('dashboard');
         
         Route::get('children', function () {

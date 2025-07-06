@@ -47,7 +47,7 @@
                     @endif
                     
                     @if(Auth::user()->hasRole('parent') && session('active_role') === 'parent')
-                        <x-nav-link :href="route('parent.curriculum.index')" :active="request()->routeIs('parent.curriculum.*')">
+                        <x-nav-link :href="route('parent.progress.index')" :active="request()->routeIs('parent.progress.*')">
                             {{ __('Progress Anak') }}
                         </x-nav-link>
                     @endif
@@ -177,7 +177,7 @@
             @endif
             
             @if(Auth::user()->hasRole('parent') && session('active_role') === 'parent')
-                <x-responsive-nav-link :href="route('parent.curriculum.index')" :active="request()->routeIs('parent.curriculum.*')">
+                <x-responsive-nav-link :href="route('parent.progress.index')" :active="request()->routeIs('parent.progress.*')">
                     {{ __('Progress Anak') }}
                 </x-responsive-nav-link>
             @endif

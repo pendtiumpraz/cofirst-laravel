@@ -107,9 +107,9 @@
 </div>
 
 <!-- New Chat Modal -->
-<div id="newChatModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3">
+<div id="newChatModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="z-index: 9999;">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+        <div class="mb-4">
             <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Start New Conversation</h3>
             
             <div class="mt-2">
@@ -124,13 +124,13 @@
                 </select>
             </div>
             
-            <div class="mt-4 flex justify-end space-x-3">
+            <div class="mt-6 flex justify-end space-x-3">
                 <button onclick="hideNewChatModal()" 
-                        class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                        class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
                     Cancel
                 </button>
                 <button onclick="startNewChat()" 
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                     Start Chat
                 </button>
             </div>

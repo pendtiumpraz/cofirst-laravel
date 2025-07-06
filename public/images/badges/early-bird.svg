@@ -1,61 +1,33 @@
 <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="earlyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FFE082;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#FFCC02;stop-opacity:1" />
+    <linearGradient id="grad9" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD54F;stop-opacity:1" />
       <stop offset="100%" style="stop-color:#FF8F00;stop-opacity:1" />
     </linearGradient>
-    <radialGradient id="sunGrad" cx="50%" cy="30%" r="50%">
-      <stop offset="0%" style="stop-color:#FFF59D;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#FFE082;stop-opacity:1" />
-    </radialGradient>
-    <filter id="earlyShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+    <filter id="shadow9">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
     </filter>
   </defs>
   
   <!-- Badge Circle -->
-  <circle cx="50" cy="50" r="45" fill="url(#earlyGrad)" filter="url(#earlyShadow)"/>
-  <circle cx="50" cy="50" r="38" fill="none" stroke="#FFF8E1" stroke-width="2"/>
+  <circle cx="50" cy="50" r="45" fill="url(#grad9)" filter="url(#shadow9)"/>
+  
+  <!-- Bird -->
+  <ellipse cx="50" cy="45" rx="15" ry="10" fill="white" opacity="0.9"/>
+  <circle cx="45" cy="42" r="2" fill="#FF8F00"/>
+  <path d="M35 45 L40 40 L45 45" fill="#FF8F00"/>
+  <path d="M45 50 L40 55 L35 50" fill="white" opacity="0.9"/>
   
   <!-- Sun -->
-  <circle cx="50" cy="30" r="12" fill="url(#sunGrad)"/>
-  <!-- Sun Rays -->
-  <path d="M50 10 L50 18" stroke="#FFF59D" stroke-width="2"/>
-  <path d="M65 15 L63 17" stroke="#FFF59D" stroke-width="2"/>
-  <path d="M70 30 L62 30" stroke="#FFF59D" stroke-width="2"/>
-  <path d="M65 45 L63 43" stroke="#FFF59D" stroke-width="2"/>
-  <path d="M35 15 L37 17" stroke="#FFF59D" stroke-width="2"/>
-  <path d="M30 30 L38 30" stroke="#FFF59D" stroke-width="2"/>
-  <path d="M35 45 L37 43" stroke="#FFF59D" stroke-width="2"/>
-  
-  <!-- Bird Body -->
-  <ellipse cx="50" cy="55" rx="12" ry="8" fill="#4FC3F7"/>
-  <!-- Bird Head -->
-  <circle cx="58" cy="50" r="6" fill="#4FC3F7"/>
-  <!-- Bird Wing -->
-  <ellipse cx="45" cy="52" rx="6" ry="4" fill="#29B6F6"/>
-  <!-- Bird Tail -->
-  <path d="M35 55 Q30 50 35 45 Q40 50 35 55" fill="#29B6F6"/>
-  <!-- Bird Eye -->
-  <circle cx="60" cy="48" r="1.5" fill="#FFFFFF"/>
-  <circle cx="60" cy="48" r="0.8" fill="#212121"/>
-  <!-- Bird Beak -->
-  <polygon points="64,50 68,48 64,52" fill="#FF7043"/>
-  
-  <!-- Clock -->
-  <circle cx="25" cy="70" r="10" fill="#FFFFFF" stroke="#FF8F00" stroke-width="2"/>
-  <line x1="25" y1="65" x2="25" y2="70" stroke="#FF8F00" stroke-width="2"/>
-  <line x1="25" y1="70" x2="28" y2="67" stroke="#FF8F00" stroke-width="2"/>
-  <circle cx="25" cy="70" r="1" fill="#FF8F00"/>
-  <text x="20" y="83" font-family="Arial" font-size="8" fill="#FF8F00">6AM</text>
-  
-  <!-- Clouds -->
-  <ellipse cx="75" cy="65" rx="8" ry="4" fill="#E1F5FE" opacity="0.8"/>
-  <ellipse cx="80" cy="65" rx="6" ry="3" fill="#E1F5FE" opacity="0.8"/>
-  <ellipse cx="20" cy="40" rx="6" ry="3" fill="#E1F5FE" opacity="0.8"/>
-  
-  <!-- Sparkles -->
-  <polygon points="70,20 71,23 74,23 72,25 73,28 70,26 67,28 68,25 66,23 69,23" fill="#FFF59D"/>
-  <circle cx="80" cy="35" r="1.5" fill="#FFF59D"/>
+  <circle cx="70" cy="25" r="8" fill="#FFD54F"/>
+  <g stroke="#FFD54F" stroke-width="2">
+    <line x1="70" y1="10" x2="70" y2="15"/>
+    <line x1="70" y1="35" x2="70" y2="40"/>
+    <line x1="55" y1="25" x2="60" y2="25"/>
+    <line x1="80" y1="25" x2="85" y2="25"/>
+    <line x1="60" y1="15" x2="64" y2="19"/>
+    <line x1="76" y1="31" x2="80" y2="35"/>
+    <line x1="80" y1="15" x2="76" y2="19"/>
+    <line x1="64" y1="31" x2="60" y2="35"/>
+  </g>
 </svg> 

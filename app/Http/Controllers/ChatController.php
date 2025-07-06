@@ -20,6 +20,11 @@ class ChatController extends Controller
     {
         $user = Auth::user();
         
+        // Super Admin cannot access chat
+        if ($user->hasRole('superadmin')) {
+            abort(403, 'Super Admin is not allowed to access chat functionality.');
+        }
+        
         // Get user's conversations
         $conversations = $user->conversations()
             ->with(['latestMessage.sender', 'users' => function ($query) use ($user) {
@@ -40,6 +45,11 @@ class ChatController extends Controller
     public function show(Conversation $conversation)
     {
         $user = Auth::user();
+
+        // Super Admin cannot access chat
+        if ($user->hasRole('superadmin')) {
+            abort(403, 'Super Admin is not allowed to access chat functionality.');
+        }
 
         // Check if user is participant
         if (!$conversation->hasParticipant($user->id)) {
@@ -71,6 +81,12 @@ class ChatController extends Controller
         ]);
 
         $user = Auth::user();
+        
+        // Super Admin cannot access chat
+        if ($user->hasRole('superadmin')) {
+            return response()->json(['error' => 'Super Admin is not allowed to access chat functionality.'], 403);
+        }
+        
         $otherUserId = $request->user_id;
 
         // Check if user can chat with this person
@@ -100,6 +116,11 @@ class ChatController extends Controller
         ]);
 
         $user = Auth::user();
+
+        // Super Admin cannot access chat
+        if ($user->hasRole('superadmin')) {
+            return response()->json(['error' => 'Super Admin is not allowed to access chat functionality.'], 403);
+        }
 
         // Check if user is participant
         if (!$conversation->hasParticipant($user->id)) {
@@ -257,63 +278,73 @@ class ChatController extends Controller
     {
         $contacts = collect();
 
+        // Super Admin cannot chat with anyone
+        if ($user->hasRole('superadmin')) {
+            return $contacts;
+        }
+
         if ($user->hasRole('student')) {
-            // Students can chat with their teachers and classmates
-            $classIds = $user->enrollments()->pluck('class_id');
+            // Students can chat with their parents, admin, and teachers who teach their purchased classes
+            // 1. Parents
+            $parents = $user->parents()->get();
             
-            // Teachers
+            // 2. Admins
+            $admins = User::role('admin')->get();
+            
+            // 3. Teachers who teach their purchased classes
+            $classIds = $user->enrollments()->where('status', 'active')->pluck('class_id');
             $teachers = User::role('teacher')
                 ->whereHas('teachingClasses', function ($query) use ($classIds) {
                     $query->whereIn('id', $classIds);
                 })
-                ->where('id', '!=', $user->id)
                 ->get();
             
-            // Classmates
-            $classmates = User::role('student')
-                ->whereHas('enrollments', function ($query) use ($classIds) {
-                    $query->whereIn('class_id', $classIds);
-                })
-                ->where('id', '!=', $user->id)
-                ->get();
-            
-            $contacts = $teachers->merge($classmates);
+            $contacts = $parents->merge($admins)->merge($teachers);
             
         } elseif ($user->hasRole('teacher')) {
-            // Teachers can chat with their students and other teachers
-            $classIds = $user->teachingClasses()->pluck('id');
+            // Teachers can chat with admin, students they teach, and other teachers
+            // 1. Admins
+            $admins = User::role('admin')->get();
             
-            // Students
+            // 2. Students they teach
+            $classIds = $user->teachingClasses()->pluck('id');
             $students = User::role('student')
                 ->whereHas('enrollments', function ($query) use ($classIds) {
-                    $query->whereIn('class_id', $classIds);
+                    $query->whereIn('class_id', $classIds)
+                          ->where('status', 'active');
                 })
                 ->get();
             
-            // Other teachers
+            // 3. Other teachers
             $teachers = User::role('teacher')
                 ->where('id', '!=', $user->id)
                 ->get();
             
-            $contacts = $students->merge($teachers);
+            $contacts = $admins->merge($students)->merge($teachers);
             
         } elseif ($user->hasRole('parent')) {
-            // Parents can chat with their children's teachers
-            $childrenIds = $user->children()->pluck('id');
-            $classIds = \App\Models\Enrollment::whereIn('student_id', $childrenIds)->pluck('class_id');
+            // Parents can only chat with their children and admin
+            // 1. Children
+            $children = $user->children()->get();
             
-            $teachers = User::role('teacher')
-                ->whereHas('teachingClasses', function ($query) use ($classIds) {
-                    $query->whereIn('id', $classIds);
-                })
-                ->get();
+            // 2. Admins
+            $admins = User::role('admin')->get();
             
-            $contacts = $teachers;
+            $contacts = $children->merge($admins);
             
-        } elseif ($user->hasRole(['admin', 'superadmin'])) {
-            // Admins can chat with anyone
+        } elseif ($user->hasRole('finance')) {
+            // Finance can only chat with admin
+            $admins = User::role('admin')->get();
+            
+            $contacts = $admins;
+            
+        } elseif ($user->hasRole('admin')) {
+            // Admins can chat with anyone except superadmin
             $contacts = User::where('id', '!=', $user->id)
                 ->where('is_active', true)
+                ->whereDoesntHave('roles', function ($query) {
+                    $query->where('name', 'superadmin');
+                })
                 ->get();
         }
 
@@ -330,12 +361,22 @@ class ChatController extends Controller
             return false;
         }
 
-        // Admins can chat with anyone
-        if ($user->hasRole(['admin', 'superadmin'])) {
+        // Super Admin cannot chat with anyone
+        if ($user->hasRole('superadmin')) {
+            return false;
+        }
+
+        // Cannot chat with Super Admin
+        if ($otherUser->hasRole('superadmin')) {
+            return false;
+        }
+
+        // Admins can chat with anyone except superadmin
+        if ($user->hasRole('admin')) {
             return true;
         }
 
-        // Check based on roles
+        // Check based on roles using available contacts
         $availableContacts = $this->getAvailableContacts($user);
         return $availableContacts->contains('id', $otherUserId);
     }

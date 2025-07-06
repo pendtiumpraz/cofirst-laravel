@@ -22,7 +22,9 @@
                                 <dl>
                                     <dt class="text-sm font-medium text-gray-500 truncate">Today's Revenue</dt>
                                     <dd class="flex items-baseline">
-                                        <div class="text-2xl font-semibold text-gray-900">{{ $todayRevenue ?? 'Rp 0' }}</div>
+                                        <div class="text-2xl font-semibold text-gray-900">
+                                            Rp {{ number_format($todaysRevenue ?? 0, 0, ',', '.') }}
+                                        </div>
                                     </dd>
                                 </dl>
                             </div>
@@ -42,7 +44,9 @@
                                 <dl>
                                     <dt class="text-sm font-medium text-gray-500 truncate">Monthly Revenue</dt>
                                     <dd class="flex items-baseline">
-                                        <div class="text-2xl font-semibold text-gray-900">{{ $monthlyRevenue ?? 'Rp 0' }}</div>
+                                        <div class="text-2xl font-semibold text-gray-900">
+                                            Rp {{ number_format($monthlyRevenue ?? 0, 0, ',', '.') }}
+                                        </div>
                                     </dd>
                                 </dl>
                             </div>
@@ -132,6 +136,7 @@
                                 <thead>
                                     <tr>
                                         <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                                        <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
                                         <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                                         <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                         <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -142,6 +147,9 @@
                                         <tr>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                 {{ $transaction->student->name }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {{ $transaction->course->name ?? 'General' }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                 Rp {{ number_format($transaction->amount, 0, ',', '.') }}
@@ -167,7 +175,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">
+                                            <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
                                                 No transactions found
                                             </td>
                                         </tr>

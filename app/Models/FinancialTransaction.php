@@ -18,14 +18,17 @@ class FinancialTransaction extends Model
         'payment_method',
         'transaction_date',
         'due_date',
+        'paid_date',
         'description',
-        'reference_number',
+        'transaction_reference',
+        'notes',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'transaction_date' => 'date',
         'due_date' => 'date',
+        'paid_date' => 'datetime',
     ];
 
     /**

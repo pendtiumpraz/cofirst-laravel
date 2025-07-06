@@ -74,9 +74,9 @@
 </div>
 
 <!-- Participants Modal -->
-<div id="participantsModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3">
+<div id="participantsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="z-index: 9999;">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+        <div class="mb-4">
             <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Participants</h3>
             
             <div class="space-y-2 max-h-60 overflow-y-auto">
@@ -100,9 +100,9 @@
                 @endforeach
             </div>
             
-            <div class="mt-4">
+            <div class="mt-6">
                 <button onclick="hideParticipants()" 
-                        class="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                        class="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors">
                     Close
                 </button>
             </div>

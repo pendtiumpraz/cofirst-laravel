@@ -50,4 +50,12 @@ class Report extends Model
     {
         return $this->belongsTo(ClassName::class, 'class_id');
     }
+
+    /**
+     * Get the class for this report (alias for consistency).
+     */
+    public function className()
+    {
+        return $this->belongsTo(ClassName::class, 'class_id');
+    }
 }

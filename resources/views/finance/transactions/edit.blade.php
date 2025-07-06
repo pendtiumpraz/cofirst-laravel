@@ -33,6 +33,22 @@
                     @enderror
                 </div>
 
+                <!-- Course Selection (Optional) -->
+                <div class="mb-6">
+                    <label for="course_id" class="block text-sm font-medium text-gray-700 mb-2">Course <span class="text-gray-500 text-sm">(Optional)</span></label>
+                    <select name="course_id" id="course_id" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">Select a course (optional)</option>
+                        @foreach($courses as $course)
+                            <option value="{{ $course->id }}" {{ (old('course_id', $transaction->course_id) == $course->id) ? 'selected' : '' }}>
+                                {{ $course->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('course_id')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <!-- Amount -->
                 <div class="mb-6">
                     <label for="amount" class="block text-sm font-medium text-gray-700 mb-2">Amount</label>
@@ -69,13 +85,24 @@
                 <!-- Status -->
                 <div class="mb-6">
                     <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                    <select name="status" id="status" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                    <select name="status" id="status" class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required onchange="togglePaidDate()">
                         <option value="">Select status</option>
                         <option value="pending" {{ old('status', $transaction->status) == 'pending' ? 'selected' : '' }}>Pending</option>
                         <option value="paid" {{ old('status', $transaction->status) == 'paid' ? 'selected' : '' }}>Paid</option>
                         <option value="cancelled" {{ old('status', $transaction->status) == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                     </select>
                     @error('status')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- Paid Date (Only show when status is 'paid') -->
+                <div id="paid_date_field" class="mb-6" style="display: none;">
+                    <label for="paid_date" class="block text-sm font-medium text-gray-700 mb-2">Paid Date</label>
+                    <input type="datetime-local" name="paid_date" id="paid_date" 
+                           value="{{ old('paid_date', $transaction->paid_date ? $transaction->paid_date->format('Y-m-d\TH:i') : '') }}" 
+                           class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    @error('paid_date')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
@@ -93,4 +120,34 @@
         </div>
     </div>
 </div>
+
+<script>
+function togglePaidDate() {
+    const statusSelect = document.getElementById('status');
+    const paidDateField = document.getElementById('paid_date_field');
+    const paidDateInput = document.getElementById('paid_date');
+    
+    if (statusSelect.value === 'paid') {
+        paidDateField.style.display = 'block';
+        // Set current datetime as default if empty
+        if (!paidDateInput.value) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            paidDateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+    } else {
+        paidDateField.style.display = 'none';
+        paidDateInput.value = '';
+    }
+}
+
+// Check on page load if status is already selected
+document.addEventListener('DOMContentLoaded', function() {
+    togglePaidDate();
+});
+</script>
 @endsection 

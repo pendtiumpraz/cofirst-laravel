@@ -55,6 +55,7 @@
                                                     @elseif($class->type === 'group_class_3_5_kids') bg-blue-100 text-blue-800
                                                     @elseif($class->type === 'public_school_extracurricular') bg-green-100 text-green-800
                                                     @elseif($class->type === 'offline_seminar' || $class->type === 'online_webinar') bg-yellow-100 text-yellow-800
+                                                    @elseif($class->type === 'free_webinar' || $class->type === 'free_trial_30min') bg-orange-100 text-orange-800
                                                     @else bg-gray-100 text-gray-800 @endif">
                                                     @if($class->type === 'private_home_call')
                                                         Private - Home Call
@@ -70,6 +71,10 @@
                                                         Offline Seminar
                                                     @elseif($class->type === 'online_webinar')
                                                         Online Webinar
+                                                    @elseif($class->type === 'free_webinar')
+                                                        Free Webinar
+                                                    @elseif($class->type === 'free_trial_30min')
+                                                        Free Trial 30 Min
                                                     @else
                                                         {{ ucfirst(str_replace('_', ' ', $class->type)) }}
                                                     @endif

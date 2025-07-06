@@ -29,6 +29,8 @@
                                     <option value="offline_seminar" {{ old('type', $class->type) == 'offline_seminar' ? 'selected' : '' }}>Offline Seminar</option>
                                     <option value="online_webinar" {{ old('type', $class->type) == 'online_webinar' ? 'selected' : '' }}>Online Webinar</option>
                                     <option value="group_class_3_5_kids" {{ old('type', $class->type) == 'group_class_3_5_kids' ? 'selected' : '' }}>Group Class (3-5 Kids)</option>
+                                    <option value="free_webinar" {{ old('type', $class->type) == 'free_webinar' ? 'selected' : '' }}>Free Webinar</option>
+                                    <option value="free_trial_30min" {{ old('type', $class->type) == 'free_trial_30min' ? 'selected' : '' }}>Free Trial 30 Min</option>
                                 </select>
                             </div>
                             <div>

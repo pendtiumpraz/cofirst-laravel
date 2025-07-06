@@ -56,7 +56,7 @@ class ClassController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids',
+            'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids,free_webinar,free_trial_30min',
             'course_id' => 'required|exists:courses,id',
             'teacher_id' => 'required|exists:users,id',
             'capacity' => 'required|integer|min:1',
@@ -132,7 +132,7 @@ class ClassController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids',
+            'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids,free_webinar,free_trial_30min',
             'course_id' => 'required|exists:courses,id',
             'teacher_id' => 'required|exists:users,id',
             'capacity' => 'required|integer|min:1',

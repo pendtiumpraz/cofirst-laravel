@@ -27,6 +27,8 @@ return new class extends Migration
                 'offline_seminar',
                 'online_webinar',
                 'group_class_3_5_kids',
+                'free_webinar',
+                'free_trial_30min'
             ])->after('delivery_method')->nullable();
 
             // Add curriculum_id column

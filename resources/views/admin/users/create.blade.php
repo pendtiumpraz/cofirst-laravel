@@ -68,7 +68,8 @@
                 <div>
                     <label for="role" class="block text-sm font-medium text-gray-700 mb-2">Role</label>
                     <select name="role" id="role" 
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent @error('role') border-red-500 @enderror">
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent @error('role') border-red-500 @enderror"
+                            onchange="toggleStudentSelection()">
                         <option value="">Select a role</option>
                         @foreach($roles as $role)
                             <option value="{{ $role->name }}" {{ old('role') == $role->name ? 'selected' : '' }}>
@@ -79,6 +80,47 @@
                     @error('role')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
+                </div>
+
+                <!-- Student Selection (visible only when parent role is selected) -->
+                <div id="student-selection" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Select Students (Children)
+                        <span class="text-red-500">*</span>
+                    </label>
+                    <div class="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
+                        @if($availableStudents->count() > 0)
+                            @foreach($availableStudents as $student)
+                                <label class="flex items-center py-2 px-3 hover:bg-gray-50 rounded cursor-pointer">
+                                    <input type="checkbox" name="student_ids[]" value="{{ $student->id }}" 
+                                           class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                           {{ in_array($student->id, old('student_ids', [])) ? 'checked' : '' }}>
+                                    <div class="ml-3">
+                                        <div class="text-sm font-medium text-gray-900">{{ $student->name }}</div>
+                                        <div class="text-sm text-gray-500">{{ $student->email }}</div>
+                                    </div>
+                                </label>
+                            @endforeach
+                        @else
+                            <div class="text-center py-4">
+                                <div class="text-sm text-gray-500">
+                                    <svg class="mx-auto h-8 w-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                    </svg>
+                                    No students available without parents
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                    @error('student_ids')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                    @error('student_ids.*')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                    <p class="mt-1 text-sm text-gray-500">
+                        Select one or more students to link with this parent account. Only students without parents are shown.
+                    </p>
                 </div>
 
                 <!-- Status -->
@@ -105,4 +147,27 @@
         </div>
     </div>
 </div>
+
+<script>
+function toggleStudentSelection() {
+    const roleSelect = document.getElementById('role');
+    const studentSelection = document.getElementById('student-selection');
+    const studentCheckboxes = document.querySelectorAll('input[name="student_ids[]"]');
+    
+    if (roleSelect.value === 'parent') {
+        studentSelection.classList.remove('hidden');
+    } else {
+        studentSelection.classList.add('hidden');
+        // Uncheck all student checkboxes when hiding
+        studentCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleStudentSelection();
+});
+</script>
 @endsection 

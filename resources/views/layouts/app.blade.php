@@ -16,6 +16,37 @@
 
         <style>
             [x-cloak] { display: none !important; }
+            
+            /* Custom Scrollbar for Sidebar */
+            .sidebar-scroll::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            .sidebar-scroll::-webkit-scrollbar-track {
+                background: #f1f5f9;
+                border-radius: 10px;
+            }
+            
+            .sidebar-scroll::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 10px;
+                transition: background 0.2s;
+            }
+            
+            .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+            
+            /* For Firefox */
+            .sidebar-scroll {
+                scrollbar-width: thin;
+                scrollbar-color: #cbd5e1 #f1f5f9;
+            }
+            
+            /* Smooth scrolling */
+            .sidebar-scroll {
+                scroll-behavior: smooth;
+            }
         </style>
 
         <!-- Icons -->
@@ -31,7 +62,7 @@
                 </div>
                 
                 <!-- Navigation -->
-                <nav class="mt-8 px-4 pb-4 overflow-y-auto max-h-[calc(100vh-6rem)]">
+                <nav class="sidebar-scroll mt-8 px-4 pb-8 overflow-y-auto max-h-[calc(100vh-8rem)]">
                     <div class="space-y-2">
                         <!-- Dashboard -->
                         <a href="{{ route('dashboard') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('dashboard') ? 'bg-blue-50 text-blue-600' : '' }}">

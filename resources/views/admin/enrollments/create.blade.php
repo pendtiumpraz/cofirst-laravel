@@ -7,18 +7,6 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <!-- Debug Information -->
-            <div class="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded">
-                <h4 class="font-bold">Debug Info:</h4>
-                <p>Students Count: {{ $students->count() }}</p>
-                <p>Classes Count: {{ $classes->count() }}</p>
-                @if($classes->count() > 0)
-                    <p>First Class: {{ $classes->first()->name ?? 'N/A' }}</p>
-                    <p>Classes with Course: {{ $classes->whereNotNull('course')->count() }}</p>
-                    <p>Classes with Teacher: {{ $classes->whereNotNull('teacher')->count() }}</p>
-                @endif
-            </div>
-            
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Create New Enrollment</h3>
@@ -40,14 +28,12 @@
                             <div>
                                 <label for="class_id" class="block text-sm font-medium text-gray-700">Class</label>
                                 <select name="class_id" id="class_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required>
-                                    <option value="">Select a class ({{ $classes->count() }} available)</option>
-                                    @forelse ($classes as $class)
+                                    <option value="">Select a class</option>
+                                    @foreach ($classes as $class)
                                         <option value="{{ $class->id }}">
-                                            [{{ $class->id }}] {{ $class->name }} - {{ $class->course->name ?? 'No Course' }} ({{ $class->teacher->name ?? 'No Teacher' }})
+                                            {{ $class->name }} - {{ $class->course->name ?? 'No Course' }} ({{ $class->teacher->name ?? 'No Teacher' }})
                                         </option>
-                                    @empty
-                                        <option value="">No classes available</option>
-                                    @endforelse
+                                    @endforeach
                                 </select>
                                 @error('class_id')
                                     <p class="mt-2 text-sm text-red-600">{{ $message }}</p>

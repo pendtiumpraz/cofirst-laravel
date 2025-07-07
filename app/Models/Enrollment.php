@@ -11,9 +11,11 @@ class Enrollment extends Model
 
     protected $fillable = [
         'student_id',
+        'course_id',
         'class_id',
         'enrollment_date',
         'status',
+        'payment_status',
         'notes',
         'is_active',
     ];
@@ -45,6 +47,14 @@ class Enrollment extends Model
     public function className()
     {
         return $this->belongsTo(ClassName::class, 'class_id');
+    }
+
+    /**
+     * Get the course for this enrollment.
+     */
+    public function course()
+    {
+        return $this->belongsTo(Course::class, 'course_id');
     }
 
     /**

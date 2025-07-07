@@ -12,13 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('class_names', function (Blueprint $table) {
-            // Add delivery_method column
-            $table->enum('delivery_method', ['online', 'offline'])->after('status')->nullable();
+            // Add delivery_method column if it doesn't exist
+            if (!Schema::hasColumn('class_names', 'delivery_method')) {
+                $table->enum('delivery_method', ['online', 'offline'])->after('status')->nullable();
+            }
 
-            // Change type column to allow more specific options
-            // First, drop the existing column if it exists and then re-add with new enum values
-            // This is a common way to modify enum columns in SQLite
-            $table->dropColumn('type');
+            // Add or modify type column
+            if (Schema::hasColumn('class_names', 'type')) {
+                // If type column exists, drop it first
+                $table->dropColumn('type');
+            }
+            
             $table->enum('type', [
                 'private_home_call',
                 'private_office_1on1',
@@ -31,8 +35,10 @@ return new class extends Migration
                 'free_trial_30min'
             ])->after('delivery_method')->nullable();
 
-            // Add curriculum_id column
-            $table->foreignId('curriculum_id')->nullable()->constrained('curriculums')->onDelete('set null');
+            // Add curriculum_id column if it doesn't exist
+            if (!Schema::hasColumn('class_names', 'curriculum_id')) {
+                $table->foreignId('curriculum_id')->nullable()->constrained('curriculums')->onDelete('set null');
+            }
         });
     }
 
@@ -42,16 +48,22 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('class_names', function (Blueprint $table) {
-            // Reverse curriculum_id
-            $table->dropForeign(['curriculum_id']);
-            $table->dropColumn('curriculum_id');
+            // Reverse curriculum_id if it exists
+            if (Schema::hasColumn('class_names', 'curriculum_id')) {
+                $table->dropForeign(['curriculum_id']);
+                $table->dropColumn('curriculum_id');
+            }
 
-            // Revert type column to its previous state (or a default if original is unknown)
-            $table->dropColumn('type');
-            $table->enum('type', ['private', 'group', 'extracurricular'])->nullable(); // Revert to original enum values
+            // Revert type column to its previous state if it exists
+            if (Schema::hasColumn('class_names', 'type')) {
+                $table->dropColumn('type');
+                $table->enum('type', ['private', 'group', 'extracurricular'])->nullable(); // Revert to original enum values
+            }
 
-            // Remove delivery_method column
-            $table->dropColumn('delivery_method');
+            // Remove delivery_method column if it exists
+            if (Schema::hasColumn('class_names', 'delivery_method')) {
+                $table->dropColumn('delivery_method');
+            }
         });
     }
 };

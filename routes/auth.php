@@ -16,6 +16,10 @@ Route::middleware('guest')->group(function () {
         ->name('register');
 
     Route::post('register', [RegisteredUserController::class, 'store']);
+    
+    Route::get('register/success', function () {
+        return view('auth.register-success');
+    })->name('register.success');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');

@@ -15,10 +15,41 @@ class UserController extends Controller
     /**
      * Display a listing of users.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::with('roles')->paginate(20);
-        return view('admin.users.index', compact('users'));
+        $query = User::with('roles');
+        
+        // Handle search
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                  ->orWhere('email', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('roles', function ($roleQuery) use ($searchTerm) {
+                      $roleQuery->where('name', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+        
+        // Handle role filter
+        if ($request->filled('role')) {
+            $query->whereHas('roles', function ($roleQuery) use ($request) {
+                $roleQuery->where('name', $request->role);
+            });
+        }
+        
+        // Handle status filter
+        if ($request->filled('status')) {
+            $isActive = $request->status === 'active';
+            $query->where('is_active', $isActive);
+        }
+        
+        $users = $query->paginate(20)->appends($request->only(['search', 'role', 'status']));
+        
+        // Get available roles for filter dropdown
+        $availableRoles = Role::all()->pluck('name', 'name');
+        
+        return view('admin.users.index', compact('users', 'availableRoles'));
     }
 
     /**

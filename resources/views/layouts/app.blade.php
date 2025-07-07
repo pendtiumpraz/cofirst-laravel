@@ -62,7 +62,7 @@
                 </div>
                 
                 <!-- Navigation -->
-                <nav class="sidebar-scroll mt-8 px-4 pb-8 overflow-y-auto max-h-[calc(100vh-8rem)]">
+                <nav class="sidebar-scroll mt-8 px-4 pb-8 overflow-y-auto h-[calc(100vh-8rem)]">
                     <div class="space-y-2">
                         <!-- Dashboard -->
                         <a href="{{ route('dashboard') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('dashboard') ? 'bg-blue-50 text-blue-600' : '' }}">

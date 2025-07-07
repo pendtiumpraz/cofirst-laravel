@@ -409,4 +409,42 @@ Route::middleware('auth')->group(function () {
 
 });
 
+// All debug routes removed - issue resolved ✅
+
+// Debug enrollment classes
+Route::get('/debug-enrollment-classes', function () {
+    $allClasses = \App\Models\ClassName::with(['course', 'teacher'])->get();
+    $activeClasses = \App\Models\ClassName::where('is_active', true)->with(['course', 'teacher'])->get();
+    $plannedActiveClasses = \App\Models\ClassName::where('is_active', true)
+                          ->whereIn('status', ['planned', 'active'])
+                          ->with(['course', 'teacher'])
+                          ->get();
+    
+    return response()->json([
+        'all_classes_count' => $allClasses->count(),
+        'active_classes_count' => $activeClasses->count(),
+        'planned_active_classes_count' => $plannedActiveClasses->count(),
+        'all_classes' => $allClasses->map(function($class) {
+            return [
+                'id' => $class->id,
+                'name' => $class->name,
+                'status' => $class->status,
+                'is_active' => $class->is_active,
+                'course_name' => $class->course->name ?? 'No Course',
+                'teacher_name' => $class->teacher->name ?? 'No Teacher'
+            ];
+        }),
+        'filtered_classes' => $plannedActiveClasses->map(function($class) {
+            return [
+                'id' => $class->id,
+                'name' => $class->name,
+                'status' => $class->status,
+                'is_active' => $class->is_active,
+                'course_name' => $class->course->name ?? 'No Course',
+                'teacher_name' => $class->teacher->name ?? 'No Teacher'
+            ];
+        })
+    ]);
+});
+
 require __DIR__.'/auth.php';

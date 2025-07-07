@@ -25,8 +25,10 @@ class EnrollmentController extends Controller
     public function create()
     {
         $students = User::role('student')->where('is_active', true)->get();
-        $classes = ClassName::where('status', 'active')->with('course')->get();
+        // Temporary: show all classes for debugging
+        $classes = ClassName::with(['course', 'teacher'])->get();
         \Log::info('Enrollment Create: Classes count', ['count' => $classes->count()]);
+        \Log::info('All Classes Debug', ['classes' => $classes->toArray()]);
         return view('admin.enrollments.create', compact('students', 'classes'));
     }
 
@@ -82,7 +84,9 @@ class EnrollmentController extends Controller
     public function edit(Enrollment $enrollment)
     {
         $students = User::role('student')->where('is_active', true)->get();
-        $classes = ClassName::where('status', 'active')->with('course')->get();
+        // Temporary: show all classes for debugging
+        $classes = ClassName::with(['course', 'teacher'])->get();
+        \Log::info('Enrollment Edit: Classes count', ['count' => $classes->count()]);
         return view('admin.enrollments.edit', compact('enrollment', 'students', 'classes'));
     }
 

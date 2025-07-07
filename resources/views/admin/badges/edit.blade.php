@@ -10,7 +10,7 @@
             <p class="text-gray-600 mt-2">Update the badge details and criteria</p>
         </div>
 
-        <form action="{{ route('badges.update', $badge->id) }}" method="POST" class="bg-white rounded-lg shadow p-6">
+        <form action="{{ route('admin.badges.update', $badge->id) }}" method="POST" class="bg-white rounded-lg shadow p-6">
             @csrf
             @method('PUT')
 

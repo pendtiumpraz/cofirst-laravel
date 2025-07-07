@@ -239,8 +239,8 @@
                         <h3 class="text-lg font-semibold text-gray-900">My Students</h3>
                         <a href="{{ route('teacher.students.index') }}" class="text-sm text-blue-600 hover:text-blue-900">View all</a>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
+                    <div class="table-wrapper">
+                        <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
                             <thead>
                                 <tr>
                                     <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>

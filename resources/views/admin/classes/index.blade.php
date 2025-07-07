@@ -1,29 +1,39 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex justify-between items-center">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Classes') }}
-        </h2>
-            <a href="{{ route('admin.classes.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500 active:bg-blue-700 focus:outline-none focus:border-blue-700 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-                {{ __('Create Class') }}
-            </a>
-        </div>
-    </x-slot>
+@php
+use Illuminate\Support\Facades\Storage;
+@endphp
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
+@extends('layouts.app')
+
+@section('title', 'Class Management')
+
+@section('content')
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Class Management</h1>
+            <p class="text-gray-600">Manage all classes and schedules</p>
+        </div>
+        <a href="{{ route('admin.classes.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Add Class
+        </a>
+    </div>
+
+    <!-- Classes Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-6">
                     @if($classes->count() > 0)
-                        <div class="shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
+                        <div class="table-wrapper">
+                            <div class="shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teacher</th>
@@ -49,11 +59,31 @@
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
+                                                @if($class->photo_path)
+                                                    <img src="{{ $class->photo_url }}" 
+                                                         alt="{{ $class->name }}" 
+                                                         class="h-10 w-10 rounded-lg object-cover shadow-sm"
+                                                         onerror="this.onerror=null; this.src='{{ asset('images/default-class-photo.png') }}';">
+                                                @elseif($class->classPhotos->isNotEmpty() && $class->classPhotos->first()->photo_path)
+                                                    <img src="/storage/{{ $class->classPhotos->first()->photo_path }}" 
+                                                         alt="{{ $class->name }}" 
+                                                         class="h-10 w-10 rounded-lg object-cover shadow-sm"
+                                                         onerror="this.onerror=null; this.src='{{ asset('images/default-class-photo.png') }}';">
+                                                @else
+                                                    <div class="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                                                        <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                        </svg>
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                                                     @if($class->type === 'private_home_call' || $class->type === 'private_office_1on1' || $class->type === 'private_online_1on1') bg-purple-100 text-purple-800
                                                     @elseif($class->type === 'group_class_3_5_kids') bg-blue-100 text-blue-800
                                                     @elseif($class->type === 'public_school_extracurricular') bg-green-100 text-green-800
                                                     @elseif($class->type === 'offline_seminar' || $class->type === 'online_webinar') bg-yellow-100 text-yellow-800
+                                                    @elseif($class->type === 'free_webinar' || $class->type === 'free_trial_30min') bg-orange-100 text-orange-800
                                                     @else bg-gray-100 text-gray-800 @endif">
                                                     @if($class->type === 'private_home_call')
                                                         Private - Home Call
@@ -69,6 +99,10 @@
                                                         Offline Seminar
                                                     @elseif($class->type === 'online_webinar')
                                                         Online Webinar
+                                                    @elseif($class->type === 'free_webinar')
+                                                        Free Webinar
+                                                    @elseif($class->type === 'free_trial_30min')
+                                                        Free Trial 30 Min
                                                     @else
                                                         {{ ucfirst(str_replace('_', ' ', $class->type)) }}
                                                     @endif
@@ -136,8 +170,9 @@
                                     </tr>
                                 @endforeach
                             </tbody>
-                        </table>
-                    </div>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     @else
                         <div class="text-center py-12">
@@ -162,8 +197,7 @@
                         {{ $classes->links() }}
                     </div>
                     @endif
-                </div>
-            </div>
         </div>
     </div>
-</x-app-layout>
+</div>
+@endsection

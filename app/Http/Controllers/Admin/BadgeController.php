@@ -12,12 +12,49 @@ class BadgeController extends Controller
     /**
      * Display a listing of badges
      */
-    public function index()
+    public function index(Request $request)
     {
-        $badges = Badge::orderBy('category')
-            ->orderBy('level')
-            ->orderBy('sort_order')
-            ->paginate(20);
+        $query = Badge::withCount('users');
+        
+        // Search functionality
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+        
+        // Filter by category
+        if ($request->has('category') && $request->category) {
+            $query->where('category', $request->category);
+        }
+        
+        // Filter by level
+        if ($request->has('level') && $request->level) {
+            $query->where('level', $request->level);
+        }
+        
+        // Filter by status
+        if ($request->has('status') && $request->status !== '') {
+            $query->where('is_active', $request->status === 'active');
+        }
+        
+        // Sorting
+        $sortField = $request->get('sort', 'sort_order');
+        $sortDirection = $request->get('direction', 'asc');
+        
+        if (in_array($sortField, ['name', 'category', 'level', 'points_required', 'created_at', 'sort_order'])) {
+            $query->orderBy($sortField, $sortDirection);
+        } else {
+            // Default sorting
+            $query->orderBy('category')
+                  ->orderBy('level')
+                  ->orderBy('sort_order');
+        }
+        
+        $badges = $query->paginate($request->get('per_page', 20))
+                       ->appends($request->query());
             
         return view('admin.badges.index', compact('badges'));
     }

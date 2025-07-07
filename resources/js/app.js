@@ -1,4 +1,5 @@
 import './bootstrap';
+import './table-enhancements';
 
 import Alpine from 'alpinejs';
 

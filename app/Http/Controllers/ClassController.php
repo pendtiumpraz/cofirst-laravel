@@ -8,7 +8,7 @@ use App\Models\Course;
 use App\Models\User;
 use App\Models\Enrollment;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Facades\Image;
+use Illuminate\Support\Facades\Log;
 
 class ClassController extends Controller
 {
@@ -17,12 +17,14 @@ class ClassController extends Controller
      */
     public function index()
     {
-        $classes = ClassName::with(['course', 'teacher'])
+        $classes = ClassName::with(['course', 'teacher', 'classPhotos' => function($query) {
+                $query->latest()->limit(1);
+            }])
             ->withCount('enrollments')
             ->paginate(20);
             
         // Debug logging
-        \Log::info('Admin Classes Debug', [
+        Log::info('Admin Classes Debug', [
             'classes_count' => $classes->count(),
             'total_classes' => $classes->total(),
             'current_page' => $classes->currentPage(),
@@ -56,7 +58,7 @@ class ClassController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids',
+            'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids,free_webinar,free_trial_30min',
             'course_id' => 'required|exists:courses,id',
             'teacher_id' => 'required|exists:users,id',
             'capacity' => 'required|integer|min:1',
@@ -80,18 +82,18 @@ class ClassController extends Controller
         // Handle photo upload
         if ($request->hasFile('photo')) {
             $photo = $request->file('photo');
-            $filename = 'class-photos/' . uniqid() . '-' . time() . '.' . $photo->getClientOriginalExtension();
+            $filename = uniqid() . '-' . time() . '.' . $photo->getClientOriginalExtension();
             
-            // Process image with Intervention
-            $image = Image::make($photo);
-            $image->resize(800, null, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            });
+            // Store the file directly
+            $path = $photo->storeAs('class-photos', $filename, 'public');
+            $classData['photo_path'] = $path;
             
-            // Save to storage
-            Storage::disk('public')->put($filename, $image->encode());
-            $classData['photo_path'] = $filename;
+            Log::info('Photo uploaded for class creation', [
+                'filename' => $filename,
+                'path' => $path,
+                'full_path' => storage_path('app/public/' . $path),
+                'exists' => Storage::disk('public')->exists($path)
+            ]);
         }
 
         $class = ClassName::create($classData);
@@ -122,6 +124,14 @@ class ClassController extends Controller
     {
         $courses = Course::where('is_active', true)->get();
         $teachers = User::role('teacher')->where('is_active', true)->get();
+        
+        Log::info('Editing class', [
+            'class_id' => $class->id,
+            'photo_path' => $class->photo_path,
+            'photo_url' => $class->photo_url,
+            'photo_exists' => $class->photo_path ? Storage::disk('public')->exists($class->photo_path) : false
+        ]);
+        
         return view('admin.classes.edit', compact('class', 'courses', 'teachers'));
     }
 
@@ -132,7 +142,7 @@ class ClassController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids',
+            'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids,free_webinar,free_trial_30min',
             'course_id' => 'required|exists:courses,id',
             'teacher_id' => 'required|exists:users,id',
             'capacity' => 'required|integer|min:1',
@@ -176,21 +186,28 @@ class ClassController extends Controller
             }
 
             $photo = $request->file('photo');
-            $filename = 'class-photos/' . $class->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
+            $filename = $class->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
             
-            // Process image with Intervention
-            $image = Image::make($photo);
-            $image->resize(800, null, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            });
+            // Store the file directly
+            $path = $photo->storeAs('class-photos', $filename, 'public');
+            $classData['photo_path'] = $path;
             
-            // Save to storage
-            Storage::disk('public')->put($filename, $image->encode());
-            $classData['photo_path'] = $filename;
+            Log::info('Photo uploaded for class update', [
+                'class_id' => $class->id,
+                'old_path' => $class->photo_path,
+                'new_path' => $path,
+                'exists' => Storage::disk('public')->exists($path)
+            ]);
         }
 
         $class->update($classData);
+        
+        // Debug after update
+        Log::info('Class after update', [
+            'class_id' => $class->id,
+            'photo_path' => $class->fresh()->photo_path,
+            'classData' => $classData
+        ]);
 
         return redirect()->route('admin.classes.index')->with('success', 'Class updated successfully.');
     }

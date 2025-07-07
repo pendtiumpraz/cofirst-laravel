@@ -228,8 +228,9 @@
                                         </tr>
                                         @endforeach
                                     </tbody>
-                                </table>
+                                    </table>
                             </div>
+                        </div>
                         </div>
                         @else
                         <div class="bg-gray-50 p-8 rounded-lg text-center">
@@ -307,8 +308,9 @@
                                         </tr>
                                         @endforeach
                                     </tbody>
-                                </table>
+                                    </table>
                             </div>
+                        </div>
                         </div>
                     </div>
                     @endif

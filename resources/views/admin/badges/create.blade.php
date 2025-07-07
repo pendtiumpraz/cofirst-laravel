@@ -10,7 +10,7 @@
             <p class="text-gray-600 mt-2">Define a new achievement badge for the gamification system</p>
         </div>
 
-        <form action="{{ route('badges.store') }}" method="POST" class="bg-white rounded-lg shadow p-6">
+        <form action="{{ route('admin.badges.store') }}" method="POST" class="bg-white rounded-lg shadow p-6">
             @csrf
 
             <!-- Name -->

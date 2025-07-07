@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Facades\Image;
 
 class PhotoUploadController extends Controller
 {
@@ -30,29 +29,14 @@ class PhotoUploadController extends Controller
         $photo = $request->file('photo');
         $filename = 'profile-photos/' . $user->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
         
-        // Process image with Intervention
-        $image = Image::make($photo);
-        
-        // Apply crop if crop data provided
-        if ($request->has('crop_data')) {
-            $cropData = json_decode($request->crop_data, true);
-            $image->crop(
-                (int)$cropData['width'],
-                (int)$cropData['height'],
-                (int)$cropData['x'],
-                (int)$cropData['y']
-            );
-        }
-        
-        // Resize to standard size
-        $image->fit(300, 300);
-        
-        // Save to storage
-        Storage::disk('public')->put($filename, $image->encode());
+        // Store the file directly
+        // Note: Cropping functionality requires image manipulation library
+        // For now, we'll store the original image
+        $path = $photo->storeAs('profile-photos', basename($filename), 'public');
         
         // Update user record
         $user->update([
-            'profile_photo_path' => $filename,
+            'profile_photo_path' => $path,
             'photo_crop_data' => $request->crop_data ? json_decode($request->crop_data, true) : null
         ]);
 

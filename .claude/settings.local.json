@@ -30,7 +30,15 @@
       "Bash(grep:*)",
       "Bash(mv:*)",
       "Bash(sed:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(/usr/bin/php artisan make:migration:*)",
+      "Bash(ln:*)",
+      "Bash(rg:*)",
+      "Bash(curl:*)",
+      "Bash(readlink:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

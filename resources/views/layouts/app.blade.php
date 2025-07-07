@@ -47,6 +47,98 @@
             .sidebar-scroll {
                 scroll-behavior: smooth;
             }
+            
+            /* Search Input Icon Fix */
+            .search-icon-container {
+                position: relative;
+            }
+            
+            .search-icon {
+                position: absolute;
+                top: 50%;
+                left: 12px;
+                transform: translateY(-50%);
+                pointer-events: none;
+                z-index: 10;
+                width: 20px;
+                height: 20px;
+                color: #9ca3af;
+            }
+            
+            .search-input-with-icon {
+                padding-left: 40px !important;
+            }
+            
+            /* Enhanced Sidebar Scrolling - More Robust for Server Deploy */
+            .sidebar-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 256px; /* w-64 = 16rem = 256px */
+                z-index: 50;
+                background: white;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+            
+            @media (min-width: 1024px) {
+                .sidebar-container {
+                    transform: translateX(0);
+                }
+            }
+            
+            .sidebar-header {
+                height: 64px; /* h-16 = 4rem = 64px */
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(to right, #2563eb, #9333ea);
+                color: white;
+                font-size: 1.25rem;
+                font-weight: 700;
+            }
+            
+            .sidebar-nav {
+                height: calc(100vh - 64px - 32px); /* Full height minus header minus margin */
+                margin-top: 32px;
+                padding: 0 16px 32px 16px;
+                overflow-y: auto;
+                overflow-x: hidden;
+                -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            }
+            
+            /* Scrollbar Styling - Cross Browser */
+            .sidebar-nav::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            .sidebar-nav::-webkit-scrollbar-track {
+                background: #f1f5f9;
+                border-radius: 10px;
+            }
+            
+            .sidebar-nav::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 10px;
+                transition: background 0.2s;
+            }
+            
+            .sidebar-nav::-webkit-scrollbar-thumb:hover {
+                background: #94a3b8;
+            }
+            
+            /* Firefox Scrollbar */
+            .sidebar-nav {
+                scrollbar-width: thin;
+                scrollbar-color: #cbd5e1 #f1f5f9;
+            }
+            
+            /* Ensure smooth scrolling */
+            .sidebar-nav {
+                scroll-behavior: smooth;
+            }
         </style>
 
         <!-- Icons -->
@@ -55,14 +147,14 @@
     <body class="font-sans antialiased bg-gray-50">
         <div class="min-h-screen">
             <!-- Sidebar -->
-            <div class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out" id="sidebar">
+            <div class="sidebar-container" id="sidebar">
                 <!-- Sidebar Header -->
-                <div class="flex items-center justify-center h-16 bg-gradient-to-r from-blue-600 to-purple-600">
-                    <h1 class="text-xl font-bold text-white">Coding First</h1>
+                <div class="sidebar-header">
+                    <h1>Coding First</h1>
                 </div>
                 
                 <!-- Navigation -->
-                <nav class="sidebar-scroll mt-8 px-4 pb-8 overflow-y-auto h-[calc(100vh-8rem)]">
+                <nav class="sidebar-nav">
                     <div class="space-y-2">
                         <!-- Dashboard -->
                         <a href="{{ route('dashboard') }}" class="flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors {{ request()->routeIs('dashboard') ? 'bg-blue-50 text-blue-600' : '' }}">

@@ -2,6 +2,28 @@
 
 @section('title', 'User Management')
 
+@push('styles')
+<style>
+/* Custom styles for search input icon positioning */
+.search-input-container {
+    position: relative;
+}
+
+.search-input-icon {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.search-input-field {
+    padding-left: 40px !important;
+}
+</style>
+@endpush
+
 @section('content')
 <div class="space-y-6">
     <!-- Header -->
@@ -25,16 +47,16 @@
                 <!-- Search Input -->
                 <div class="md:col-span-2">
                     <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search Users</label>
-                    <div class="relative">
+                    <div class="search-icon-container">
                         <input 
                             type="text" 
                             name="search" 
                             id="search"
                             value="{{ request('search') }}"
-                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            class="w-full pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent search-input-with-icon"
                             placeholder="Search by name, email, or role (e.g., teacher, student)..."
                         >
-                        <svg class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                         </svg>
                     </div>
@@ -180,7 +202,7 @@
                 <div class="flex-shrink-0 bg-indigo-100 rounded-lg p-3">
                     <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L3.293 7.293A1 1 0 013 6.586V4z"></path>
                     </svg>
                 </div>
                 <div class="ml-4">

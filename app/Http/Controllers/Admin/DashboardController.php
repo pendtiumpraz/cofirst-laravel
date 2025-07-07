@@ -24,9 +24,13 @@ class DashboardController extends Controller
         // Get statistics for dashboard
         $stats = [
             'total_users' => User::count(),
+            'active_users' => User::where('is_active', true)->count(),
             'total_students' => User::role('student')->count(),
+            'active_students' => User::role('student')->where('is_active', true)->count(),
             'total_teachers' => User::role('teacher')->count(),
+            'active_teachers' => User::role('teacher')->where('is_active', true)->count(),
             'total_parents' => User::role('parent')->count(),
+            'active_parents' => User::role('parent')->where('is_active', true)->count(),
             'total_courses' => Course::count(),
             'active_courses' => Course::where('is_active', true)->count(),
             'total_curriculums' => Curriculum::count(),
@@ -42,36 +46,44 @@ class DashboardController extends Controller
         ];
 
         // Get recent activities
-        $recent_enrollments = Enrollment::with(['student', 'class'])
+        $recent_enrollments = Enrollment::with(['student', 'className'])
             ->latest()
             ->take(5)
             ->get();
 
-        $recent_users = User::latest()
+        $recent_users = User::with('roles')
+            ->latest()
             ->take(5)
             ->get();
 
         // Get schedules for calendar
-        $schedules = Schedule::forCalendar()
-            ->with(['className.course', 'className.teacher', 'enrollment.student', 'teacherAssignment.teacher'])
+        $schedules = Schedule::where('is_active', true)
+            ->with(['className.course', 'className.teacher', 'enrollment.student'])
             ->get();
 
         // Get today's schedules
-        $todaySchedules = Schedule::forCalendar()
+        $todaySchedules = Schedule::where('is_active', true)
             ->whereRaw('day_of_week = ?', [now()->dayOfWeek === 0 ? 7 : now()->dayOfWeek])
-            ->with(['className.course', 'className.teacher', 'enrollment.student', 'teacherAssignment.teacher'])
+            ->with(['className.course', 'className.teacher', 'enrollment.student'])
             ->orderBy('start_time')
             ->get();
 
-        // Add missing variables for the view
-        $totalUsers = $stats['total_users'];
-        $activeCourses = $stats['active_courses'];
-        $activeClasses = $stats['active_classes'];
-        $monthlyRevenue = 'Rp 0'; // Placeholder
+        // Calculate monthly revenue (current month)
+        $monthlyRevenue = Enrollment::whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->whereHas('className.course')
+            ->with('className.course')
+            ->get()
+            ->sum(function($enrollment) {
+                return $enrollment->className->course->price ?? 0;
+            });
+        
+        // Format monthly revenue
+        $monthlyRevenueFormatted = 'Rp ' . number_format($monthlyRevenue, 0, ',', '.');
         
         // Get recent courses
         $recentCourses = Course::latest()->take(5)->get();
 
-        return view('admin.dashboard', compact('stats', 'recent_enrollments', 'recent_users', 'schedules', 'todaySchedules', 'totalUsers', 'activeCourses', 'activeClasses', 'monthlyRevenue', 'recentCourses'));
+        return view('admin.dashboard', compact('stats', 'recent_enrollments', 'recent_users', 'schedules', 'todaySchedules', 'monthlyRevenueFormatted', 'recentCourses'));
     }
 }

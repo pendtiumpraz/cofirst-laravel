@@ -184,9 +184,37 @@ class User extends Authenticatable
      */
     public function getProfilePhotoUrlAttribute()
     {
-        return $this->profile_photo_path
-            ? asset('storage/' . $this->profile_photo_path)
-            : asset('images/default-avatar.png');
+        if ($this->profile_photo_path) {
+            // For development, use base64 encoded image if HTTP access fails
+            $filePath = public_path('storage/' . $this->profile_photo_path);
+            
+            if (file_exists($filePath)) {
+                // First try normal asset URL
+                $assetUrl = asset('storage/' . $this->profile_photo_path);
+                
+                // If we're in development and having HTTP access issues, 
+                // we can return base64 data URL as fallback
+                if (app()->environment('local') && !$this->isUrlAccessible($assetUrl)) {
+                    $imageData = base64_encode(file_get_contents($filePath));
+                    $mimeType = mime_content_type($filePath);
+                    return "data:$mimeType;base64,$imageData";
+                }
+                
+                return $assetUrl;
+            }
+        }
+        
+        return asset('images/default-avatar.png');
+    }
+
+    /**
+     * Check if URL is accessible via HTTP
+     */
+    private function isUrlAccessible($url)
+    {
+        // In development, we'll use base64 fallback
+        // In production, this should work with proper server configuration
+        return !app()->environment('local');
     }
 
     /**

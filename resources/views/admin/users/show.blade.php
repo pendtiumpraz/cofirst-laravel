@@ -28,13 +28,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div class="space-y-4">
                     <div class="flex items-center space-x-4">
-                        <div class="h-16 w-16 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
-                            @if($user->profile_photo_path)
-                                <img src="{{ $user->profile_photo_url }}" alt="{{ $user->name }}" class="h-16 w-16 rounded-full object-cover">
-                            @else
-                                <span class="text-xl font-medium text-white">{{ substr($user->name, 0, 1) }}</span>
-                            @endif
-                        </div>
+                        <x-user-avatar :user="$user" size="lg" gradient="blue" />
                         <div>
                             <h4 class="text-xl font-semibold text-gray-900">{{ $user->name }}</h4>
                             <p class="text-gray-600">{{ $user->email }}</p>
@@ -77,13 +71,7 @@
                         @foreach($user->children as $child)
                             <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                                 <div class="flex items-center space-x-3">
-                                    <div class="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                                        @if($child->profile_photo_path)
-                                            <img src="{{ $child->profile_photo_url }}" alt="{{ $child->name }}" class="h-10 w-10 rounded-full object-cover">
-                                        @else
-                                            <span class="text-sm font-medium text-green-600">{{ substr($child->name, 0, 1) }}</span>
-                                        @endif
-                                    </div>
+                                    <x-user-avatar :user="$child" size="sm" gradient="green" />
                                     <div>
                                         <h4 class="text-sm font-medium text-gray-900">{{ $child->name }}</h4>
                                         <p class="text-xs text-gray-500">{{ $child->email }}</p>
@@ -117,13 +105,7 @@
                         @foreach($user->parents as $parent)
                             <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                                 <div class="flex items-center space-x-3">
-                                    <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                        @if($parent->profile_photo_path)
-                                            <img src="{{ $parent->profile_photo_url }}" alt="{{ $parent->name }}" class="h-10 w-10 rounded-full object-cover">
-                                        @else
-                                            <span class="text-sm font-medium text-blue-600">{{ substr($parent->name, 0, 1) }}</span>
-                                        @endif
-                                    </div>
+                                    <x-user-avatar :user="$parent" size="sm" gradient="purple" />
                                     <div>
                                         <h4 class="text-sm font-medium text-gray-900">{{ $parent->name }}</h4>
                                         <p class="text-xs text-gray-500">{{ $parent->email }}</p>

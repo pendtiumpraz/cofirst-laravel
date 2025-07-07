@@ -33,7 +33,7 @@
         >
             <input 
                 type="file" 
-                :name="name"
+                name="{{ $name }}"
                 @change="handleFileSelect"
                 accept="{{ $accept }}"
                 class="hidden"

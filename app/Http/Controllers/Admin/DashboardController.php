@@ -23,14 +23,14 @@ class DashboardController extends Controller
     {
         // Get statistics for dashboard
         $stats = [
-            'total_users' => User::count(),
-            'active_users' => User::where('is_active', true)->count(),
-            'total_students' => User::role('student')->count(),
-            'active_students' => User::role('student')->where('is_active', true)->count(),
-            'total_teachers' => User::role('teacher')->count(),
-            'active_teachers' => User::role('teacher')->where('is_active', true)->count(),
-            'total_parents' => User::role('parent')->count(),
-            'active_parents' => User::role('parent')->where('is_active', true)->count(),
+            'total_users' => User::withoutGlobalScopes()->count(),
+            'active_users' => User::withoutGlobalScopes()->where('is_active', true)->count(),
+            'total_students' => User::withoutGlobalScopes()->role('student')->count(),
+            'active_students' => User::withoutGlobalScopes()->role('student')->where('is_active', true)->count(),
+            'total_teachers' => User::withoutGlobalScopes()->role('teacher')->count(),
+            'active_teachers' => User::withoutGlobalScopes()->role('teacher')->where('is_active', true)->count(),
+            'total_parents' => User::withoutGlobalScopes()->role('parent')->count(),
+            'active_parents' => User::withoutGlobalScopes()->role('parent')->where('is_active', true)->count(),
             'total_courses' => Course::count(),
             'active_courses' => Course::where('is_active', true)->count(),
             'total_curriculums' => Curriculum::count(),

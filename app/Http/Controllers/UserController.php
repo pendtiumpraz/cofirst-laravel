@@ -49,7 +49,15 @@ class UserController extends Controller
         // Get available roles for filter dropdown
         $availableRoles = Role::all()->pluck('name', 'name');
         
-        return view('admin.users.index', compact('users', 'availableRoles'));
+        // Calculate overall statistics (not limited to current page)
+        $stats = [
+            'total_users' => User::count(),
+            'active_users' => User::where('is_active', true)->count(),
+            'teachers' => User::role('teacher')->count(),
+            'students' => User::role('student')->count(),
+        ];
+        
+        return view('admin.users.index', compact('users', 'availableRoles', 'stats'));
     }
 
     /**
@@ -102,11 +110,33 @@ class UserController extends Controller
 
             // Handle photo upload
             if ($request->hasFile('photo')) {
+                // Validate photo first
                 $photo = $request->file('photo');
-                $filename = 'profile-photos/' . uniqid() . '-' . time() . '.' . $photo->getClientOriginalExtension();
                 
-                // Store the file directly
+                if (!$photo->isValid()) {
+                    throw new \Exception('Invalid photo file uploaded.');
+                }
+                
+                // Delete old photo if exists
+                if ($user->profile_photo_path) {
+                    Storage::disk('public')->delete($user->profile_photo_path);
+                }
+
+                // Ensure profile-photos directory exists
+                $directory = 'profile-photos';
+                if (!Storage::disk('public')->exists($directory)) {
+                    Storage::disk('public')->makeDirectory($directory);
+                }
+                
+                $filename = 'profile-photos/' . $user->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
+                
+                // Store the file
                 $path = $photo->storeAs('profile-photos', basename($filename), 'public');
+                
+                if (!$path) {
+                    throw new \Exception('Failed to store photo file.');
+                }
+                
                 $userData['profile_photo_path'] = $path;
             }
 
@@ -230,16 +260,33 @@ class UserController extends Controller
 
             // Handle photo upload
             if ($request->hasFile('photo')) {
+                // Validate photo first
+                $photo = $request->file('photo');
+                
+                if (!$photo->isValid()) {
+                    throw new \Exception('Invalid photo file uploaded.');
+                }
+                
                 // Delete old photo if exists
                 if ($user->profile_photo_path) {
                     Storage::disk('public')->delete($user->profile_photo_path);
                 }
 
-                $photo = $request->file('photo');
+                // Ensure profile-photos directory exists
+                $directory = 'profile-photos';
+                if (!Storage::disk('public')->exists($directory)) {
+                    Storage::disk('public')->makeDirectory($directory);
+                }
+                
                 $filename = 'profile-photos/' . $user->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
                 
-                // Store the file directly
+                // Store the file
                 $path = $photo->storeAs('profile-photos', basename($filename), 'public');
+                
+                if (!$path) {
+                    throw new \Exception('Failed to store photo file.');
+                }
+                
                 $userData['profile_photo_path'] = $path;
             }
 
@@ -281,7 +328,16 @@ class UserController extends Controller
             
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->with('error', 'Failed to update user. Please try again.')->withInput();
+            
+            // Log the actual error for debugging
+            \Log::error('Failed to update user', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['password', 'password_confirmation'])
+            ]);
+            
+            return back()->with('error', 'Failed to update user. Error: ' . $e->getMessage())->withInput();
         }
     }
 

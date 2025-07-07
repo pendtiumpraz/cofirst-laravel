@@ -164,7 +164,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Total Users</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $users->total() }}</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $stats['total_users'] }}</p>
                 </div>
             </div>
         </div>
@@ -178,7 +178,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Active Users</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $users->where('is_active', true)->count() }}</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $stats['active_users'] }}</p>
                 </div>
             </div>
         </div>
@@ -192,7 +192,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Teachers</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $users->filter(function($user) { return $user->hasRole('teacher'); })->count() }}</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $stats['teachers'] }}</p>
                 </div>
             </div>
         </div>
@@ -207,7 +207,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Students</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $users->filter(function($user) { return $user->hasRole('student'); })->count() }}</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $stats['students'] }}</p>
                 </div>
             </div>
         </div>
@@ -239,9 +239,11 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="flex items-center">
-                                                <div class="h-10 w-10 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
-                                                    <span class="text-sm font-medium text-white">{{ substr($user->name, 0, 1) }}</span>
-                                                </div>
+                                                <x-user-avatar 
+                                                    :user="$user" 
+                                                    size="md" 
+                                                    gradient="blue"
+                                                />
                                                 <div class="ml-4">
                                                     <div class="text-sm font-medium text-gray-900">{{ $user->name }}</div>
                                                     @if($user->profile && $user->profile->phone)

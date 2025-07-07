@@ -16,9 +16,7 @@
                             <div class="p-6">
                                 <!-- Child Avatar -->
                                 <div class="flex items-center mb-4">
-                                    <div class="h-12 w-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                                        <span class="text-white font-semibold text-lg">{{ substr($child->name, 0, 1) }}</span>
-                                    </div>
+                                    <x-user-avatar :user="$child" size="md" gradient="blue" />
                                     <div class="ml-4">
                                         <h3 class="text-lg font-semibold text-gray-800">{{ $child->name }}</h3>
                                         <p class="text-sm text-gray-600">{{ $child->email }}</p>

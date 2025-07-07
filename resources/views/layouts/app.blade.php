@@ -888,9 +888,11 @@
                         <!-- Profile dropdown -->
                         <div class="relative flex items-center">
                             <button type="button" class="flex items-center gap-x-3 text-sm text-gray-900 hover:text-gray-600 py-2" onclick="toggleProfileDropdown()">
-                                <div class="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
-                                    <span class="text-sm font-medium text-white">{{ substr(Auth::user()->name, 0, 1) }}</span>
-                                </div>
+                                <x-user-avatar 
+                                    :user="Auth::user()" 
+                                    size="sm" 
+                                    gradient="blue"
+                                />
                                 <span class="hidden lg:block">{{ Auth::user()->name }}</span>
                                 <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                     <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />

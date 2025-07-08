@@ -79,10 +79,14 @@ class DashboardController extends Controller
             'total_reports' => Report::where('teacher_id', $teacher->id)->count(),
         ];
         
+        // Use upcomingSchedules as schedules for the calendar component
+        $schedules = $upcomingSchedules;
+        
         return view('teacher.dashboard', compact(
             'teacherClasses',
             'todaySchedules', 
             'upcomingSchedules',
+            'schedules',
             'recentReports',
             'stats'
         ));

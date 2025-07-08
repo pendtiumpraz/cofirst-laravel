@@ -86,6 +86,14 @@
                             <span class="text-blue-100">Class:</span>
                             <span class="text-white">{{ session('class_name') }}</span>
                         </div>
+                        <div class="flex justify-between">
+                            <span class="text-blue-100">Start Date:</span>
+                            <span class="text-white">{{ session('class_start_date') }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-blue-100">Teacher:</span>
+                            <span class="text-white">{{ session('teacher_name') }}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -117,7 +125,8 @@
                         <h3 class="text-sm font-medium text-white">Next Steps</h3>
                         <div class="mt-2 text-sm text-yellow-100">
                             <ol class="list-decimal list-inside space-y-1">
-                                <li>Please make payment according to the selected course fee</li>
+                                <li>You are now enrolled in the selected class</li>
+                                <li>Please make payment according to the course fee</li>
                                 <li>Contact admin with proof of payment</li>
                                 <li>Admin will activate your accounts after payment verification</li>
                                 <li>You will be notified when your accounts are activated</li>

@@ -325,6 +325,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['role:student'])->prefix('student')->name('student.')->group(function () {
         Route::get('dashboard', [\App\Http\Controllers\Student\DashboardController::class, 'index'])->name('dashboard');
         Route::get('classes', [StudentController::class, 'classes'])->name('classes');
+        Route::get('classes/{class}', [StudentController::class, 'showClass'])->name('classes.show');
         Route::get('courses', [StudentController::class, 'courses'])->name('courses.index');
         Route::get('schedules', [\App\Http\Controllers\Student\ScheduleController::class, 'index'])->name('schedules.index');
         Route::get('reports', [\App\Http\Controllers\Student\ReportController::class, 'index'])->name('reports.index');
@@ -403,7 +404,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [\App\Http\Controllers\GamificationController::class, 'index'])->name('index');
         Route::get('/leaderboard', [\App\Http\Controllers\GamificationController::class, 'leaderboard'])->name('leaderboard');
         Route::get('/badges', [\App\Http\Controllers\GamificationController::class, 'badges'])->name('badges');
-        Route::post('/badges/{badge}/toggle-featured', [\App\Http\Controllers\GamificationController::class, 'toggleBadgeFeatured'])->name('gamification.badges.toggle-featured');
+        Route::post('/badges/{badge}/toggle-featured', [\App\Http\Controllers\GamificationController::class, 'toggleBadgeFeatured'])->name('badges.toggle-featured');
         Route::get('/rewards', [\App\Http\Controllers\GamificationController::class, 'rewards'])->name('rewards');
         Route::post('/rewards/{reward}/redeem', [\App\Http\Controllers\GamificationController::class, 'redeemReward'])->name('rewards.redeem');
         Route::get('/redemptions', [\App\Http\Controllers\GamificationController::class, 'redemptions'])->name('redemptions');

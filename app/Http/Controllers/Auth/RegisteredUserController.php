@@ -23,12 +23,16 @@ class RegisteredUserController extends Controller
      */
     public function create(): View
     {
-        // Get available courses for registration
-        $courses = \App\Models\Course::where('is_active', true)
-            ->orderBy('name')
+        // Get available classes for registration
+        $classes = \App\Models\ClassName::with(['course', 'teachers'])
+            ->where('is_active', true)
+            ->whereIn('status', ['planned'])
+            ->whereDate('start_date', '>=', now())
+            ->whereRaw('(SELECT COUNT(*) FROM enrollments WHERE class_id = class_names.id AND status IN ("active", "pending")) < max_students')
+            ->orderBy('start_date')
             ->get();
             
-        return view('auth.register', compact('courses'));
+        return view('auth.register', compact('classes'));
     }
 
     /**
@@ -46,7 +50,7 @@ class RegisteredUserController extends Controller
             'birth_date' => ['required', 'date', 'before:today'],
             'gender' => ['required', 'in:male,female'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'course_id' => ['required', 'exists:courses,id'],
+            'class_id' => ['required', 'exists:class_names,id'],
         ]);
 
         DB::beginTransaction();
@@ -104,35 +108,27 @@ class RegisteredUserController extends Controller
                 'updated_at' => now(),
             ]);
             
-            // Find the next available class for the selected course
-            $class = ClassName::where('course_id', $request->course_id)
-                ->where('is_active', true)
-                ->where('status', 'planned')
-                ->whereDate('start_date', '>=', now())
-                ->whereRaw('(SELECT COUNT(*) FROM enrollments WHERE class_id = class_names.id AND status = "active") < max_students')
-                ->orderBy('start_date')
-                ->first();
+            // Get the selected class
+            $class = ClassName::with('course')->findOrFail($request->class_id);
             
-            if (!$class) {
-                // If no class is available, create enrollment without class
-                $enrollment = Enrollment::create([
-                    'student_id' => $student->id,
-                    'course_id' => $request->course_id,
-                    'enrollment_date' => now(),
-                    'status' => 'pending', // Pending payment
-                    'payment_status' => 'unpaid',
-                ]);
-            } else {
-                // Create enrollment with class
-                $enrollment = Enrollment::create([
-                    'student_id' => $student->id,
-                    'course_id' => $request->course_id,
-                    'class_id' => $class->id,
-                    'enrollment_date' => now(),
-                    'status' => 'pending', // Pending payment
-                    'payment_status' => 'unpaid',
-                ]);
+            // Verify class is still available
+            $currentEnrollments = Enrollment::where('class_id', $class->id)
+                ->whereIn('status', ['active', 'pending'])
+                ->count();
+                
+            if ($currentEnrollments >= $class->max_students) {
+                throw new \Exception('Class is full. Please select another class.');
             }
+            
+            // Create enrollment with selected class
+            $enrollment = Enrollment::create([
+                'student_id' => $student->id,
+                'course_id' => $class->course_id,
+                'class_id' => $class->id,
+                'enrollment_date' => now(),
+                'status' => 'pending', // Pending payment and admin approval
+                'payment_status' => 'unpaid',
+            ]);
             
             DB::commit();
             
@@ -146,8 +142,10 @@ class RegisteredUserController extends Controller
             return redirect()->route('register.success')->with([
                 'student_email' => $studentUsername,
                 'parent_email' => $parentUsername,
-                'course_name' => \App\Models\Course::find($request->course_id)->name,
-                'class_name' => $class ? $class->name : 'Will be assigned after payment',
+                'course_name' => $class->course->name,
+                'class_name' => $class->name,
+                'class_start_date' => $class->start_date->format('d M Y'),
+                'teacher_name' => $class->teachers->first()->name ?? 'TBA',
                 'message' => 'Registration successful! Your accounts have been created but are inactive. Please wait for admin approval after payment.'
             ]);
             

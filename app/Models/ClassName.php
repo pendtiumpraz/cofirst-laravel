@@ -44,7 +44,7 @@ class ClassName extends Model
 
     // Deprecated: Keep for backward compatibility, but use teachers() instead
     // Note: This method cannot be used with eager loading (->with())
-    public function teacher()
+    public function getTeacherAttribute()
     {
         return $this->teachers()->first();
     }

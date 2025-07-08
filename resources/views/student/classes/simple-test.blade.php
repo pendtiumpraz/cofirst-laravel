@@ -50,7 +50,7 @@
                                     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                                         <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ $class->name }}</h3>
                                         <p class="text-sm text-gray-600 mb-2">{{ $class->course->name ?? 'N/A' }}</p>
-                                        <p class="text-sm text-gray-500">Teacher: {{ $class->teacher->name ?? 'N/A' }}</p>
+                                        <p class="text-sm text-gray-500">Teacher: {{ $class->teachers->first()->name ?? 'N/A' }}</p>
                                         <span class="inline-block px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 mt-2">
                                             {{ ucfirst($enrollment->status) }}
                                         </span>

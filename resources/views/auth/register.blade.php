@@ -134,27 +134,27 @@
                     </div>
                 </div>
 
-                <!-- Course Selection -->
+                <!-- Class Selection -->
                 <div>
-                    <h3 class="text-lg font-semibold text-white mb-4">Select Course</h3>
+                    <h3 class="text-lg font-semibold text-white mb-4">Select Class</h3>
                     <div>
-                        <label for="course_id" class="block text-sm font-medium text-white mb-2">Available Courses</label>
-                        <select id="course_id" name="course_id" required
+                        <label for="class_id" class="block text-sm font-medium text-white mb-2">Available Classes</label>
+                        <select id="class_id" name="class_id" required
                             class="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/90 backdrop-blur-sm text-gray-900">
-                            <option value="">Select a course</option>
-                            @foreach($courses as $course)
-                                <option value="{{ $course->id }}" {{ old('course_id') == $course->id ? 'selected' : '' }}>
-                                    {{ $course->name }} - {{ ucfirst($course->level) }} - Rp {{ number_format($course->price ?? 0, 0, ',', '.') }}
+                            <option value="">Select a class</option>
+                            @foreach($classes as $class)
+                                <option value="{{ $class->id }}" {{ old('class_id') == $class->id ? 'selected' : '' }}>
+                                    {{ $class->name }} | {{ $class->course->name }} | Teacher: {{ $class->teachers->first()->name ?? 'TBA' }} | {{ $class->start_date->format('M Y') }} | Rp {{ number_format($class->course->price ?? 0, 0, ',', '.') }}
                                 </option>
                             @endforeach
                         </select>
-                        @error('course_id')
+                        @error('class_id')
                             <p class="mt-2 text-sm text-red-200">{{ $message }}</p>
                         @enderror
-                        @if($courses->isEmpty())
-                            <p class="mt-2 text-sm text-red-200">No courses available for registration at this time.</p>
+                        @if($classes->isEmpty())
+                            <p class="mt-2 text-sm text-red-200">No classes available for registration at this time.</p>
                         @endif
-                        <p class="mt-2 text-sm text-blue-100">Class will be automatically assigned based on availability after payment.</p>
+                        <p class="mt-2 text-sm text-blue-100">You will be enrolled directly in the selected class after payment confirmation.</p>
                     </div>
                 </div>
 
@@ -204,6 +204,7 @@
                                     <li>Parent login: <strong>parent-[student-name]@coding1st.com</strong></li>
                                     <li>Both accounts will be inactive until payment is confirmed</li>
                                     <li>You will receive login credentials after registration</li>
+                                    <li>Direct enrollment in selected class after payment verification</li>
                                 </ul>
                             </div>
                         </div>

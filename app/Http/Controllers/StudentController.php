@@ -41,6 +41,46 @@ class StudentController extends Controller
     }
 
     /**
+     * Show a specific class for the student.
+     */
+    public function showClass($classId)
+    {
+        $user = Auth::user();
+        
+        // Verify the student is enrolled in this class
+        $enrollment = $user->enrollments()
+            ->where('class_id', $classId)
+            ->with(['className.course', 'className.teachers'])
+            ->first();
+            
+        if (!$enrollment) {
+            abort(404, 'Class not found or you are not enrolled in this class.');
+        }
+        
+        // Get schedules for this class
+        $schedules = Schedule::whereHas('enrollment', function ($query) use ($user, $classId) {
+                $query->where('student_id', $user->id)
+                      ->where('class_id', $classId);
+            })
+            ->with(['teacherAssignment.teacher'])
+            ->orderBy('day_of_week')
+            ->orderBy('start_time')
+            ->get();
+            
+        // Get reports for this class
+        $reports = Report::where('student_id', $user->id)
+            ->whereHas('className', function($query) use ($classId) {
+                $query->where('id', $classId);
+            })
+            ->with(['teacher'])
+            ->latest()
+            ->take(5)
+            ->get();
+        
+        return view('student.classes.show', compact('enrollment', 'schedules', 'reports'));
+    }
+
+    /**
      * Display student's schedule.
      */
     public function schedule()

@@ -31,7 +31,7 @@
                                 </div>
                                 <div>
                                     <dt class="text-sm font-medium text-gray-500">Teacher</dt>
-                                    <dd class="mt-1 text-md text-gray-900">{{ $class->teacher->name }}</dd>
+                                    <dd class="mt-1 text-md text-gray-900">{{ $class->teachers->first()->name ?? 'N/A' }}</dd>
                                 </div>
                                 <div>
                                     <dt class="text-sm font-medium text-gray-500">Capacity</dt>

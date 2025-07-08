@@ -27,7 +27,9 @@ class TeacherController extends Controller
             'user_roles' => $user->roles->pluck('name'),
         ]);
         
-        $classes = ClassName::where('teacher_id', $user->id)
+        $classes = ClassName::whereHas('teachers', function($query) use ($user) {
+                $query->where('users.id', $user->id);
+            })
             ->with(['course', 'enrollments.student'])
             ->withCount('enrollments')
             ->where('status', 'active')
@@ -50,8 +52,8 @@ class TeacherController extends Controller
     {
         $user = Auth::user();
         
-        // Verify teacher owns this class
-        if ($class->teacher_id !== $user->id) {
+        // Verify teacher is assigned to this class
+        if (!$class->teachers->contains($user->id)) {
             abort(403, 'Unauthorized access to class data.');
         }
         
@@ -66,8 +68,8 @@ class TeacherController extends Controller
     public function students()
     {
         $user = Auth::user();
-        $students = User::whereHas('enrollments.class', function($query) use ($user) {
-            $query->where('teacher_id', $user->id);
+        $students = User::whereHas('enrollments.class.teachers', function($query) use ($user) {
+            $query->where('users.id', $user->id);
         })->with(['enrollments.class.course'])->get();
         
         return view('teacher.students', compact('students'));
@@ -79,7 +81,7 @@ class TeacherController extends Controller
     public function ranking()
     {
         $teachers = User::role('teacher')
-            ->withCount(['classes as student_count' => function ($query) {
+            ->withCount(['teachingClasses as student_count' => function ($query) {
                 $query->select(DB::raw('count(distinct enrollments.student_id)'))
                     ->join('enrollments', 'enrollments.class_id', '=', 'class_names.id');
             }])

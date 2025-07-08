@@ -107,7 +107,7 @@
                                     </p>
                                     
                                     <p class="text-sm text-gray-600 mb-4">
-                                        <strong>Pengajar:</strong> {{ $item['class']->teacher->name }}
+                                        <strong>Pengajar:</strong> {{ $item['class']->teachers->first()->name ?? 'N/A' }}
                                     </p>
                                     
                                     <div class="flex space-x-2">
@@ -160,7 +160,7 @@
                                     </p>
                                     
                                     <p class="text-sm text-gray-600 mb-2">
-                                        <strong>Pengajar:</strong> {{ $class->teacher->name }}
+                                        <strong>Pengajar:</strong> {{ $class->teachers->first()->name ?? 'N/A' }}
                                     </p>
                                     
                                     <p class="text-sm text-gray-600 mb-2">

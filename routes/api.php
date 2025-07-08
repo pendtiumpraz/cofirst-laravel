@@ -82,9 +82,7 @@ use App\Http\Controllers\Api\ScheduleDataController;
 //     Route::get('/schedules/class/{class}', [ScheduleController::class, 'classSchedules']);
 //     Route::get('/schedules/today', [ScheduleController::class, 'todaySchedules']);
 
-//     // Schedule Data for Admin Panel
-//     Route::get('/schedule-data/teachers/{class_id}', [ScheduleDataController::class, 'getTeachersByClass']);
-//     Route::get('/schedule-data/enrollments/{class_id}', [ScheduleDataController::class, 'getEnrollmentsByClass']);
+
 //     
 //     // Enrollment management
 //     Route::apiResource('enrollments', EnrollmentController::class);
@@ -182,12 +180,6 @@ Route::get('/v1/docs', function () {
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:web');
-
-// Schedule Data API for dynamic forms
-Route::middleware('auth:web')->group(function () {
-    Route::get('/schedule-data/teachers/{class_id}', [ScheduleDataController::class, 'getTeachersByClass']);
-    Route::get('/schedule-data/students/{class_id}', [ScheduleDataController::class, 'getStudentsByClass']);
-});
 // API Routes for future mobile app or external integrations
 Route::prefix('v1')->middleware('auth:web')->group(function () {
     // User routes
@@ -215,3 +207,5 @@ Route::prefix('v1')->middleware('auth:web')->group(function () {
         return response()->json(['message' => 'Transactions API endpoint']);
     });
 });
+
+

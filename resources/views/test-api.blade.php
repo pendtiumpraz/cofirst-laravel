@@ -37,13 +37,46 @@
     <div id="results" class="results"></div>
     
     <script>
-        // Find a class ID to test with
-        const classId = 24; // From our earlier test
+        // Test authentication first
+        fetch('/test-schedule-api', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Auth test response:', data);
+            if (data.error) {
+                document.getElementById('results').innerHTML += `
+                    <h3 class="error">✗ Authentication Error:</h3>
+                    <pre class="error">${data.error}</pre>
+                `;
+            } else {
+                document.getElementById('results').innerHTML += `
+                    <h3 class="success">✓ Authentication Working:</h3>
+                    <pre>User: ${data.user}<br>Class ID: ${data.class_id}<br>Class Name: ${data.class_name}</pre>
+                `;
+                // Use the class ID from the auth test
+                testScheduleEndpoints(data.class_id);
+            }
+        })
+        .catch(error => {
+            console.error('Auth test error:', error);
+            document.getElementById('results').innerHTML += `
+                <h3 class="error">✗ Authentication Test Error:</h3>
+                <pre class="error">${error.message}</pre>
+            `;
+        });
         
-        console.log('Testing API endpoints...');
+        function testScheduleEndpoints(classId) {
+            console.log('Testing schedule endpoints with class ID:', classId);
         
-        // Test Teachers API
-        fetch(`/api/schedule-data/teachers/${classId}`, {
+            // Test Teachers API
+            fetch(`/api/schedule-data/teachers/${classId}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -134,6 +167,7 @@
                 <pre class="error">${error.message}</pre>
             `;
         });
+        }
     </script>
 </body>
 </html> 

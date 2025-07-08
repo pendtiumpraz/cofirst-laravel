@@ -15,7 +15,7 @@ return new class extends Migration
         // First, migrate existing data to pivot table
         DB::statement('
             INSERT INTO class_teacher (class_id, teacher_id, role, created_at, updated_at)
-            SELECT id, teacher_id, "primary", created_at, updated_at
+            SELECT id, teacher_id, "teacher", created_at, updated_at
             FROM class_names
             WHERE teacher_id IS NOT NULL
         ');
@@ -37,14 +37,14 @@ return new class extends Migration
             $table->foreignId('teacher_id')->nullable()->constrained('users')->onDelete('cascade');
         });
         
-        // Migrate data back (only primary teachers)
+        // Migrate data back (get first teacher for each class)
         DB::statement('
             UPDATE class_names 
             SET teacher_id = (
                 SELECT teacher_id 
                 FROM class_teacher 
                 WHERE class_teacher.class_id = class_names.id 
-                AND class_teacher.role = "primary"
+                AND class_teacher.role = "teacher"
                 LIMIT 1
             )
         ');

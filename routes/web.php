@@ -417,6 +417,33 @@ Route::middleware('auth')->group(function () {
 // Test API route for debugging
 Route::get('/test-api', function () {
     return view('test-api');
+});
+
+// Test API endpoints
+Route::get('/test-schedule-api', function () {
+    $user = auth()->user();
+    if (!$user) {
+        return response()->json(['error' => 'Not authenticated'], 401);
+    }
+    
+    $class = App\Models\ClassName::first();
+    if (!$class) {
+        return response()->json(['error' => 'No classes found'], 404);
+    }
+    
+    return response()->json([
+        'user' => $user->name,
+        'class_id' => $class->id,
+        'class_name' => $class->name,
+        'message' => 'API working correctly'
+    ]);
 })->middleware('auth');
+
+// Schedule Data API Routes for Admin Panel
+Route::middleware('auth')->prefix('api')->group(function () {
+    Route::get('/schedule-data/teachers/{class_id}', [App\Http\Controllers\Api\ScheduleDataController::class, 'getTeachersByClass']);
+    Route::get('/schedule-data/students/{class_id}', [App\Http\Controllers\Api\ScheduleDataController::class, 'getStudentsByClass']);
+    Route::get('/schedule-data/enrollments/{class_id}', [App\Http\Controllers\Api\ScheduleDataController::class, 'getEnrollmentsByClass']);
+});
 
 require __DIR__.'/auth.php';

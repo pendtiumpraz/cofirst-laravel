@@ -287,7 +287,7 @@ class ChatController extends Controller
             $admins = User::role('admin')->get();
             
             // 2. Students they teach
-            $classIds = $user->teachingClasses()->pluck('id');
+            $classIds = $user->teachingClasses()->pluck('class_names.id');
             $students = User::role('student')
                 ->whereHas('enrollments', function ($query) use ($classIds) {
                     $query->whereIn('class_id', $classIds)

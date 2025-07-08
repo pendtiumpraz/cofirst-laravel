@@ -25,9 +25,9 @@ class ReportController extends Controller
         try {
             // Get student's reports
             $reports = Report::where('student_id', $user->id)
-                ->with(['teacher', 'class.course'])
-                ->orderBy('created_at', 'desc')
-                ->get();
+                ->with(['teacher', 'className.course'])
+                ->latest()
+                ->paginate(10);
             
             // Calculate stats
             $stats = [

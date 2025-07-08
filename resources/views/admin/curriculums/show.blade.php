@@ -193,7 +193,7 @@
                                         @foreach($curriculum->classes as $class)
                                             <tr>
                                                 <td class="py-2 px-4 border-b border-gray-200">{{ $class->name }}</td>
-                                                <td class="py-2 px-4 border-b border-gray-200">{{ $class->teacher->name }}</td>
+                                                <td class="py-2 px-4 border-b border-gray-200">{{ $class->teachers->first()->name ?? 'N/A' }}</td>
                                                 <td class="py-2 px-4 border-b border-gray-200">{{ $class->enrollments ? $class->enrollments->count() : 0 }}/{{ $class->max_students }}</td>
                                                 <td class="py-2 px-4 border-b border-gray-200">
                                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $class->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">

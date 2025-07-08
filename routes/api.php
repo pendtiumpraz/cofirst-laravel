@@ -82,9 +82,7 @@ use App\Http\Controllers\Api\ScheduleDataController;
 //     Route::get('/schedules/class/{class}', [ScheduleController::class, 'classSchedules']);
 //     Route::get('/schedules/today', [ScheduleController::class, 'todaySchedules']);
 
-//     // Schedule Data for Admin Panel
-//     Route::get('/schedule-data/teachers/{class_id}', [ScheduleDataController::class, 'getTeachersByClass']);
-//     Route::get('/schedule-data/enrollments/{class_id}', [ScheduleDataController::class, 'getEnrollmentsByClass']);
+
 //     
 //     // Enrollment management
 //     Route::apiResource('enrollments', EnrollmentController::class);
@@ -209,3 +207,5 @@ Route::prefix('v1')->middleware('auth:web')->group(function () {
         return response()->json(['message' => 'Transactions API endpoint']);
     });
 });
+
+

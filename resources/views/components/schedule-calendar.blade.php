@@ -30,7 +30,7 @@
                                     @endphp
                                     <p class="text-sm font-semibold text-gray-900">{{ $startTime }} - {{ $endTime }}</p>
                                     <p class="text-xs text-gray-700">Class: {{ $schedule->className->name ?? 'N/A' }}</p>
-                                    <p class="text-xs text-gray-700">Teacher: {{ $schedule->teacherAssignment->teacher->name ?? $schedule->className->teacher->name ?? 'N/A' }}</p>
+                                    <p class="text-xs text-gray-700">Teacher: {{ $schedule->teacherAssignment->teacher->name ?? $schedule->className->teachers->first()->name ?? 'N/A' }}</p>
                                     <p class="text-xs text-gray-700">Student: {{ $schedule->enrollment->student->name ?? 'Current User' }}</p>
                                     @if(isset($schedule->room) && $schedule->room)
                                         <p class="text-xs text-gray-600">Room: {{ $schedule->room }}</p>

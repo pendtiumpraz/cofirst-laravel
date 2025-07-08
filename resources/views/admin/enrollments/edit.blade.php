@@ -20,7 +20,7 @@
                                     <option value="">Select a student</option>
                                     @foreach ($students as $student)
                                         <option value="{{ $student->id }}" {{ $enrollment->student_id == $student->id ? 'selected' : '' }}>
-                                            {{ $student->name }} ({{ $student->email }})
+                                            {{ $student->name }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -34,7 +34,7 @@
                                     <option value="">Select a class</option>
                                     @foreach ($classes as $class)
                                         <option value="{{ $class->id }}" {{ $enrollment->class_id == $class->id ? 'selected' : '' }}>
-                                            {{ $class->name }} - {{ $class->course->name ?? 'No Course' }} ({{ $class->teacher->name ?? 'No Teacher' }})
+                                            {{ $class->name }} - {{ $class->course->name ?? 'No Course' }} ({{ $class->teachers->first()->name ?? 'No Teacher' }})
                                         </option>
                                     @endforeach
                                 </select>

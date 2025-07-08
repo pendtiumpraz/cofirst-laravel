@@ -15,9 +15,9 @@ class ReportController extends Controller
      */
     public function adminIndex()
     {
-        $reports = Report::with(['student', 'teacher', 'class.course'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+        $reports = Report::with(['student', 'teacher', 'className.course'])
+            ->latest()
+            ->paginate(10);
             
         return view('admin.reports.index', compact('reports'));
     }
@@ -44,14 +44,16 @@ class ReportController extends Controller
         $user = Auth::user();
         
         // Get classes taught by this teacher
-        $classes = ClassName::where('teacher_id', $user->id)
+        $classes = ClassName::whereHas('teachers', function($query) use ($user) {
+                $query->where('users.id', $user->id);
+            })
             ->where('is_active', true)
             ->with('course')
             ->get();
             
         // Get students from teacher's classes
-        $students = User::whereHas('enrollments.class', function($query) use ($user) {
-            $query->where('teacher_id', $user->id)->where('status', 'active');
+        $students = User::whereHas('enrollments.class.teachers', function($query) use ($user) {
+            $query->where('users.id', $user->id)->where('status', 'active');
         })->get();
 
         \Log::info('Teacher Report Create: Data for view', [
@@ -79,9 +81,9 @@ class ReportController extends Controller
 
         $user = Auth::user();
         
-        // Verify teacher owns this class
+        // Verify teacher is assigned to this class
         $class = ClassName::findOrFail($request->class_id);
-        if ($class->teacher_id !== $user->id) {
+        if (!$class->teachers->contains($user->id)) {
             abort(403, 'Unauthorized to create report for this class.');
         }
 
@@ -128,13 +130,15 @@ class ReportController extends Controller
             abort(403, 'Unauthorized to edit this report.');
         }
         
-        $classes = ClassName::where('teacher_id', $user->id)
+        $classes = ClassName::whereHas('teachers', function($query) use ($user) {
+                $query->where('users.id', $user->id);
+            })
             ->where('is_active', true)
             ->with('course')
             ->get();
             
-        $students = User::whereHas('enrollments.class', function($query) use ($user) {
-            $query->where('teacher_id', $user->id)->where('status', 'active');
+        $students = User::whereHas('enrollments.class.teachers', function($query) use ($user) {
+            $query->where('users.id', $user->id)->where('status', 'active');
         })->get();
 
         \Log::info('Teacher Report Edit: Data for view', [
@@ -203,8 +207,8 @@ class ReportController extends Controller
     {
         $user = Auth::user();
         
-        // Verify teacher owns this class
-        if ($class->teacher_id !== $user->id) {
+        // Verify teacher is assigned to this class
+        if (!$class->teachers->contains($user->id)) {
             abort(403, 'Unauthorized access to class reports.');
         }
         
@@ -224,8 +228,8 @@ class ReportController extends Controller
         $user = Auth::user();
         
         // Verify teacher has access to this student
-        if (!$student->enrollments()->whereHas('class', function($query) use ($user) {
-            $query->where('teacher_id', $user->id);
+        if (!$student->enrollments()->whereHas('class.teachers', function($query) use ($user) {
+            $query->where('users.id', $user->id);
         })->exists()) {
             abort(403, 'Unauthorized access to student reports.');
         }

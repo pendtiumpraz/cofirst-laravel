@@ -58,7 +58,7 @@
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                     </svg>
-                                    {{ $schedule->className->teacher->name ?? 'N/A' }}
+                                    {{ $schedule->className->teachers->first()->name ?? 'N/A' }}
                                 </div>
                             </div>
                             @endforeach
@@ -139,13 +139,13 @@
                                                     <div class="flex-shrink-0 h-8 w-8">
                                                         <div class="h-8 w-8 rounded-full bg-gradient-to-r from-green-400 to-green-600 flex items-center justify-center">
                                                             <span class="text-xs font-medium text-white">
-                                                                {{ substr($schedule->className->teacher->name ?? 'N', 0, 2) }}
+                                                {{ substr($schedule->className->teachers->first()->name ?? 'N', 0, 2) }}
                                                             </span>
                                                         </div>
                                                     </div>
                                                     <div class="ml-3">
                                                         <div class="text-sm font-medium text-gray-900">
-                                                            {{ $schedule->className->teacher->name ?? 'N/A' }}
+                                            {{ $schedule->className->teachers->first()->name ?? 'N/A' }}
                                                         </div>
                                                     </div>
                                                 </div>

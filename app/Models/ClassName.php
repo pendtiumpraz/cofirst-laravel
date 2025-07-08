@@ -11,7 +11,6 @@ class ClassName extends Model
 
     protected $fillable = [
         'course_id',
-        'teacher_id',
         'name',
         'description',
         'photo_path',
@@ -20,8 +19,8 @@ class ClassName extends Model
         'max_students',
         'status',
         'type',
-        'delivery_method', // Kolom baru
-        'curriculum_id',   // Kolom baru
+        'delivery_method',
+        'curriculum_id',
         'is_active',
     ];
 
@@ -36,9 +35,24 @@ class ClassName extends Model
         return $this->belongsTo(Course::class);
     }
 
-    public function teacher()
+    public function teachers()
     {
-        return $this->belongsTo(User::class, 'teacher_id');
+        return $this->belongsToMany(User::class, 'class_teacher', 'class_id', 'teacher_id')
+                    ->withPivot('role')
+                    ->withTimestamps();
+    }
+
+    // Deprecated: Keep for backward compatibility, but use teachers() instead
+    // Note: This method cannot be used with eager loading (->with())
+    public function getTeacherAttribute()
+    {
+        return $this->teachers()->first();
+    }
+    
+    // Method for backward compatibility with eager loading
+    public function primaryTeacher()
+    {
+        return $this->teachers()->wherePivot('role', 'teacher')->first();
     }
 
     public function schedules()

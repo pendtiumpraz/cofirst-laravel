@@ -98,8 +98,8 @@ class ClassReportController extends Controller
 
         // Dapatkan jadwal untuk kelas yang dipilih dan guru yang login
         $schedules = Schedule::where('class_id', $classId)
-                            ->whereHas('class', function ($query) use ($teacher) {
-                                $query->where('teacher_id', $teacher->id);
+                            ->whereHas('className.teachers', function ($query) use ($teacher) {
+                                $query->where('users.id', $teacher->id);
                             })
                             ->get();
 
@@ -151,7 +151,11 @@ class ClassReportController extends Controller
         ]);
 
         // Pastikan guru yang login adalah guru yang mengajar kelas ini
-        $class = ClassName::where('id', $request->class_id)->where('teacher_id', $teacher->id)->firstOrFail();
+        $class = ClassName::where('id', $request->class_id)
+            ->whereHas('teachers', function($query) use ($teacher) {
+                $query->where('users.id', $teacher->id);
+            })
+            ->firstOrFail();
 
         ClassReport::create(array_merge($request->all(), [
             'teacher_id' => $teacher->id,

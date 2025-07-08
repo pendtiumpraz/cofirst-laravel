@@ -25,15 +25,13 @@ class ScheduleController extends Controller
         
         try {
             // Get student's schedules
-            $schedules = Schedule::forCalendar()
-                ->whereHas('enrollment', function($query) use ($user) {
-                    $query->where('student_id', $user->id)
-                          ->where('status', 'active');
-                })
-                ->with(['className.course', 'className.teacher', 'teacherAssignment.teacher'])
-                ->orderBy('day_of_week')
-                ->orderBy('start_time')
-                ->get();
+            $schedules = Schedule::whereHas('enrollment', function ($query) use ($user) {
+                $query->where('student_id', $user->id);
+            })
+            ->with(['className.course', 'className.teachers', 'teacherAssignment.teacher'])
+            ->orderBy('day_of_week')
+            ->orderBy('start_time')
+            ->get();
             
             // Get upcoming classes for today and tomorrow
             $today = Carbon::today();

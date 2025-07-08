@@ -30,7 +30,7 @@ class CurriculumController extends Controller
             },
             'enrollments.class.course',
             'enrollments.class.curriculum',
-            'enrollments.class.teacher'
+            'enrollments.className.teachers'
         ])->get();
 
         return view('parent.curriculum.index', compact('children'));

@@ -29,9 +29,9 @@ class CurriculumController extends Controller
         $enrollments = Enrollment::where('student_id', $user->id)
             ->where('status', 'active')
             ->with([
-                'class.course',
-                'class.curriculum.syllabuses.materials',
-                'class.teacher'
+                'className.course',
+                'className.curriculum.syllabuses.materials',
+                'className.teachers'
             ])
             ->get();
 
@@ -63,7 +63,7 @@ class CurriculumController extends Controller
             'curriculum.syllabuses.materials' => function($query) {
                 $query->where('status', 'active')->orderBy('order');
             },
-            'teacher'
+            'teachers'
         ])->findOrFail($classId);
         
         // Get student's material progress (you might need to create a progress tracking system)

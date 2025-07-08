@@ -24,7 +24,7 @@ class CertificateController extends Controller
             
         $classes = ClassName::where('is_active', true)
             ->whereIn('status', ['active', 'completed'])
-            ->with('course', 'teacher')
+            ->with('course', 'teachers')
             ->orderBy('name')
             ->get();
             

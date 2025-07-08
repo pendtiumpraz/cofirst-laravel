@@ -30,4 +30,9 @@ class TeacherAssignment extends Model
     {
         return $this->belongsTo(ClassName::class, 'class_id');
     }
+
+    public function className()
+    {
+        return $this->belongsTo(ClassName::class, 'class_id');
+    }
 }

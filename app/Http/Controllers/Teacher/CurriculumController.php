@@ -22,10 +22,9 @@ class CurriculumController extends Controller
     {
         $teacher = Auth::user();
         
-        // Get curriculums from teacher's classes
-        $curriculums = Curriculum::whereHas('course.classes', function($query) use ($teacher) {
-            $query->where('teacher_id', $teacher->id)
-                  ->where('status', 'active');
+        // Get curriculums from teacher's assigned classes
+        $curriculums = Curriculum::whereHas('course.classes.teachers', function($query) use ($teacher) {
+            $query->where('users.id', $teacher->id);
         })
         ->with([
             'course',
@@ -47,9 +46,11 @@ class CurriculumController extends Controller
     {
         $teacher = Auth::user();
         
-        // Check if teacher has access to this curriculum
+        // Check if teacher has access to this curriculum (via assigned classes)
         $hasAccess = $curriculum->course->classes()
-                                ->where('teacher_id', $teacher->id)
+                                ->whereHas('teachers', function($query) use ($teacher) {
+                                    $query->where('users.id', $teacher->id);
+                                })
                                 ->where('status', 'active')
                                 ->exists();
         
@@ -68,8 +69,10 @@ class CurriculumController extends Controller
         ]);
         
         // Get teacher's classes using this curriculum
-        $teacherClasses = ClassName::where('teacher_id', $teacher->id)
-                                  ->where('curriculum_id', $curriculum->id)
+        $teacherClasses = ClassName::where('curriculum_id', $curriculum->id)
+                                  ->whereHas('teachers', function($query) use ($teacher) {
+                                      $query->where('users.id', $teacher->id);
+                                  })
                                   ->where('status', 'active')
                                   ->with(['enrollments.student'])
                                   ->get();
@@ -84,9 +87,11 @@ class CurriculumController extends Controller
     {
         $teacher = Auth::user();
         
-        // Check if teacher has access to this curriculum
+        // Check if teacher has access to this curriculum (via assigned classes)
         $hasAccess = $curriculum->course->classes()
-                                ->where('teacher_id', $teacher->id)
+                                ->whereHas('teachers', function($query) use ($teacher) {
+                                    $query->where('users.id', $teacher->id);
+                                })
                                 ->where('status', 'active')
                                 ->exists();
         
@@ -110,9 +115,11 @@ class CurriculumController extends Controller
     {
         $teacher = Auth::user();
         
-        // Check if teacher has access to this curriculum
+        // Check if teacher has access to this curriculum (via assigned classes)
         $hasAccess = $curriculum->course->classes()
-                                ->where('teacher_id', $teacher->id)
+                                ->whereHas('teachers', function($query) use ($teacher) {
+                                    $query->where('users.id', $teacher->id);
+                                })
                                 ->where('status', 'active')
                                 ->exists();
         

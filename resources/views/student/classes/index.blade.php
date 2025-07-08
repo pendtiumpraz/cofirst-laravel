@@ -54,10 +54,10 @@
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="flex items-center">
                                                 <div class="h-8 w-8 flex-shrink-0 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                                                    <span class="text-xs font-medium text-white">{{ substr($enrollment->class->teacher->name, 0, 1) }}</span>
+                                                    <span class="text-xs font-medium text-white">{{ substr($enrollment->class->teachers->first()->name ?? 'N', 0, 1) }}</span>
                                                 </div>
                                                 <div class="ml-3">
-                                                    <div class="text-sm font-medium text-gray-900">{{ $enrollment->class->teacher->name }}</div>
+                                                    <div class="text-sm font-medium text-gray-900">{{ $enrollment->class->teachers->first()->name ?? 'N/A' }}</div>
                                                 </div>
                                             </div>
                                         </td>

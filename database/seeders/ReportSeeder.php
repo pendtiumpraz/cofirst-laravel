@@ -19,7 +19,10 @@ class ReportSeeder extends Seeder
         foreach ($enrollments as $enrollment) {
             $classId = $enrollment->class->id;
             $studentId = $enrollment->student_id;
-            $teacherId = $enrollment->class->teacher_id;
+            
+            // Get the first teacher for this class (since all teachers are equal)
+            $teacher = $enrollment->class->teachers()->first();
+            $teacherId = $teacher ? $teacher->id : null;
 
             if ($classId && $studentId && $teacherId) {
                 Report::factory()->create([

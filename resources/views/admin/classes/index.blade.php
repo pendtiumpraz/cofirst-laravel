@@ -113,14 +113,24 @@ use Illuminate\Support\Facades\Storage;
                                                 <div class="text-sm text-gray-500">{{ $class->course->level ?? 'N/A' }}</div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="flex items-center">
-                                                    <div class="h-8 w-8 flex-shrink-0 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                                                        <span class="text-xs font-medium text-white">{{ substr($class->teacher->name, 0, 1) }}</span>
+                                                @if($class->teachers && $class->teachers->count() > 0)
+                                                    <div class="flex flex-col space-y-1">
+                                                        @foreach($class->teachers as $index => $teacher)
+                                                            <div class="flex items-center">
+                                                                <x-user-avatar 
+                                                                    :user="$teacher" 
+                                                                    size="sm" 
+                                                                    gradient="blue"
+                                                                />
+                                                                <div class="ml-3">
+                                                                    <div class="text-sm font-medium text-gray-900">{{ $teacher->name }}</div>
+                                                                </div>
+                                                            </div>
+                                                        @endforeach
                                                     </div>
-                                                    <div class="ml-3">
-                                                        <div class="text-sm font-medium text-gray-900">{{ $class->teacher->name }}</div>
-                                                    </div>
-                                                </div>
+                                                @else
+                                                    <div class="text-sm text-gray-500">No teachers assigned</div>
+                                                @endif
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div class="flex items-center">

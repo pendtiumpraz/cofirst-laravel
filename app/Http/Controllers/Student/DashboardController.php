@@ -35,16 +35,10 @@ class DashboardController extends Controller
         $enrolledClassIds = $enrollments->pluck('class_id')->toArray();
         
         // Get available classes (active classes that student is not enrolled in)
-        $availableClasses = ClassName::with(['course', 'teacher'])
-            ->where('status', 'active')
+        $availableClasses = ClassName::with(['course', 'teachers'])
             ->where('is_active', true)
-            ->whereNotIn('id', $enrolledClassIds)
-            ->where('max_students', '>', function($query) {
-                $query->selectRaw('count(*)')
-                    ->from('enrollments')
-                    ->whereColumn('enrollments.class_id', 'class_names.id')
-                    ->where('enrollments.status', 'active');
-            })
+            ->whereIn('status', ['planned', 'active'])
+            ->withCount('enrollments')
             ->get();
 
         // Get student's schedules for calendar

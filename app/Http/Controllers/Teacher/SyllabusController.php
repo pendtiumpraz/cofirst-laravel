@@ -22,10 +22,9 @@ class SyllabusController extends Controller
     {
         $teacher = Auth::user();
         
-        // Get syllabuses from teacher's classes
-        $syllabuses = Syllabus::whereHas('curriculum.course.classes', function($query) use ($teacher) {
-            $query->where('teacher_id', $teacher->id)
-                  ->where('status', 'active');
+        // Get syllabuses from teacher's assigned classes
+        $syllabuses = Syllabus::whereHas('curriculum.course.classes.teachers', function($query) use ($teacher) {
+            $query->where('users.id', $teacher->id);
         })
         ->with([
             'curriculum.course',
@@ -48,9 +47,11 @@ class SyllabusController extends Controller
     {
         $teacher = Auth::user();
         
-        // Check if teacher has access to this syllabus
+        // Check if teacher has access to this syllabus (via assigned classes)
         $hasAccess = $syllabus->curriculum->course->classes()
-                                ->where('teacher_id', $teacher->id)
+                                ->whereHas('teachers', function($query) use ($teacher) {
+                                    $query->where('users.id', $teacher->id);
+                                })
                                 ->where('status', 'active')
                                 ->exists();
         

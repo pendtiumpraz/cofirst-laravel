@@ -132,20 +132,24 @@
             const teacherAssignmentSelect = document.getElementById('teacher_assignment_id');
             const enrollmentSelect = document.getElementById('enrollment_id');
 
-            function fetchTeachersAndEnrollments(classId) {
+            function fetchTeachersAndStudents(classId) {
                 // Clear previous options
                 teacherAssignmentSelect.innerHTML = '<option value="">Select a Teacher</option>';
                 enrollmentSelect.innerHTML = '<option value="">Select a Student</option>';
 
                 if (!classId) {
+                    console.log('No class selected');
                     return;
                 }
+
+                console.log('Fetching data for class ID:', classId);
 
                 // Get CSRF token from meta tag
                 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
                 
                 // Fetch Teachers
-                fetch(`/api/v1/schedule-data/teachers/${classId}`, {
+                console.log('Fetching teachers...');
+                fetch(`/api/schedule-data/teachers/${classId}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -155,23 +159,44 @@
                     credentials: 'same-origin'
                 })
                     .then(response => {
+                        console.log('Teachers response status:', response.status);
                         if (!response.ok) {
                             throw new Error(`HTTP error! status: ${response.status}`);
                         }
                         return response.json();
                     })
                     .then(data => {
-                        data.forEach(assignment => {
-                            const option = document.createElement('option');
-                            option.value = assignment.id;
-                            option.textContent = assignment.teacher.name;
-                            teacherAssignmentSelect.appendChild(option);
-                        });
+                        console.log('Teachers data received:', data);
+                        if (data && data.length > 0) {
+                            data.forEach(teacher => {
+                                const option = document.createElement('option');
+                                // Use assignment_id if available, otherwise use teacher_id format
+                                option.value = teacher.assignment_id || `teacher_${teacher.id}`;
+                                option.textContent = teacher.name;
+                                teacherAssignmentSelect.appendChild(option);
+                                console.log('Added teacher:', teacher.name, 'with value:', option.value);
+                            });
+                        } else {
+                            console.log('No teachers found for this class');
+                            const noTeacherOption = document.createElement('option');
+                            noTeacherOption.value = '';
+                            noTeacherOption.textContent = 'No teachers available for this class';
+                            noTeacherOption.disabled = true;
+                            teacherAssignmentSelect.appendChild(noTeacherOption);
+                        }
                     })
-                    .catch(error => console.error('Error fetching teachers:', error));
+                    .catch(error => {
+                        console.error('Error fetching teachers:', error);
+                        const errorOption = document.createElement('option');
+                        errorOption.value = '';
+                        errorOption.textContent = 'Error loading teachers';
+                        errorOption.disabled = true;
+                        teacherAssignmentSelect.appendChild(errorOption);
+                    });
 
-                // Fetch Enrollments
-                fetch(`/api/v1/schedule-data/enrollments/${classId}`, {
+                // Fetch Students
+                console.log('Fetching students...');
+                fetch(`/api/schedule-data/students/${classId}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -181,29 +206,50 @@
                     credentials: 'same-origin'
                 })
                     .then(response => {
+                        console.log('Students response status:', response.status);
                         if (!response.ok) {
                             throw new Error(`HTTP error! status: ${response.status}`);
                         }
                         return response.json();
                     })
                     .then(data => {
-                        data.forEach(enrollment => {
-                            const option = document.createElement('option');
-                            option.value = enrollment.id;
-                            option.textContent = `${enrollment.student.name} (${enrollment.class.name})`;
-                            enrollmentSelect.appendChild(option);
-                        });
+                        console.log('Students data received:', data);
+                        if (data && data.length > 0) {
+                            data.forEach(student => {
+                                const option = document.createElement('option');
+                                option.value = student.enrollment_id;
+                                option.textContent = student.name;
+                                enrollmentSelect.appendChild(option);
+                                console.log('Added student:', student.name, 'with enrollment ID:', student.enrollment_id);
+                            });
+                        } else {
+                            console.log('No students found for this class');
+                            const noStudentOption = document.createElement('option');
+                            noStudentOption.value = '';
+                            noStudentOption.textContent = 'No students enrolled in this class';
+                            noStudentOption.disabled = true;
+                            enrollmentSelect.appendChild(noStudentOption);
+                        }
                     })
-                    .catch(error => console.error('Error fetching enrollments:', error));
+                    .catch(error => {
+                        console.error('Error fetching students:', error);
+                        const errorOption = document.createElement('option');
+                        errorOption.value = '';
+                        errorOption.textContent = 'Error loading students';
+                        errorOption.disabled = true;
+                        enrollmentSelect.appendChild(errorOption);
+                    });
             }
 
             classSelect.addEventListener('change', function () {
-                fetchTeachersAndEnrollments(this.value);
+                console.log('Class selection changed to:', this.value);
+                fetchTeachersAndStudents(this.value);
             });
 
             // Initial fetch if a class is already selected (e.g., on form validation error)
             if (classSelect.value) {
-                fetchTeachersAndEnrollments(classSelect.value);
+                console.log('Initial class selected:', classSelect.value);
+                fetchTeachersAndStudents(classSelect.value);
             }
         });
     </script>

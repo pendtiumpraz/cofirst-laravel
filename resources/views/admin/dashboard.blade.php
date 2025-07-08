@@ -317,7 +317,7 @@
                                             {{ $schedule->className->name }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {{ $schedule->className->teacher->name }}
+                                            {{ $schedule->className->teachers->first()->name ?? 'N/A' }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {{ $schedule->className->students_count ?? 0 }} / {{ $schedule->className->max_students }}

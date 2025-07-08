@@ -17,7 +17,7 @@ class ClassController extends Controller
      */
     public function index()
     {
-        $classes = ClassName::with(['course', 'teacher', 'classPhotos' => function($query) {
+        $classes = ClassName::with(['course', 'teachers', 'classPhotos' => function($query) {
                 $query->latest()->limit(1);
             }])
             ->withCount('enrollments')
@@ -32,7 +32,8 @@ class ClassController extends Controller
                 'id' => $classes->first()->id,
                 'name' => $classes->first()->name,
                 'course' => $classes->first()->course?->name,
-                'teacher' => $classes->first()->teacher?->name,
+                'teachers_count' => $classes->first()->teachers?->count(),
+                'teachers' => $classes->first()->teachers?->pluck('name')->toArray(),
                 'status' => $classes->first()->status,
                 'is_active' => $classes->first()->is_active,
             ] : null
@@ -60,7 +61,9 @@ class ClassController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids,free_webinar,free_trial_30min',
             'course_id' => 'required|exists:courses,id',
-            'teacher_id' => 'required|exists:users,id',
+            'curriculum_id' => 'nullable|exists:curriculums,id',
+            'teacher_ids' => 'required|array|min:1',
+            'teacher_ids.*' => 'exists:users,id',
             'capacity' => 'required|integer|min:1',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
@@ -72,7 +75,7 @@ class ClassController extends Controller
             'name' => $request->name,
             'type' => $request->type,
             'course_id' => $request->course_id,
-            'teacher_id' => $request->teacher_id,
+            'curriculum_id' => $request->curriculum_id,
             'max_students' => $request->capacity,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
@@ -98,14 +101,25 @@ class ClassController extends Controller
 
         $class = ClassName::create($classData);
 
-        // Record initial teacher assignment
+        // Assign multiple teachers
+        foreach ($request->teacher_ids as $index => $teacherId) {
+            $class->teachers()->attach($teacherId, [
+                'role' => 'teacher', // All teachers are equal
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        }
+
+        // Record teacher assignments for backward compatibility
+        foreach ($request->teacher_ids as $teacherId) {
         \App\Models\TeacherAssignment::create([
-            'teacher_id' => $request->teacher_id,
+                'teacher_id' => $teacherId,
             'class_id' => $class->id,
             'assigned_at' => now(),
         ]);
+        }
 
-        return redirect()->route('admin.classes.index')->with('success', 'Class created successfully.');
+        return redirect()->route('admin.classes.index')->with('success', 'Class created successfully with ' . count($request->teacher_ids) . ' teacher(s) assigned.');
     }
 
     /**
@@ -144,7 +158,9 @@ class ClassController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids,free_webinar,free_trial_30min',
             'course_id' => 'required|exists:courses,id',
-            'teacher_id' => 'required|exists:users,id',
+            'curriculum_id' => 'nullable|exists:curriculums,id',
+            'teacher_ids' => 'required|array|min:1',
+            'teacher_ids.*' => 'exists:users,id',
             'capacity' => 'required|integer|min:1',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
@@ -152,26 +168,44 @@ class ClassController extends Controller
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
         ]);
 
-        // Check if teacher has changed
-        if ($class->teacher_id !== (int)$request->teacher_id) {
-            // Unassign current teacher
+        // Get current teacher IDs for comparison
+        $currentTeacherIds = $class->teachers->pluck('id')->toArray();
+        $newTeacherIds = $request->teacher_ids;
+
+        // Check if teachers have changed
+        if ($currentTeacherIds !== $newTeacherIds) {
+            // Unassign current teachers from TeacherAssignment table
             \App\Models\TeacherAssignment::where('class_id', $class->id)
                 ->whereNull('unassigned_at')
                 ->update(['unassigned_at' => now()]);
 
-            // Assign new teacher
+            // Detach all current teachers from pivot table
+            $class->teachers()->detach();
+
+            // Assign new teachers to pivot table
+            foreach ($newTeacherIds as $index => $teacherId) {
+                $class->teachers()->attach($teacherId, [
+                    'role' => 'teacher', // All teachers are equal
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+
+            // Assign new teachers to TeacherAssignment table for backward compatibility
+            foreach ($newTeacherIds as $teacherId) {
             \App\Models\TeacherAssignment::create([
-                'teacher_id' => $request->teacher_id,
+                    'teacher_id' => $teacherId,
                 'class_id' => $class->id,
                 'assigned_at' => now(),
             ]);
+            }
         }
 
         $classData = [
             'name' => $request->name,
             'type' => $request->type,
             'course_id' => $request->course_id,
-            'teacher_id' => $request->teacher_id,
+            'curriculum_id' => $request->curriculum_id,
             'max_students' => $request->capacity,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
@@ -202,14 +236,7 @@ class ClassController extends Controller
 
         $class->update($classData);
         
-        // Debug after update
-        Log::info('Class after update', [
-            'class_id' => $class->id,
-            'photo_path' => $class->fresh()->photo_path,
-            'classData' => $classData
-        ]);
-
-        return redirect()->route('admin.classes.index')->with('success', 'Class updated successfully.');
+        return redirect()->route('admin.classes.index')->with('success', 'Class updated successfully with ' . count($request->teacher_ids) . ' teacher(s) assigned.');
     }
 
     /**
@@ -265,11 +292,13 @@ class ClassController extends Controller
     }
 
     /**
-     * Remove student from class.
+     * Remove a student from the class.
      */
     public function removeStudent(ClassName $class, User $student)
     {
-        $enrollment = $class->enrollments()->where('student_id', $student->id)->first();
+        $enrollment = Enrollment::where('class_id', $class->id)
+                                ->where('student_id', $student->id)
+                                ->first();
         
         if ($enrollment) {
             $enrollment->delete();
@@ -277,5 +306,27 @@ class ClassController extends Controller
         }
 
         return redirect()->back()->with('error', 'Student not found in this class.');
+    }
+
+    /**
+     * Get curriculum by course for AJAX requests.
+     */
+    public function getCurriculumByCourse($courseId)
+    {
+        $course = Course::with('curriculum')->find($courseId);
+        
+        if (!$course) {
+            return response()->json(['error' => 'Course not found'], 404);
+        }
+
+        if (!$course->curriculum) {
+            return response()->json(null);
+        }
+
+        return response()->json([
+            'id' => $course->curriculum->id,
+            'title' => $course->curriculum->title,
+            'description' => $course->curriculum->description,
+        ]);
     }
 }

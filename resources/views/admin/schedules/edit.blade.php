@@ -137,10 +137,153 @@
     </div>
 
     <script>
-        // No filtering - show all teachers and students regardless of class selection
-        // This allows flexibility to change teachers and students across different classes
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Edit schedule page loaded - all teachers and students are available for selection');
+        document.addEventListener('DOMContentLoaded', function () {
+            const classSelect = document.getElementById('class_id');
+            const teacherAssignmentSelect = document.getElementById('teacher_assignment_id');
+            const enrollmentSelect = document.getElementById('enrollment_id');
+
+            // Store original selected values
+            const originalTeacherAssignmentId = '{{ old("teacher_assignment_id", $schedule->teacher_assignment_id) }}';
+            const originalEnrollmentId = '{{ old("enrollment_id", $schedule->enrollment_id) }}';
+
+            function fetchTeachersAndStudents(classId) {
+                if (!classId) {
+                    console.log('No class selected');
+                    return;
+                }
+
+                console.log('Fetching data for class ID:', classId);
+                console.log('Original teacher assignment ID:', originalTeacherAssignmentId);
+                console.log('Original enrollment ID:', originalEnrollmentId);
+
+                // Clear previous options but keep selected values
+                const currentTeacher = teacherAssignmentSelect.value;
+                const currentStudent = enrollmentSelect.value;
+
+                teacherAssignmentSelect.innerHTML = '<option value="">Select a Teacher</option>';
+                enrollmentSelect.innerHTML = '<option value="">Select a Student</option>';
+
+                // Get CSRF token from meta tag
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                // Fetch Teachers
+                console.log('Fetching teachers...');
+                fetch(`/api/schedule-data/teachers/${classId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                    .then(response => {
+                        console.log('Teachers response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Teachers data received:', data);
+                        if (data && data.length > 0) {
+                            data.forEach(teacher => {
+                                const option = document.createElement('option');
+                                // Use assignment_id if available, otherwise use teacher_id format
+                                option.value = teacher.assignment_id || `teacher_${teacher.id}`;
+                                option.textContent = teacher.name;
+                                
+                                // Keep original selection if it matches
+                                if (option.value === originalTeacherAssignmentId || option.value === currentTeacher) {
+                                    option.selected = true;
+                                    console.log('Selected teacher:', teacher.name, 'with value:', option.value);
+                                }
+                                
+                                teacherAssignmentSelect.appendChild(option);
+                                console.log('Added teacher:', teacher.name, 'with value:', option.value);
+                            });
+                        } else {
+                            console.log('No teachers found for this class');
+                            const noTeacherOption = document.createElement('option');
+                            noTeacherOption.value = '';
+                            noTeacherOption.textContent = 'No teachers available for this class';
+                            noTeacherOption.disabled = true;
+                            teacherAssignmentSelect.appendChild(noTeacherOption);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching teachers:', error);
+                        const errorOption = document.createElement('option');
+                        errorOption.value = '';
+                        errorOption.textContent = 'Error loading teachers';
+                        errorOption.disabled = true;
+                        teacherAssignmentSelect.appendChild(errorOption);
+                    });
+
+                // Fetch Students
+                console.log('Fetching students...');
+                fetch(`/api/schedule-data/students/${classId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                    .then(response => {
+                        console.log('Students response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Students data received:', data);
+                        if (data && data.length > 0) {
+                            data.forEach(student => {
+                                const option = document.createElement('option');
+                                option.value = student.enrollment_id;
+                                option.textContent = student.name;
+                                
+                                // Keep original selection if it matches
+                                if (option.value === originalEnrollmentId || option.value === currentStudent) {
+                                    option.selected = true;
+                                    console.log('Selected student:', student.name, 'with enrollment ID:', student.enrollment_id);
+                                }
+                                
+                                enrollmentSelect.appendChild(option);
+                                console.log('Added student:', student.name, 'with enrollment ID:', student.enrollment_id);
+                            });
+                        } else {
+                            console.log('No students found for this class');
+                            const noStudentOption = document.createElement('option');
+                            noStudentOption.value = '';
+                            noStudentOption.textContent = 'No students enrolled in this class';
+                            noStudentOption.disabled = true;
+                            enrollmentSelect.appendChild(noStudentOption);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching students:', error);
+                        const errorOption = document.createElement('option');
+                        errorOption.value = '';
+                        errorOption.textContent = 'Error loading students';
+                        errorOption.disabled = true;
+                        enrollmentSelect.appendChild(errorOption);
+                    });
+            }
+
+            classSelect.addEventListener('change', function () {
+                console.log('Class selection changed to:', this.value);
+                fetchTeachersAndStudents(this.value);
+            });
+
+            // Initial load for current class
+            if (classSelect.value) {
+                console.log('Initial class selected:', classSelect.value);
+                fetchTeachersAndStudents(classSelect.value);
+            }
         });
     </script>
 </x-app-layout>

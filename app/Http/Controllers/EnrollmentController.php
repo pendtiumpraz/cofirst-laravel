@@ -14,7 +14,7 @@ class EnrollmentController extends Controller
      */
     public function index()
     {
-        $enrollments = Enrollment::with(['student', 'class.course'])->paginate(20);
+        $enrollments = Enrollment::with(['student', 'className.course', 'className.teachers'])->paginate(20);
         $courses = \App\Models\Course::where('is_active', true)->get();
         return view('admin.enrollments.index', compact('enrollments', 'courses'));
     }
@@ -27,7 +27,7 @@ class EnrollmentController extends Controller
         $students = User::role('student')->where('is_active', true)->get();
         $classes = ClassName::where('is_active', true)
                           ->whereIn('status', ['planned', 'active'])
-                          ->with(['course', 'teacher'])
+                          ->with(['course', 'teachers'])
                           ->get();
         return view('admin.enrollments.create', compact('students', 'classes'));
     }
@@ -74,7 +74,7 @@ class EnrollmentController extends Controller
      */
     public function show(Enrollment $enrollment)
     {
-        $enrollment->load(['student', 'class.course', 'class.teacher']);
+        $enrollment->load(['student', 'className.course', 'className.teachers']);
         return view('admin.enrollments.show', compact('enrollment'));
     }
 
@@ -86,7 +86,7 @@ class EnrollmentController extends Controller
         $students = User::role('student')->where('is_active', true)->get();
         $classes = ClassName::where('is_active', true)
                           ->whereIn('status', ['planned', 'active'])
-                          ->with(['course', 'teacher'])
+                          ->with(['course', 'teachers'])
                           ->get();
         return view('admin.enrollments.edit', compact('enrollment', 'students', 'classes'));
     }

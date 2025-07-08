@@ -23,10 +23,9 @@ class MaterialController extends Controller
     {
         $teacher = Auth::user();
         
-        // Get materials from teacher's classes
-        $materials = Material::whereHas('syllabus.curriculum.course.classes', function($query) use ($teacher) {
-            $query->where('teacher_id', $teacher->id)
-                  ->where('status', 'active');
+        // Get materials from teacher's assigned classes
+        $materials = Material::whereHas('syllabus.curriculum.course.classes.teachers', function($query) use ($teacher) {
+            $query->where('users.id', $teacher->id);
         })
         ->with([
             'syllabus.curriculum.course'
@@ -45,9 +44,11 @@ class MaterialController extends Controller
     {
         $teacher = Auth::user();
         
-        // Check if teacher has access to this material
+        // Check if teacher has access to this material (via assigned classes)
         $hasAccess = $material->syllabus->curriculum->course->classes()
-                                ->where('teacher_id', $teacher->id)
+                                ->whereHas('teachers', function($query) use ($teacher) {
+                                    $query->where('users.id', $teacher->id);
+                                })
                                 ->where('status', 'active')
                                 ->exists();
         
@@ -69,9 +70,11 @@ class MaterialController extends Controller
     {
         $teacher = Auth::user();
         
-        // Check if teacher has access to this material
+        // Check if teacher has access to this material (via assigned classes)
         $hasAccess = $material->syllabus->curriculum->course->classes()
-                                ->where('teacher_id', $teacher->id)
+                                ->whereHas('teachers', function($query) use ($teacher) {
+                                    $query->where('users.id', $teacher->id);
+                                })
                                 ->where('status', 'active')
                                 ->exists();
         

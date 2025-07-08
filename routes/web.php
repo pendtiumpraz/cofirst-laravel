@@ -104,6 +104,9 @@ Route::middleware('auth')->group(function () {
         Route::post('classes/{class}/add-student', [ClassController::class, 'addStudent'])->name('classes.add-student');
         Route::delete('classes/{class}/remove-student/{student}', [ClassController::class, 'removeStudent'])->name('classes.remove-student');
         
+        // API endpoint for getting curriculum by course
+        Route::get('courses/{course}/curriculum', [ClassController::class, 'getCurriculumByCourse'])->name('courses.curriculum');
+        
         // Curriculum Management
         Route::resource('curriculums', CurriculumController::class);
                     Route::post('curriculums/{curriculum}/toggle-status', [CurriculumController::class, 'toggleStatus'])->name('curriculums.toggle-status');
@@ -255,7 +258,7 @@ Route::middleware('auth')->group(function () {
             // Get available classes
             $availableClasses = \App\Models\ClassName::where('is_active', true)
                 ->whereIn('status', ['planned', 'active'])
-                ->with('course', 'teacher')
+                ->with('course', 'teachers')
                 ->get();
             
             // Get schedules for current week (weekly recurring schedules)
@@ -410,5 +413,10 @@ Route::middleware('auth')->group(function () {
 });
 
 // All debug routes removed - issue resolved ✅
+
+// Test API route for debugging
+Route::get('/test-api', function () {
+    return view('test-api');
+})->middleware('auth');
 
 require __DIR__.'/auth.php';

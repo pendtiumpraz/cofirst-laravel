@@ -62,7 +62,9 @@ class User extends Authenticatable
      */
     public function teachingClasses()
     {
-        return $this->hasMany(ClassName::class, 'teacher_id');
+        return $this->belongsToMany(ClassName::class, 'class_teacher', 'teacher_id', 'class_id')
+                    ->withPivot('role')
+                    ->withTimestamps();
     }
 
     /**

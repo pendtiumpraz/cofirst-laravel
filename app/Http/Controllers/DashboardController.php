@@ -25,14 +25,14 @@ class DashboardController extends Controller
         if ($user->hasRole('admin') || $user->hasRole('superadmin')) {
             // For admin/superadmin, fetch all active schedules from ongoing classes
             $schedules = Schedule::forCalendar()
-                                ->with(['className.course', 'teacherAssignment.teacher', 'enrollment.student'])
+                                ->with(['className.course', 'className.teachers', 'teacherAssignment.teacher', 'enrollment.student'])
                                 ->orderBy('day_of_week')
                                 ->orderBy('start_time')
                                 ->get();
         } elseif ($user->hasRole('teacher')) {
             // For teachers, fetch schedules assigned to them from ongoing classes only
             $schedules = Schedule::forCalendar()
-                                ->with(['className.course', 'teacherAssignment.teacher', 'enrollment.student'])
+                                ->with(['className.course', 'className.teachers', 'teacherAssignment.teacher', 'enrollment.student'])
                                 ->whereHas('teacherAssignment', function ($query) use ($user) {
                                     $query->where('teacher_id', $user->id);
                                 })
@@ -42,7 +42,7 @@ class DashboardController extends Controller
         } elseif ($user->hasRole('student')) {
             // For students, fetch schedules from their enrolled classes that are ongoing
             $schedules = Schedule::forCalendar()
-                                ->with(['className.course', 'teacherAssignment.teacher', 'enrollment.student'])
+                                ->with(['className.course', 'className.teachers', 'teacherAssignment.teacher', 'enrollment.student'])
                                 ->whereHas('enrollment', function ($query) use ($user) {
                                     $query->where('student_id', $user->id)
                                           ->where('status', 'active');

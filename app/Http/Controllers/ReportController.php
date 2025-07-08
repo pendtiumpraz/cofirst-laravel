@@ -15,9 +15,9 @@ class ReportController extends Controller
      */
     public function adminIndex()
     {
-        $reports = Report::with(['student', 'teacher', 'class.course'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+        $reports = Report::with(['student', 'teacher', 'className.course'])
+            ->latest()
+            ->paginate(10);
             
         return view('admin.reports.index', compact('reports'));
     }

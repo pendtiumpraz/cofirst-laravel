@@ -14,7 +14,7 @@ class ClassPhotoController extends Controller
      */
     public function index()
     {
-        $classPhotos = ClassPhoto::with(['class', 'teacher.user'])
+        $classPhotos = ClassPhoto::with(['className', 'uploader'])
             ->latest()
             ->paginate(20);
         
@@ -45,7 +45,7 @@ class ClassPhotoController extends Controller
      */
     public function show(string $id)
     {
-        $classPhoto = ClassPhoto::with(['class', 'teacher.user'])->findOrFail($id);
+        $classPhoto = ClassPhoto::with(['className', 'uploader'])->findOrFail($id);
         
         return view('admin.class-photos.show', compact('classPhoto'));
     }
@@ -55,7 +55,7 @@ class ClassPhotoController extends Controller
      */
     public function edit(string $id)
     {
-        $classPhoto = ClassPhoto::with(['class', 'teacher.user'])->findOrFail($id);
+        $classPhoto = ClassPhoto::with(['className', 'uploader'])->findOrFail($id);
         
         return view('admin.class-photos.edit', compact('classPhoto'));
     }

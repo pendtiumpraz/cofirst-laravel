@@ -18,9 +18,8 @@ class StudentController extends Controller
     public function classes()
     {
         $user = Auth::user();
-        $enrollments = Enrollment::where('student_id', $user->id)
-            ->with(['class.course', 'class.teacher'])
-            ->where('status', 'active')
+        $enrollments = $user->enrollments()
+            ->with(['className.course', 'className.teachers'])
             ->get();
             
         // Debug logging
@@ -32,9 +31,9 @@ class StudentController extends Controller
             'first_enrollment' => $enrollments->first() ? [
                 'id' => $enrollments->first()->id,
                 'status' => $enrollments->first()->status,
-                'class_name' => $enrollments->first()->class?->name,
-                'course_name' => $enrollments->first()->class?->course?->name,
-                'teacher_name' => $enrollments->first()->class?->teacher?->name,
+                'class_name' => $enrollments->first()->className?->name,
+                'course_name' => $enrollments->first()->className?->course?->name,
+                'teacher_name' => $enrollments->first()->className?->teachers->first()?->name,
             ] : null
         ]);
             
@@ -47,12 +46,10 @@ class StudentController extends Controller
     public function schedule()
     {
         $user = Auth::user();
-        $schedules = Schedule::forCalendar()
-            ->whereHas('enrollment', function($query) use ($user) {
-                $query->where('student_id', $user->id)
-                      ->where('status', 'active');
+        $schedules = Schedule::whereHas('enrollment', function ($query) use ($user) {
+                $query->where('student_id', $user->id);
             })
-            ->with(['className.course', 'className.teacher', 'teacherAssignment.teacher'])
+            ->with(['className.course', 'className.teachers', 'teacherAssignment.teacher'])
             ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get();
@@ -67,9 +64,9 @@ class StudentController extends Controller
     {
         $user = Auth::user();
         $reports = Report::where('student_id', $user->id)
-            ->with(['teacher', 'class.course'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->with(['teacher', 'className.course'])
+            ->latest()
+            ->paginate(10);
             
         return view('student.reports.index', compact('reports'));
     }
@@ -125,9 +122,9 @@ class StudentController extends Controller
         
         $student = User::findOrFail($studentId);
         $reports = Report::where('student_id', $studentId)
-            ->with(['teacher', 'class.course'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->with(['teacher', 'className.course'])
+            ->latest()
+            ->paginate(10);
             
         return view('parent.child-reports', compact('student', 'reports'));
     }
@@ -145,12 +142,10 @@ class StudentController extends Controller
         }
         
         $student = User::findOrFail($studentId);
-        $schedules = Schedule::forCalendar()
-            ->whereHas('enrollment', function($query) use ($studentId) {
-                $query->where('student_id', $studentId)
-                      ->where('status', 'active');
+        $schedules = Schedule::whereHas('enrollment', function ($query) use ($student) {
+                $query->where('student_id', $student->id);
             })
-            ->with(['className.course', 'className.teacher', 'teacherAssignment.teacher'])
+            ->with(['className.course', 'className.teachers', 'teacherAssignment.teacher'])
             ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get();

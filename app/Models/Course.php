@@ -51,6 +51,14 @@ class Course extends Model
     }
 
     /**
+     * Get the curriculum for this course.
+     */
+    public function curriculum()
+    {
+        return $this->hasOne(Curriculum::class);
+    }
+
+    /**
      * Get the financial transactions for this course.
      */
     public function transactions()

@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\ClassName;
 use App\Models\Course;
 use App\Models\Curriculum;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class ClassNameSeeder extends Seeder
@@ -16,83 +15,49 @@ class ClassNameSeeder extends Seeder
     public function run(): void
     {
         $courses = Course::all();
-        $teachers = User::role('teacher')->get();
-        
-        if ($courses->isEmpty()) {
-            $this->command->info('Tidak ada course yang ditemukan, lewati ClassNameSeeder.');
-            return;
-        }
-        
-        if ($teachers->isEmpty()) {
-            $this->command->info('Tidak ada guru yang ditemukan, lewati ClassNameSeeder.');
-            return;
-        }
+        $curriculums = Curriculum::all();
 
-        // Daftar kelas yang akan dibuat untuk setiap course
-        $classTypes = [
-            [
-                'suffix' => 'Group Class (Online)',
-                'type' => 'group_class_3_5_kids',
-                'delivery_method' => 'online'
-            ],
-            [
-                'suffix' => 'Private Home Call (Offline)',
-                'type' => 'private_home_call', 
-                'delivery_method' => 'offline'
-            ],
-            [
-                'suffix' => 'Online Webinar',
-                'type' => 'online_webinar',
-                'delivery_method' => 'online'
-            ]
-        ];
+        if ($curriculums->isEmpty()) {
+            $this->command->info('Tidak ada kurikulum yang ditemukan, lewati ClassNameSeeder.');
+            return;
+        }
 
         foreach ($courses as $course) {
-            // Cari kurikulum yang sesuai dengan course
-            $curriculum = Curriculum::where('course_id', $course->id)->first();
-            
-            if (!$curriculum) {
-                $this->command->warn("Kurikulum tidak ditemukan untuk course: {$course->name}");
-                continue;
+            // Buat kelas Group jika belum ada
+            $groupClassName = $course->name . ' - Group Class (Online)';
+            if (!ClassName::where('name', $groupClassName)->exists()) {
+                ClassName::factory()->create([
+                    'course_id' => $course->id,
+                    'name' => $groupClassName,
+                    'type' => 'group_class_3_5_kids',
+                    'delivery_method' => 'online',
+                    'curriculum_id' => $curriculums->random()->id,
+                ]);
             }
 
-            foreach ($classTypes as $classType) {
-                $className = $course->name . ' - ' . $classType['suffix'];
-                
-                ClassName::updateOrCreate(
-                    ['name' => $className],
-                    [
-                        'course_id' => $course->id,
-                        'teacher_id' => $teachers->random()->id,
-                        'name' => $className,
-                        'type' => $classType['type'],
-                        'delivery_method' => $classType['delivery_method'],
-                        'curriculum_id' => $curriculum->id,
-                        'description' => 'Kelas ' . $course->name . ' dengan metode ' . $classType['suffix'],
-                        'start_date' => now(),
-                        'end_date' => now()->addWeeks($curriculum->duration_weeks ?? 12),
-                        'max_students' => $this->getMaxStudents($classType['type']),
-                        'status' => 'planned',
-                        'is_active' => true
-                    ]
-                );
-                
-                $this->command->info("Created/Updated class: {$className}");
+            // Buat kelas Private jika belum ada
+            $privateClassName = $course->name . ' - Private Home Call (Offline)';
+            if (!ClassName::where('name', $privateClassName)->exists()) {
+                ClassName::factory()->create([
+                    'course_id' => $course->id,
+                    'name' => $privateClassName,
+                    'type' => 'private_home_call',
+                    'delivery_method' => 'offline',
+                    'curriculum_id' => $curriculums->random()->id,
+                ]);
             }
-        }
-    }
-    
-    private function getMaxStudents($type)
-    {
-        switch ($type) {
-            case 'group_class_3_5_kids':
-                return 5;
-            case 'private_home_call':
-                return 1;
-            case 'online_webinar':
-                return 50;
-            default:
-                return 10;
+
+            // Buat kelas Webinar jika belum ada
+            $webinarClassName = $course->name . ' - Online Webinar';
+            if (!ClassName::where('name', $webinarClassName)->exists()) {
+                ClassName::factory()->create([
+                    'course_id' => $course->id,
+                    'name' => $webinarClassName,
+                    'type' => 'online_webinar',
+                    'delivery_method' => 'online',
+                    'curriculum_id' => $curriculums->random()->id,
+                ]);
+            }
         }
     }
 }

@@ -47,17 +47,7 @@ class DashboardController extends Controller
             ->orderBy('start_time')
             ->get();
         
-        // Get all weekly schedules for this teacher (for calendar)
-        $schedules = Schedule::forCalendar()
-            ->whereHas('teacherAssignment', function($query) use ($teacher) {
-                $query->where('teacher_id', $teacher->id);
-            })
-            ->with(['className.course', 'teacherAssignment.teacher', 'enrollment.student'])
-            ->orderBy('day_of_week')
-            ->orderBy('start_time')
-            ->get();
-
-        // Get all weekly schedules for this teacher (for list view)
+        // Get all weekly schedules for this teacher
         $upcomingSchedules = Schedule::whereHas('teacherAssignment', function($query) use ($teacher) {
                 $query->where('teacher_id', $teacher->id);
             })
@@ -68,7 +58,7 @@ class DashboardController extends Controller
         
         // Get total students taught by this teacher
         $totalStudents = User::role('student')
-            ->whereHas('enrollments.class.schedules.teacherAssignment', function($query) use ($teacher) {
+            ->whereHas('enrollments.className.schedules.teacherAssignment', function($query) use ($teacher) {
                 $query->where('teacher_id', $teacher->id);
             })
             ->distinct()
@@ -88,26 +78,13 @@ class DashboardController extends Controller
             'today_schedules' => $todaySchedules->count(),
             'total_reports' => Report::where('teacher_id', $teacher->id)->count(),
         ];
-
-        // Add missing variables for the view
-        $classesToday = $todaySchedules->count();
-        $pendingReports = 0; // Placeholder
-        $teachingHours = 0; // Placeholder  
-        $recentActivities = collect(); // Placeholder
-        $myStudents = collect(); // Placeholder
         
         return view('teacher.dashboard', compact(
             'teacherClasses',
             'todaySchedules', 
-            'schedules',
             'upcomingSchedules',
             'recentReports',
-            'stats',
-            'classesToday',
-            'pendingReports', 
-            'teachingHours',
-            'recentActivities',
-            'myStudents'
+            'stats'
         ));
     }
 }

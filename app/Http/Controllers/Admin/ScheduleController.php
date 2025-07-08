@@ -42,7 +42,14 @@ class ScheduleController extends Controller
      */
     public function create()
     {
-        $classes = ClassName::activeAndOngoing()->with('course')->get();
+        // Only show classes that have both teachers and active enrollments
+        $classes = ClassName::activeAndOngoing()
+            ->with('course')
+            ->whereHas('teachers')
+            ->whereHas('enrollments', function($q) {
+                $q->where('status', 'active');
+            })
+            ->get();
         
         // Get all active teachers and students
         $teachers = User::role('teacher')
@@ -151,7 +158,14 @@ class ScheduleController extends Controller
      */
     public function edit(Schedule $schedule)
     {
-        $classes = ClassName::activeAndOngoing()->with('course')->get();
+        // Only show classes that have both teachers and active enrollments
+        $classes = ClassName::activeAndOngoing()
+            ->with('course')
+            ->whereHas('teachers')
+            ->whereHas('enrollments', function($q) {
+                $q->where('status', 'active');
+            })
+            ->get();
         
         // Get all active teachers and students
         $teachers = User::role('teacher')

@@ -58,13 +58,21 @@ class DashboardController extends Controller
 
         // Get schedules for calendar
         $schedules = Schedule::where('is_active', true)
-            ->with(['className.course', 'className.teacher', 'enrollment.student'])
+            ->with(['className.course', 'className.teachers', 'enrollment.student'])
             ->get();
 
-        // Get today's schedules
-        $todaySchedules = Schedule::where('is_active', true)
-            ->whereRaw('day_of_week = ?', [now()->dayOfWeek === 0 ? 7 : now()->dayOfWeek])
-            ->with(['className.course', 'className.teacher', 'enrollment.student'])
+        // Get today's schedules based on day of week
+        $todayDayOfWeek = now()->dayOfWeek === 0 ? 7 : now()->dayOfWeek; // Convert Sunday from 0 to 7
+        $todaysSchedules = Schedule::where('is_active', true)
+            ->where('day_of_week', $todayDayOfWeek)
+            ->with(['className.course', 'className.teachers', 'enrollment.student'])
+            ->orderBy('start_time')
+            ->get();
+            
+        // Get this week's schedules (all days)
+        $upcomingSchedules = Schedule::where('is_active', true)
+            ->with(['className.course', 'className.teachers', 'enrollment.student'])
+            ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get();
 
@@ -84,6 +92,6 @@ class DashboardController extends Controller
         // Get recent courses
         $recentCourses = Course::latest()->take(5)->get();
 
-        return view('admin.dashboard', compact('stats', 'recent_enrollments', 'recent_users', 'schedules', 'todaySchedules', 'monthlyRevenueFormatted', 'recentCourses'));
+        return view('admin.dashboard', compact('stats', 'recent_enrollments', 'recent_users', 'schedules', 'todaysSchedules', 'upcomingSchedules', 'monthlyRevenueFormatted', 'recentCourses'));
     }
 }

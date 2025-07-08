@@ -18,7 +18,7 @@
                                 <select name="student_id" id="student_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required>
                                     <option value="">Select a student</option>
                                     @foreach ($students as $student)
-                                        <option value="{{ $student->id }}">{{ $student->name }} ({{ $student->email }})</option>
+                                        <option value="{{ $student->id }}">{{ $student->name }}</option>
                                     @endforeach
                                 </select>
                                 @error('student_id')
@@ -31,7 +31,7 @@
                                     <option value="">Select a class</option>
                                     @foreach ($classes as $class)
                                         <option value="{{ $class->id }}">
-                                            {{ $class->name }} - {{ $class->course->name ?? 'No Course' }} ({{ $class->teacher->name ?? 'No Teacher' }})
+                                            {{ $class->name }} - {{ $class->course->name ?? 'No Course' }} ({{ $class->teachers->first()->name ?? 'No Teacher' }})
                                         </option>
                                     @endforeach
                                 </select>

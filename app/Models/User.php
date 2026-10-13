@@ -4,14 +4,22 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * An account. Roles (spatie): superadmin, admin, teacher, student, parent, finance.
+ *
+ * Soft-deletable: delete() archives the account and keeps payments, reports and
+ * certificates linked; forceDelete() is blocked by RESTRICT on financial records.
+ * Parents and children are linked through parent_student (children()/parents()).
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, Notifiable, HasRoles, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -25,6 +33,7 @@ class User extends Authenticatable
         'is_active',
         'profile_photo_path',
         'photo_crop_data',
+        'preferences',
     ];
 
     /**
@@ -47,6 +56,7 @@ class User extends Authenticatable
         'password' => 'hashed',
         'is_active' => 'boolean',
         'photo_crop_data' => 'array',
+        'preferences' => 'array',
     ];
 
     /**
@@ -76,6 +86,102 @@ class User extends Authenticatable
     }
 
     /**
+     * Classes this teacher currently teaches: assigned through class_teacher,
+     * is_active and status planned or active. Use for dashboards, lists and
+     * authorization so all teacher screens agree.
+     */
+    public function taughtClasses()
+    {
+        return $this->teachingClasses()
+            ->where('class_names.is_active', true)
+            ->whereIn('class_names.status', [ClassName::STATUS_PLANNED, ClassName::STATUS_ACTIVE]);
+    }
+
+    /**
+     * Whether this teacher is assigned to the given class.
+     */
+    public function teachesClass(int|ClassName $class): bool
+    {
+        $classId = $class instanceof ClassName ? $class->id : $class;
+
+        return $this->teachingClasses()->where('class_names.id', $classId)->exists();
+    }
+
+    /**
+     * Get the active enrollments for this student.
+     */
+    public function activeEnrollments()
+    {
+        return $this->enrollments()->where('enrollments.status', Enrollment::STATUS_ACTIVE);
+    }
+
+    /**
+     * Classes this student is enrolled in (any enrollment status; see pivot).
+     */
+    public function enrolledClasses()
+    {
+        return $this->belongsToMany(ClassName::class, 'enrollments', 'student_id', 'class_id')
+            ->withPivot(['id', 'status', 'enrollment_date', 'payment_status'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Attendance rows of this student.
+     */
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class, 'student_id');
+    }
+
+    /**
+     * Per-meeting reports about this student.
+     */
+    public function classReports()
+    {
+        return $this->hasMany(ClassReport::class, 'student_id');
+    }
+
+    /**
+     * Per-meeting reports written by this teacher.
+     */
+    public function writtenClassReports()
+    {
+        return $this->hasMany(ClassReport::class, 'teacher_id');
+    }
+
+    /**
+     * Learning progress rows of this student.
+     */
+    public function classProgress()
+    {
+        return $this->hasMany(ClassProgress::class, 'student_id');
+    }
+
+    /**
+     * Certificates issued to this student.
+     */
+    public function certificates()
+    {
+        return $this->hasMany(Certificate::class, 'student_id');
+    }
+
+    /**
+     * Testimonials written by this (parent) user.
+     */
+    public function testimonials()
+    {
+        return $this->hasMany(Testimonial::class);
+    }
+
+    /**
+     * Invoices this parent pays for (payer_id).
+     */
+    public function paidTransactions()
+    {
+        return $this->hasMany(FinancialTransaction::class, 'payer_id');
+    }
+
+    /**
      * Get the enrollments for this student.
      */
     public function enrollments()
@@ -89,7 +195,18 @@ class User extends Authenticatable
     public function children()
     {
         return $this->belongsToMany(User::class, 'parent_student', 'parent_id', 'student_id')
+            ->withTimestamps()
             ->select('users.*'); // Explicitly select columns from users table to avoid ambiguity
+    }
+
+    /**
+     * Whether this parent is linked to the given student.
+     */
+    public function isParentOf(int|User $student): bool
+    {
+        $studentId = $student instanceof User ? $student->id : $student;
+
+        return $this->children()->where('users.id', $studentId)->exists();
     }
 
     /**
@@ -98,6 +215,7 @@ class User extends Authenticatable
     public function parents()
     {
         return $this->belongsToMany(User::class, 'parent_student', 'student_id', 'parent_id')
+            ->withTimestamps()
             ->select('users.*'); // Explicitly select columns from users table to avoid ambiguity
     }
 
@@ -182,41 +300,40 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the URL to the user's profile photo.
+     * Get the URL to the user's profile photo (default avatar when none).
+     *
+     * Reason: the old version ran file_exists() and inlined the image as base64 on
+     * every call in the local environment, which bloated every page with avatars.
      */
     public function getProfilePhotoUrlAttribute()
     {
-        if ($this->profile_photo_path) {
-            // For development, use base64 encoded image if HTTP access fails
-            $filePath = public_path('storage/' . $this->profile_photo_path);
-            
-            if (file_exists($filePath)) {
-                // First try normal asset URL
-                $assetUrl = asset('storage/' . $this->profile_photo_path);
-                
-                // If we're in development and having HTTP access issues, 
-                // we can return base64 data URL as fallback
-                if (app()->environment('local') && !$this->isUrlAccessible($assetUrl)) {
-                    $imageData = base64_encode(file_get_contents($filePath));
-                    $mimeType = mime_content_type($filePath);
-                    return "data:$mimeType;base64,$imageData";
-                }
-                
-                return $assetUrl;
-            }
-        }
-        
-        return asset('images/default-avatar.png');
+        return $this->profile_photo_path
+            ? asset('storage/'.$this->profile_photo_path)
+            : asset('images/default-avatar.png');
     }
 
     /**
-     * Check if URL is accessible via HTTP
+     * Age in years from the profile's birth date (null when unknown).
      */
-    private function isUrlAccessible($url)
+    public function getAgeAttribute(): ?int
     {
-        // In development, we'll use base64 fallback
-        // In production, this should work with proper server configuration
-        return !app()->environment('local');
+        return $this->profile?->age;
+    }
+
+    /**
+     * Whether this user is a child (younger than 18 by profile birth date).
+     */
+    public function isChild(): bool
+    {
+        return (bool) $this->profile?->isChild();
+    }
+
+    /**
+     * Read one per-user preference (users.preferences JSON).
+     */
+    public function preference(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->preferences ?? [], $key, $default);
     }
 
     /**
@@ -301,7 +418,6 @@ class User extends Authenticatable
         return $this->belongsToMany(Badge::class, 'user_badges')
             ->withPivot(['earned_at', 'earned_for', 'is_featured'])
             ->withTimestamps()
-            ->as('pivot')
             ->using(UserBadge::class);
     }
 
@@ -326,8 +442,10 @@ class User extends Authenticatable
      */
     public function initializePoints()
     {
-        if (!$this->points) {
-            $this->points()->create([
+        if (! $this->points) {
+            // Reason: firstOrCreate on the unique user_id avoids duplicate rows when two
+            // requests initialise points at the same time.
+            $this->points()->firstOrCreate([], [
                 'points' => 0,
                 'total_earned' => 0,
                 'total_spent' => 0,

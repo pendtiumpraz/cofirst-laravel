@@ -76,9 +76,9 @@ class Badge extends Model
             'earned_for' => $earnedFor ? json_encode($earnedFor) : null,
         ]);
 
-        // Award points for earning the badge
-        if ($user->points) {
-            $user->points->addPoints(
+        // Award points for earning the badge (create the balance row when missing)
+        if ($this->points_required > 0) {
+            $user->initializePoints()->addPoints(
                 $this->points_required,
                 PointTransaction::REASON_BADGE_EARNED,
                 "Earned badge: {$this->name}",
@@ -144,12 +144,62 @@ class Badge extends Model
     }
 
     /**
-     * Check if criteria is met for a user
+     * Check whether a user meets this badge's criteria, using real data.
+     *
+     * Supported criteria keys (all must be met):
+     * - first_login (bool): the user has a points row.
+     * - total_points (int): total points ever earned.
+     * - study_streak / login_streak (int): longest daily streak.
+     * - attendance_count / classes_attended (int): meetings attended (present/late).
+     * - materials_read (int): distinct materials opened.
+     * - creative_projects / projects_published (int): projects in the gallery.
+     * - meetings_completed (int): completed class_progress rows.
+     * Unknown keys (features that do not exist yet) are treated as not met.
+     *
+     * Args:
+     *     user (User): The user.
+     *     context (array): Optional pre-computed values keyed like the criteria.
+     *
+     * Returns:
+     *     bool: True when every criterion is met.
      */
     public function checkCriteria($user, $context = [])
     {
-        // This would be implemented based on specific criteria types
-        // For now, returning false as placeholder
-        return false;
+        $criteria = $this->criteria ?? [];
+
+        if ($criteria === []) {
+            return false;
+        }
+
+        foreach ($criteria as $key => $required) {
+            $actual = $context[$key] ?? $this->measureCriterion($user, $key);
+
+            if ($actual === null) {
+                return false;
+            }
+
+            if (is_bool($required) ? (bool) $actual !== $required : (int) $actual < (int) $required) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Measure one criterion for a user, or null when the key is unsupported.
+     */
+    protected function measureCriterion($user, string $key): int|bool|null
+    {
+        return match ($key) {
+            'first_login' => $user->points()->exists(),
+            'total_points' => (int) $user->points()->value('total_earned'),
+            'study_streak', 'login_streak' => (int) $user->points()->value('longest_streak'),
+            'attendance_count', 'classes_attended' => Attendance::where('student_id', $user->id)->attended()->count(),
+            'materials_read' => MaterialAccess::where('student_id', $user->id)->distinct()->count('material_id'),
+            'creative_projects', 'projects_published' => ProjectGallery::where('student_id', $user->id)->count(),
+            'meetings_completed' => ClassProgress::where('student_id', $user->id)->where('status', 'completed')->count(),
+            default => null,
+        };
     }
 }

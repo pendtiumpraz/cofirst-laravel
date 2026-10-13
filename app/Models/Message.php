@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * A chat message (soft-deletable). content is nullable for image/file messages.
+ */
 class Message extends Model
 {
     use HasFactory, SoftDeletes;
@@ -36,16 +39,14 @@ class Message extends Model
 
         // Update conversation's last_message_at when a message is created
         static::created(function ($message) {
-            $message->conversation->update([
+            Conversation::whereKey($message->conversation_id)->update([
                 'last_message_at' => $message->created_at,
             ]);
 
-            // Increment unread count for all participants except sender
-            $message->conversation->participants()
+            // Increment unread count for all participants except sender (one query)
+            ConversationParticipant::where('conversation_id', $message->conversation_id)
                 ->where('user_id', '!=', $message->sender_id)
-                ->each(function ($participant) {
-                    $participant->incrementUnreadCount();
-                });
+                ->increment('unread_count');
         });
     }
 
@@ -136,7 +137,8 @@ class Message extends Model
     {
         switch ($this->type) {
             case 'system':
-                return "<i>{$this->content}</i>";
+                // Plain text: views escape it; style system messages in the view.
+                return (string) $this->content;
             case 'image':
                 return "[Image]";
             case 'file':

@@ -6,6 +6,9 @@ use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
+/**
+ * @extends Factory<Profile>
+ */
 class ProfileFactory extends Factory
 {
     /**
@@ -16,27 +19,31 @@ class ProfileFactory extends Factory
     protected $model = Profile::class;
 
     /**
-     * Define the model's default state.
+     * Define the model's default state (an adult by default).
      *
-     * @return array
+     * @return array<string, mixed>
      */
-    public function definition()
+    public function definition(): array
     {
         return [
-            // Mengambil user_id dari konteks saat factory dipanggil di seeder
-            'user_id' => User::factory(), 
-            
-            // Mengisi full_name dari nama user terkait
-            'full_name' => function (array $attributes) {
-                return User::find($attributes['user_id'])->name;
-            },
-            
-            'address' => $this->faker->address,
-            'phone_number' => $this->faker->phoneNumber,
-            'birth_date' => $this->faker->date(),
+            'user_id' => User::factory(),
+            'full_name' => fn (array $attributes) => User::find($attributes['user_id'])?->name ?? $this->faker->name(),
+            'address' => $this->faker->address(),
+            'phone_number' => $this->faker->numerify('08##########'),
+            'birth_date' => $this->faker->dateTimeBetween('-50 years', '-18 years')->format('Y-m-d'),
             'gender' => $this->faker->randomElement(['male', 'female']),
-            'bio' => $this->faker->sentence,
-            'avatar' => null, // atau $this->faker->imageUrl()
+            'bio' => $this->faker->sentence(),
+            'avatar' => null,
         ];
+    }
+
+    /**
+     * A child profile aged between 8 and 17.
+     */
+    public function child(): static
+    {
+        return $this->state(fn () => [
+            'birth_date' => $this->faker->dateTimeBetween('-17 years', '-8 years')->format('Y-m-d'),
+        ]);
     }
 }

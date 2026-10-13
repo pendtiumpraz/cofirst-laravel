@@ -4,7 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * A chat conversation: private (two users), group or class.
+ */
 class Conversation extends Model
 {
     use HasFactory;
@@ -98,26 +102,26 @@ class Conversation extends Model
      */
     public static function getPrivateConversation($user1Id, $user2Id)
     {
-        // Look for existing conversation
-        $conversation = self::where('type', 'private')
-            ->whereHas('participants', function ($query) use ($user1Id) {
-                $query->where('user_id', $user1Id);
-            })
-            ->whereHas('participants', function ($query) use ($user2Id) {
-                $query->where('user_id', $user2Id);
-            })
-            ->withCount('participants')
-            ->having('participants_count', '=', 2)
+        // Reason: has('participants', '=', 2) is portable; the old withCount()+having()
+        // without GROUP BY failed on PostgreSQL and older SQLite versions.
+        $find = fn () => self::where('type', 'private')
+            ->whereHas('participants', fn ($query) => $query->where('user_id', $user1Id))
+            ->whereHas('participants', fn ($query) => $query->where('user_id', $user2Id))
+            ->has('participants', '=', 2)
+            ->orderBy('id')
             ->first();
 
-        if (!$conversation) {
-            // Create new conversation
+        return $find() ?? DB::transaction(function () use ($find, $user1Id, $user2Id) {
+            if ($existing = $find()) {
+                return $existing;
+            }
+
             $conversation = self::create(['type' => 'private']);
             $conversation->addParticipant($user1Id);
             $conversation->addParticipant($user2Id);
-        }
 
-        return $conversation;
+            return $conversation;
+        });
     }
 
     /**

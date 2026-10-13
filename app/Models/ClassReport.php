@@ -2,9 +2,23 @@
 
 namespace App\Models;
 
+use App\Models\Casts\TimeOfDay;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * A teacher's per-meeting report (berita acara) about one student, with Bloom's
+ * taxonomy notes.
+ *
+ * schedule_id, curriculum_id, syllabus_id and material_id are nullable and SET NULL
+ * on delete, so editing the curriculum never erases reports. start_time/end_time
+ * are TIME columns (Carbon on read, "H:i" in JSON).
+ *
+ * Security note for controllers: set teacher_id from the authenticated user and
+ * validate class/student ownership; do not pass $request->all().
+ */
 class ClassReport extends Model
 {
     use HasFactory;
@@ -35,42 +49,68 @@ class ClassReport extends Model
 
     protected $casts = [
         'report_date' => 'date',
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
+        'start_time' => TimeOfDay::class,
+        'end_time' => TimeOfDay::class,
+        'meeting_number' => 'integer',
     ];
 
-    public function teacher()
+    /** The teacher who wrote the report. */
+    public function teacher(): BelongsTo
     {
         return $this->belongsTo(User::class, 'teacher_id');
     }
 
-    public function class()
+    /** The class (legacy name). */
+    public function class(): BelongsTo
     {
         return $this->belongsTo(ClassName::class, 'class_id');
     }
 
-    public function student()
+    /** The class. */
+    public function className(): BelongsTo
+    {
+        return $this->belongsTo(ClassName::class, 'class_id');
+    }
+
+    /** The student. */
+    public function student(): BelongsTo
     {
         return $this->belongsTo(User::class, 'student_id');
     }
 
-    public function schedule()
+    /** The weekly schedule slot (nullable). */
+    public function schedule(): BelongsTo
     {
         return $this->belongsTo(Schedule::class, 'schedule_id');
     }
 
-    public function curriculum()
+    /** The curriculum (nullable). */
+    public function curriculum(): BelongsTo
     {
-        return $this->belongsTo(Curriculum::class);
+        return $this->belongsTo(Curriculum::class)->withTrashed();
     }
 
-    public function syllabus()
+    /** The syllabus / meeting (nullable). */
+    public function syllabus(): BelongsTo
     {
-        return $this->belongsTo(Syllabus::class);
+        return $this->belongsTo(Syllabus::class)->withTrashed();
     }
 
-    public function material()
+    /** The material used (nullable). */
+    public function material(): BelongsTo
     {
-        return $this->belongsTo(Material::class);
+        return $this->belongsTo(Material::class)->withTrashed();
+    }
+
+    /** Reports about one student. */
+    public function scopeForStudent(Builder $query, int|User $student): Builder
+    {
+        return $query->where('class_reports.student_id', $student instanceof User ? $student->id : $student);
+    }
+
+    /** Reports written by one teacher. */
+    public function scopeByTeacher(Builder $query, int|User $teacher): Builder
+    {
+        return $query->where('class_reports.teacher_id', $teacher instanceof User ? $teacher->id : $teacher);
     }
 }

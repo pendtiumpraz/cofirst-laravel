@@ -3,17 +3,22 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * Uses the schema builder's change() (portable across MySQL and SQLite)
+     * instead of a raw "ALTER TABLE ... MODIFY" statement, which is MySQL-only.
      */
     public function up(): void
     {
-        // Update the enum to include 'cancelled'
-        DB::statement("ALTER TABLE financial_transactions MODIFY COLUMN status ENUM('pending', 'paid', 'failed', 'refunded', 'cancelled') DEFAULT 'pending'");
+        Schema::table('financial_transactions', function (Blueprint $table) {
+            $table->enum('status', ['pending', 'paid', 'failed', 'refunded', 'cancelled'])
+                ->default('pending')
+                ->change();
+        });
     }
 
     /**
@@ -21,7 +26,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert back to original enum
-        DB::statement("ALTER TABLE financial_transactions MODIFY COLUMN status ENUM('pending', 'paid', 'failed', 'refunded') DEFAULT 'pending'");
+        Schema::table('financial_transactions', function (Blueprint $table) {
+            $table->enum('status', ['pending', 'paid', 'failed', 'refunded'])
+                ->default('pending')
+                ->change();
+        });
     }
 };

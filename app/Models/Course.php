@@ -2,13 +2,26 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
+/**
+ * A course in the catalogue (e.g. Scratch, Python). A course has one or more
+ * curriculums and is taught in classes (ClassName).
+ *
+ * @property int $id
+ * @property string $name
+ * @property string $slug
+ * @property string $price Decimal string; use formatted_price for display.
+ */
 class Course extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -29,56 +42,106 @@ class Course extends Model
     ];
 
     /**
-     * Boot the model.
+     * Boot the model: generate a unique slug when none is given.
      */
     protected static function boot()
     {
         parent::boot();
 
-        static::creating(function ($course) {
-            if (!$course->slug) {
-                $course->slug = Str::slug($course->name);
+        static::creating(function (Course $course) {
+            if (! $course->slug) {
+                $course->slug = static::uniqueSlug((string) $course->name);
             }
         });
     }
 
     /**
-     * Get the classes for this course.
+     * Build a slug from the name that no other course (including archived ones) uses.
+     *
+     * Args:
+     *     name (string): Course name.
+     *     ignoreId (int|null): Course id to ignore (when renaming).
+     *
+     * Returns:
+     *     string: e.g. "python", "python-2".
      */
-    public function classes()
+    public static function uniqueSlug(string $name, ?int $ignoreId = null): string
+    {
+        $base = Str::slug($name) ?: 'kursus';
+        $slug = $base;
+        $suffix = 2;
+
+        while (static::withTrashed()->where('slug', $slug)
+            ->when($ignoreId, fn (Builder $q) => $q->whereKeyNot($ignoreId))->exists()) {
+            $slug = $base.'-'.$suffix++;
+        }
+
+        return $slug;
+    }
+
+    /** The classes of this course. */
+    public function classes(): HasMany
     {
         return $this->hasMany(ClassName::class);
     }
 
-    /**
-     * Get the curriculum for this course.
-     */
-    public function curriculum()
+    /** Classes that are planned or running. */
+    public function activeClasses(): HasMany
     {
-        return $this->hasOne(Curriculum::class);
+        return $this->classes()->whereIn('status', [ClassName::STATUS_PLANNED, ClassName::STATUS_ACTIVE])
+            ->where('is_active', true);
+    }
+
+    /** All curriculums of this course. */
+    public function curriculums(): HasMany
+    {
+        return $this->hasMany(Curriculum::class);
     }
 
     /**
-     * Get the financial transactions for this course.
+     * The main (oldest) curriculum of this course.
+     *
+     * Reason: a course can have several curriculums; oldestOfMany() makes lazy and
+     * eager loading return the same row.
      */
-    public function transactions()
+    public function curriculum(): HasOne
+    {
+        return $this->hasOne(Curriculum::class)->oldestOfMany();
+    }
+
+    /** Enrollments registered directly for this course. */
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+
+    /** The financial transactions for this course. */
+    public function transactions(): HasMany
     {
         return $this->hasMany(FinancialTransaction::class);
     }
 
-    /**
-     * Scope to get only active courses.
-     */
-    public function scopeActive($query)
+    /** Certificates issued for this course. */
+    public function certificates(): HasMany
     {
-        return $query->where('is_active', true);
+        return $this->hasMany(Certificate::class);
     }
 
-    /**
-     * Get the formatted price.
-     */
-    public function getFormattedPriceAttribute()
+    /** Scope to get only active courses. */
+    public function scopeActive(Builder $query): Builder
     {
-        return 'Rp ' . number_format($this->price, 0, ',', '.');
+        return $query->where('courses.is_active', true);
+    }
+
+    /** Price as an integer number of rupiah. */
+    public function getPriceRupiahAttribute(): int
+    {
+        return (int) round((float) $this->price);
+    }
+
+    /** Get the formatted price, e.g. "Rp 1.500.000". */
+    public function getFormattedPriceAttribute(): string
+    {
+        return 'Rp '.number_format((float) $this->price, 0, ',', '.');
     }
 }

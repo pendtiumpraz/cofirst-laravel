@@ -6,6 +6,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
+/**
+ * A certificate issued to a student (completion, achievement, participation).
+ *
+ * certificate_number = "{academic.certificate_prefix}-{year}-{random}" and a
+ * 12-character verification_code are generated on create when not given.
+ * issued_by is nullable (kept when the issuer is deleted).
+ */
 class Certificate extends Model
 {
     use HasFactory;
@@ -58,11 +65,26 @@ class Certificate extends Model
      */
     public static function generateCertificateNumber()
     {
+        $prefix = self::settingValue('academic.certificate_prefix', 'CF');
+
         do {
-            $number = 'CERT-' . date('Y') . '-' . strtoupper(Str::random(6));
+            $number = $prefix.'-'.date('Y').'-'.strtoupper(Str::random(6));
         } while (self::where('certificate_number', $number)->exists());
 
         return $number;
+    }
+
+    /**
+     * Read a setting, falling back when the settings store is unavailable
+     * (e.g. during early migrations).
+     */
+    public static function settingValue(string $key, mixed $default): mixed
+    {
+        try {
+            return function_exists('setting') ? (setting($key, $default) ?: $default) : $default;
+        } catch (\Throwable) {
+            return $default;
+        }
     }
 
     /**
@@ -105,6 +127,14 @@ class Certificate extends Model
      * Get the class
      */
     public function class()
+    {
+        return $this->belongsTo(ClassName::class, 'class_id');
+    }
+
+    /**
+     * Get the class (preferred name)
+     */
+    public function className()
     {
         return $this->belongsTo(ClassName::class, 'class_id');
     }

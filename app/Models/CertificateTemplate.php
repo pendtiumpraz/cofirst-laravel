@@ -5,6 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * A certificate layout (background, element positions, content template).
+ * Branding defaults come from the settings general.* and academic.certificate_*.
+ */
 class CertificateTemplate extends Model
 {
     use HasFactory;
@@ -50,8 +54,10 @@ class CertificateTemplate extends Model
             'grade' => '',
             'score' => '',
             'duration' => '',
-            'company_name' => 'CoFirst',
-            'company_tagline' => 'Learn Coding with Japanese Quality',
+            'company_name' => Certificate::settingValue('general.site_name', 'Coding First'),
+            'company_tagline' => Certificate::settingValue('general.tagline', 'Belajar coding bersama mentor dari perusahaan teknologi Jepang'),
+            'signer_name' => Certificate::settingValue('academic.certificate_signer_name', 'Direktur Akademik'),
+            'signer_title' => Certificate::settingValue('academic.certificate_signer_title', 'Coding First'),
         ];
     }
 

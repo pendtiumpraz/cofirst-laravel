@@ -5,6 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * One change of a user's points: positive for earned/bonus/refund, negative for
+ * spent/penalty. `related` is an optional polymorphic link to the cause.
+ */
 class PointTransaction extends Model
 {
     use HasFactory;
@@ -15,6 +19,8 @@ class PointTransaction extends Model
         'type',
         'reason',
         'description',
+        'related_type',
+        'related_id',
         'metadata',
     ];
 
@@ -29,6 +35,7 @@ class PointTransaction extends Model
     const TYPE_SPENT = 'spent';
     const TYPE_BONUS = 'bonus';
     const TYPE_PENALTY = 'penalty';
+    const TYPE_REFUND = 'refund';
 
     /**
      * Common reasons for earning points
@@ -43,6 +50,7 @@ class PointTransaction extends Model
     const REASON_LEVEL_UP = 'level_up';
     const REASON_STREAK_BONUS = 'streak_bonus';
     const REASON_REWARD_REDEMPTION = 'reward_redemption';
+    const REASON_REFUND = 'refund';
 
     /**
      * Points values for different actions
@@ -114,6 +122,7 @@ class PointTransaction extends Model
             self::REASON_LEVEL_UP => 'Level up bonus',
             self::REASON_STREAK_BONUS => 'Login streak bonus',
             self::REASON_REWARD_REDEMPTION => 'Redeemed reward',
+            self::REASON_REFUND => 'Points refunded',
         ];
 
         return $descriptions[$this->reason] ?? ucfirst(str_replace('_', ' ', $this->reason));

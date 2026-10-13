@@ -6,18 +6,26 @@ use App\Models\Announcement;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
+/**
+ * @extends Factory<Announcement>
+ */
 class AnnouncementFactory extends Factory
 {
     protected $model = Announcement::class;
 
-    public function definition()
+    /**
+     * Define the model's default state (visible from today for two weeks).
+     *
+     * @return array<string, mixed>
+     */
+    public function definition(): array
     {
         return [
-            'user_id' => User::factory()->create()->assignRole('admin'),
-            'title' => $this->faker->sentence,
-            'content' => $this->faker->paragraph,
-            'start_date' => $this->faker->date(),
-            'end_date' => $this->faker->date(),
+            'user_id' => User::factory()->admin(),
+            'title' => $this->faker->sentence(4),
+            'content' => $this->faker->paragraph(),
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addWeeks(2)->toDateString(),
         ];
     }
 }

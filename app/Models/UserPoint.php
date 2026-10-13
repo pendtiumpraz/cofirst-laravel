@@ -4,8 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
+/**
+ * A user's point balance, level and activity streak (one row per user;
+ * user_id is unique).
+ *
+ * All balance changes run in a DB transaction with a row lock and write a
+ * PointTransaction: addPoints() (type earned), spendPoints() (type spent) and
+ * refundPoints() (type refund: restores points and total_spent without raising
+ * total_earned or the level). The streak only moves for login/attendance points.
+ */
 class UserPoint extends Model
 {
     use HasFactory;
@@ -23,7 +33,16 @@ class UserPoint extends Model
 
     protected $casts = [
         'last_activity_date' => 'date',
+        'points' => 'integer',
+        'total_earned' => 'integer',
+        'total_spent' => 'integer',
+        'level' => 'integer',
+        'current_streak' => 'integer',
+        'longest_streak' => 'integer',
     ];
+
+    /** Reasons that count as daily activity for the streak. */
+    public const STREAK_REASONS = [PointTransaction::REASON_LOGIN, PointTransaction::REASON_ATTENDANCE];
 
     /**
      * Points required for each level
@@ -50,43 +69,86 @@ class UserPoint extends Model
     }
 
     /**
-     * Add points to user
+     * Add earned points (atomic) and record an "earned" transaction.
+     *
+     * Args:
+     *     amount (int): Points to add.
+     *     reason (string): PointTransaction::REASON_* value.
+     *     description (string|null): Human readable description.
+     *     relatedModel (Model|null): Model that caused the points.
+     *
+     * Returns:
+     *     self: This model, refreshed with the new balance.
      */
     public function addPoints($amount, $reason, $description = null, $relatedModel = null)
     {
-        $this->points += $amount;
-        $this->total_earned += $amount;
-        
-        // Check for level up
-        $this->checkLevelUp();
-        
-        // Update activity and streak
-        $this->updateActivityStreak();
-        
-        $this->save();
-        
-        // Create transaction record
-        $this->createTransaction($amount, 'earned', $reason, $description, $relatedModel);
-        
-        return $this;
+        return $this->mutateLocked(function (self $row) use ($amount, $reason) {
+            $row->points += $amount;
+            $row->total_earned += $amount;
+            $row->checkLevelUp();
+
+            if (in_array($reason, self::STREAK_REASONS, true)) {
+                $row->updateActivityStreak();
+            }
+        }, $amount, PointTransaction::TYPE_EARNED, $reason, $description, $relatedModel);
     }
 
     /**
-     * Spend points
+     * Spend points (atomic); throws when the balance is insufficient.
+     *
+     * Returns:
+     *     self: This model, refreshed with the new balance.
+     *
+     * Raises:
+     *     \Exception: When the user has fewer points than $amount.
      */
     public function spendPoints($amount, $reason, $description = null, $relatedModel = null)
     {
-        if ($this->points < $amount) {
-            throw new \Exception('Insufficient points');
-        }
-        
-        $this->points -= $amount;
-        $this->total_spent += $amount;
-        $this->save();
-        
-        // Create transaction record
-        $this->createTransaction(-$amount, 'spent', $reason, $description, $relatedModel);
-        
+        return $this->mutateLocked(function (self $row) use ($amount) {
+            if ($row->points < $amount) {
+                throw new \Exception('Poin tidak mencukupi.');
+            }
+
+            $row->points -= $amount;
+            $row->total_spent += $amount;
+        }, -$amount, PointTransaction::TYPE_SPENT, $reason, $description, $relatedModel);
+    }
+
+    /**
+     * Give spent points back (e.g. a cancelled reward redemption).
+     *
+     * Restores the balance and lowers total_spent; total_earned, level and streak
+     * are untouched, and the transaction is recorded with type "refund".
+     *
+     * Returns:
+     *     self: This model, refreshed with the new balance.
+     */
+    public function refundPoints($amount, $reason = 'refund', $description = null, $relatedModel = null)
+    {
+        return $this->mutateLocked(function (self $row) use ($amount) {
+            $row->points += $amount;
+            $row->total_spent = max(0, $row->total_spent - $amount);
+        }, $amount, PointTransaction::TYPE_REFUND, $reason, $description, $relatedModel);
+    }
+
+    /**
+     * Apply a balance change to a freshly locked copy of this row, save it and
+     * write the matching PointTransaction, all inside one DB transaction.
+     *
+     * Reason: the previous read-modify-write on the in-memory model lost updates
+     * when two requests (e.g. a double click) changed points at the same time.
+     */
+    protected function mutateLocked(callable $change, $points, $type, $reason, $description, $relatedModel)
+    {
+        DB::transaction(function () use ($change, $points, $type, $reason, $description, $relatedModel) {
+            $row = static::query()->whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $change($row);
+            $row->save();
+
+            $this->setRawAttributes($row->getAttributes(), true);
+            $this->createTransaction($points, $type, $reason, $description, $relatedModel);
+        });
+
         return $this;
     }
 
@@ -119,6 +181,10 @@ class UserPoint extends Model
     protected function updateActivityStreak()
     {
         $today = Carbon::today();
+
+        if ($this->last_activity_date && $this->last_activity_date->isSameDay($today)) {
+            return;
+        }
         
         if (!$this->last_activity_date) {
             // First activity

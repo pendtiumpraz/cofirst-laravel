@@ -5,6 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Progress of one student in one class for one meeting (syllabus).
+ *
+ * Unique per (student_id, class_id, meeting_number); status is not_started,
+ * in_progress or completed. getProgressPercentage() = completed / all rows.
+ */
 class ClassProgress extends Model
 {
     use HasFactory;
@@ -34,6 +40,14 @@ class ClassProgress extends Model
     }
 
     public function class()
+    {
+        return $this->belongsTo(ClassName::class, 'class_id');
+    }
+
+    /**
+     * The class (preferred name).
+     */
+    public function className()
     {
         return $this->belongsTo(ClassName::class, 'class_id');
     }

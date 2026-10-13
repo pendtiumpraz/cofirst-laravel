@@ -5,9 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
+/**
+ * Pivot row of `user_badges`: a badge earned by a user.
+ */
 class UserBadge extends Pivot
 {
     use HasFactory;
+
+    protected $table = 'user_badges';
+
+    public $incrementing = true;
 
     protected $fillable = [
         'user_id',

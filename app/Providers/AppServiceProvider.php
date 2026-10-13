@@ -17,6 +17,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Services\CertificateService::class, function ($app) {
             return new \App\Services\CertificateService();
         });
+
+        // Application settings (config/settings.php + settings table), read via setting()
+        $this->app->singleton(\App\Support\Settings\SettingsManager::class, function ($app) {
+            return new \App\Support\Settings\SettingsManager($app['cache']->store());
+        });
     }
 
     /**

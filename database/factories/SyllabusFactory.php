@@ -2,25 +2,34 @@
 
 namespace Database\Factories;
 
-use App\Models\Syllabus;
 use App\Models\Curriculum;
+use App\Models\Syllabus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
+/**
+ * @extends Factory<Syllabus>
+ */
 class SyllabusFactory extends Factory
 {
     protected $model = Syllabus::class;
 
-    public function definition()
+    /**
+     * Define the model's default state.
+     *
+     * @return array<string, mixed>
+     */
+    public function definition(): array
     {
         return [
             'curriculum_id' => Curriculum::factory(),
-            'title' => $this->faker->sentence,
-            'description' => $this->faker->paragraph,
+            'title' => $this->faker->sentence(3),
+            'description' => $this->faker->paragraph(),
             'meeting_number' => $this->faker->numberBetween(1, 12),
-            'learning_objectives' => $this->faker->paragraph,
-            'activities' => $this->faker->paragraph,
+            // Newline-separated lists (see App\Models\Casts\MultilineText).
+            'learning_objectives' => implode("\n", $this->faker->sentences(3)),
+            'activities' => implode("\n", $this->faker->sentences(3)),
             'duration_minutes' => $this->faker->randomElement([60, 90, 120]),
-            'status' => $this->faker->randomElement(['active', 'inactive']),
+            'status' => 'active',
         ];
     }
 }

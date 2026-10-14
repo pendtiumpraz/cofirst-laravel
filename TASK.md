@@ -7,6 +7,15 @@ fitur dashboard, Settings lengkap (keputusan desain dibuat 2 versi yang bisa dip
 patuh penuh UU No. 27/2022 (PDP) & peraturan pelaksananya (consent, DSR, privacy notice, DPA, dst.),
 user-friendly, mobile-friendly, PWA, warna/logo/favicon baru.
 
+### Keputusan (2026-10-13)
+- Desain dipilih panel 3 desainer + juri: **Versi A = Sumi & Shu (Editorial)** — default; **Versi B = Asagi (Presisi)**.
+  Toggle A/B di Settings: tema, logo (A/B/ikuti tema), landing, navigasi desktop (sidebar/topnav),
+  navigasi ponsel (tab/laci), gaya KPI (strip/kartu), beranda siswa (tenang/ceria), halaman login (split/tengah),
+  kerapatan, izin pengguna memilih tema.
+- Dasar hukum: UU No. 27/2022 (berlaku penuh sejak 17 Okt 2024) + **PP No. 33 Tahun 2026** (diundangkan 16 Jul 2026,
+  berlaku 16 Jan 2027). Checklist implementasi 68 butir dari riset.
+- Audit 11 area: ±490 temuan (≈60 kritikal). Banyak fitur diganti stub "coming soon" di commit `fb45d9e`.
+
 ### Fondasi
 - [x] Branch kerja `rombak-total-v2`
 - [x] Migrasi kompatibel SQLite (test & dev lokal) — ganti `ALTER ... MODIFY` MySQL-only dengan `->change()`
@@ -53,3 +62,9 @@ user-friendly, mobile-friendly, PWA, warna/logo/favicon baru.
 - `/certificates/create` & `/project-gallery/featured` tertelan route wildcard (urutan route)
 - Seeder: tidak ada enrollment/jadwal/transaksi/relasi orang tua–anak karena semua kelas `planned`
 - README berisi README bawaan Laravel; email akun demo di README (`.id`) tidak cocok dengan seeder (`.com`)
+- Kredensial demo (superadmin, admin, finance) tercetak di halaman login produksi
+- Admin bisa mengangkat diri jadi superadmin / mengambil alih akun superadmin
+- Lampiran chat & foto anak di disk publik tanpa validasi tipe; `reply_to_id` membocorkan pesan percakapan lain
+- Landing page memublikasikan nama, foto, poin anak tanpa persetujuan orang tua
+- Modul sertifikat memakai library PDF/QR yang tidak terpasang (kini dipasang: dompdf + bacon-qr-code, QR berbentuk SVG)
+- PHP lokal tanpa ekstensi `zip`/`gd`: composer jatuh ke git clone (perlu `php -d extension=zip`); 112 paket vendor lama berupa checkout git

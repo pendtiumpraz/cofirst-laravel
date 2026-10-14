@@ -82,22 +82,54 @@ return new class extends Migration
     {
         foreach (array_reverse($this->indexes) as [$table, , $name]) {
             if (Schema::hasIndex($table, $name)) {
+                $this->restoreForeignKeyIndexes($table, $name);
                 Schema::table($table, fn (Blueprint $blueprint) => $blueprint->dropIndex($name));
             }
         }
 
-        // Reason: MySQL may silently drop the FK's implicit index once the unique index
-        // exists, so a plain index is added back before the unique one is dropped.
+        // Reason: MySQL silently drops the FK's implicit index once the unique index
+        // exists, so the FK index is added back before the unique one is dropped.
         foreach (['profiles', 'user_points'] as $table) {
             if (Schema::hasIndex($table, "{$table}_user_id_unique")) {
-                $hasPlainIndex = collect(Schema::getIndexes($table))
-                    ->contains(fn (array $index) => $index['columns'] === ['user_id'] && ! $index['unique']);
-
-                if (! $hasPlainIndex) {
-                    Schema::table($table, fn (Blueprint $blueprint) => $blueprint->index('user_id', "{$table}_user_id_index"));
-                }
-
+                $this->restoreForeignKeyIndexes($table, "{$table}_user_id_unique");
                 Schema::table($table, fn (Blueprint $blueprint) => $blueprint->dropUnique(['user_id']));
+            }
+        }
+    }
+
+    /**
+     * Give every foreign key served by index $name its own index again before $name is dropped.
+     *
+     * Reason: MySQL/MariaDB silently drop a foreign key's implicit index once a
+     * composite index starting with the same column exists (as up() creates), and
+     * then refuse to drop that composite index (error 1553, "needed in a foreign key
+     * constraint"). Re-creating "<table>_<column>_foreign" also restores the
+     * pre-migration schema. SQLite needs no index for a foreign key.
+     */
+    private function restoreForeignKeyIndexes(string $table, string $name): void
+    {
+        if (! in_array(Schema::getConnection()->getDriverName(), ['mysql', 'mariadb'], true)) {
+            return;
+        }
+
+        $indexes = collect(Schema::getIndexes($table));
+        $dropped = $indexes->firstWhere('name', $name)['columns'] ?? [];
+
+        foreach (Schema::getForeignKeys($table) as $foreignKey) {
+            $columns = $foreignKey['columns'];
+            $startsWithKey = fn (array $indexColumns) => array_slice($indexColumns, 0, count($columns)) === $columns;
+
+            if (! $startsWithKey($dropped)) {
+                continue;
+            }
+
+            $stillCovered = $indexes->contains(
+                fn (array $index) => $index['name'] !== $name && $startsWithKey($index['columns'])
+            );
+
+            if (! $stillCovered) {
+                Schema::table($table, fn (Blueprint $blueprint) => $blueprint->index($columns, $foreignKey['name']));
+                $indexes = collect(Schema::getIndexes($table));
             }
         }
     }

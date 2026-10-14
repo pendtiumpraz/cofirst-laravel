@@ -1,2 +1,21 @@
+# Coding First — robots.txt
+# Account areas hold personal data and are never meant for search engines.
 User-agent: *
-Disallow:
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /profile
+Disallow: /account
+Disallow: /akun
+Disallow: /chat
+Disallow: /teacher
+Disallow: /student
+Disallow: /parent
+Disallow: /finance
+Disallow: /gamification
+Disallow: /class-reports
+Disallow: /certificates
+Disallow: /project-gallery
+Disallow: /role-selection
+Disallow: /register/success
+Disallow: /offline
+Allow: /

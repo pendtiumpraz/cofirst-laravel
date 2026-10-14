@@ -9,7 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * A photo taken in a class, uploaded by a teacher/admin.
  *
- * photo_path is nullable (record created before the upload). `teacher` is an
+ * photo_path is nullable (record created before the upload). title,
+ * description and date_taken (date) are used by the admin form and views. `teacher` is an
  * alias of `uploader` (a User) for older views; use `$photo->uploader?->name`.
  */
 class ClassPhoto extends Model
@@ -18,9 +19,16 @@ class ClassPhoto extends Model
 
     protected $fillable = [
         'class_id',
+        'title',
+        'description',
+        'date_taken',
         'photo_path',
         'caption',
         'uploaded_by',
+    ];
+
+    protected $casts = [
+        'date_taken' => 'date',
     ];
 
     /** The class (legacy name). */

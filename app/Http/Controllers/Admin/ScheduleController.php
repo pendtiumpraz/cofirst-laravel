@@ -3,270 +3,335 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Schedule;
+use App\Http\Requests\Admin\ScheduleRequest;
 use App\Models\ClassName;
-use App\Models\User;
 use App\Models\Enrollment;
+use App\Models\Schedule;
 use App\Models\TeacherAssignment;
-use Illuminate\Validation\Rule;
+use App\Models\User;
+use App\Services\Admin\AdminAudit;
+use App\Services\Scheduling\ScheduleSlot;
+use App\Services\Scheduling\ScheduleSlots;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
+/**
+ * Admin › Jadwal: weekly slots of every class (calendar + list), with clash
+ * detection. A slot is stored as one row per enrolled student; this controller
+ * always works on the whole slot (ScheduleSlots::siblingsQuery()).
+ */
 class ScheduleController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Weekly calendar or list of slots with filters.
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
-        $query = Schedule::with(['className.course', 'enrollment.student', 'teacherAssignment.teacher']);
-        
-        // Filter by class status if requested
-        $classStatus = $request->get('class_status', 'all');
-        if ($classStatus !== 'all') {
-            if ($classStatus === 'ongoing') {
-                $query->forCalendar(); // Only ongoing classes
-            } else {
-                $query->byClassStatus($classStatus);
+        $this->authorize('viewAny', Schedule::class);
+
+        $view = $request->query('view') === 'list' ? 'list' : 'calendar';
+        $classStatus = $request->query('class_status', 'ongoing');
+
+        $rows = Schedule::query()
+            ->with(['className:id,name,course_id,status,is_active,start_date,end_date', 'className.course:id,name',
+                'teacherAssignment:id,teacher_id', 'teacherAssignment.teacher:id,name'])
+            ->when($classStatus === 'ongoing', fn ($q) => $q->whereHas('className', fn ($c) => $c->activeAndOngoing()))
+            ->when(in_array($classStatus, [ClassName::STATUS_PLANNED, ClassName::STATUS_ACTIVE, ClassName::STATUS_COMPLETED, ClassName::STATUS_CANCELLED], true),
+                fn ($q) => $q->byClassStatus($classStatus))
+            ->when($request->query('state') === 'inactive', fn ($q) => $q->where('schedules.is_active', false))
+            ->when($request->query('state') === 'active', fn ($q) => $q->where('schedules.is_active', true))
+            ->when($request->filled('class'), fn ($q) => $q->where('class_id', (int) $request->query('class')))
+            ->when($request->filled('teacher'), fn ($q) => $q->whereHas('teacherAssignment', fn ($a) => $a->where('teacher_id', (int) $request->query('teacher'))))
+            ->when($request->filled('day'), fn ($q) => $q->where('day_of_week', (int) $request->query('day')))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $term = '%'.str_replace(['%', '_'], ['\%', '\_'], trim((string) $request->query('search'))).'%';
+                $q->where(fn ($w) => $w->where('room', 'like', $term)->orWhereHas('className', fn ($c) => $c->where('name', 'like', $term)));
+            })
+            ->get();
+
+        $slots = ScheduleSlots::group($rows);
+        $clashes = ScheduleSlots::clashes($slots);
+
+        $list = null;
+        if ($view === 'list') {
+            $page = LengthAwarePaginator::resolveCurrentPage();
+            $list = new LengthAwarePaginator($slots->forPage($page, 25)->values(), $slots->count(), 25, $page, [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]);
+        }
+
+        return view('admin.schedules.index', [
+            'view' => $view,
+            'week' => $view === 'calendar' ? $this->week($slots) : [],
+            'list' => $list,
+            'slotCount' => $slots->count(),
+            'clashes' => $clashes,
+            'todayIso' => \App\Services\Admin\AdminClock::isoWeekday(),
+            'classStatus' => $classStatus,
+            'classes' => ClassName::activeAndOngoing()->orderBy('name')->pluck('name', 'id'),
+            'teachers' => User::role('teacher')->orderBy('name')->pluck('name', 'id'),
+        ]);
+    }
+
+    /**
+     * Create form.
+     */
+    public function create(Request $request): View
+    {
+        $this->authorize('create', Schedule::class);
+
+        return view('admin.schedules.create', [
+            'schedule' => null,
+            'classes' => $this->classOptions(),
+            'preset' => [
+                'class_id' => $request->integer('class') ?: null,
+                'day_of_week' => $request->integer('day') ?: null,
+                'start_time' => null,
+                'end_time' => null,
+                'room' => null,
+                'teacher_id' => null,
+                'enrollment_ids' => [],
+                'is_active' => true,
+            ],
+            'duration' => (int) setting('academic.session_duration_minutes', 90),
+            'rooms' => $this->knownRooms(),
+        ]);
+    }
+
+    /**
+     * Create a slot: one row per selected student.
+     */
+    public function store(ScheduleRequest $request): RedirectResponse
+    {
+        $data = $request->validated();
+
+        $first = DB::transaction(function () use ($data) {
+            $assignmentId = $this->assignmentId((int) $data['class_id'], (int) $data['teacher_id']);
+            $first = null;
+
+            foreach (array_unique(array_map('intval', $data['enrollment_ids'])) as $enrollmentId) {
+                $row = Schedule::create([
+                    'class_id' => $data['class_id'],
+                    'day_of_week' => $data['day_of_week'],
+                    'start_time' => $data['start_time'],
+                    'end_time' => $data['end_time'],
+                    'room' => $data['room'] ?? null,
+                    'teacher_assignment_id' => $assignmentId,
+                    'enrollment_id' => $enrollmentId,
+                    'is_active' => $data['is_active'],
+                ]);
+                $first ??= $row;
             }
-        }
-        
-        $schedules = $query->orderBy('day_of_week')
-                          ->orderBy('start_time')
-                          ->paginate(20);
 
-        return view('admin.schedules.index', compact('schedules', 'classStatus'));
+            return $first;
+        });
+
+        AdminAudit::log('schedule.created', $first, ['students' => count($data['enrollment_ids'])]);
+
+        return redirect()->route('admin.schedules.show', $first)
+            ->with('success', 'Jadwal '.Schedule::DAYS[$data['day_of_week']].' '.$data['start_time'].' berhasil dibuat.');
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Slot detail with its students and any clashes.
      */
-    public function create()
+    public function show(Schedule $schedule): View
     {
-        // Only show classes that have both teachers and active enrollments
-        $classes = ClassName::activeAndOngoing()
-            ->with('course')
+        $this->authorize('view', $schedule);
+
+        $slot = $this->slot($schedule);
+        $sameDay = Schedule::query()->forCalendar()->where('day_of_week', $schedule->day_of_week)
+            ->with(['className:id,name', 'teacherAssignment.teacher:id,name'])->get();
+        $clashes = ScheduleSlots::clashes(ScheduleSlots::group($sameDay->push(...$slot->rows)->unique('id')));
+
+        return view('admin.schedules.show', [
+            'slot' => $slot,
+            'schedule' => $schedule,
+            'clashReasons' => $clashes[$slot->key] ?? [],
+        ]);
+    }
+
+    /**
+     * Edit form for the whole slot.
+     */
+    public function edit(Schedule $schedule): View
+    {
+        $this->authorize('update', $schedule);
+
+        $slot = $this->slot($schedule);
+
+        return view('admin.schedules.edit', [
+            'schedule' => $schedule,
+            'slot' => $slot,
+            'classes' => $this->classOptions($schedule->class_id),
+            'preset' => [
+                'class_id' => $schedule->class_id,
+                'day_of_week' => $schedule->day_of_week,
+                'start_time' => $slot->start(),
+                'end_time' => $slot->end(),
+                'room' => $schedule->room,
+                'teacher_id' => $slot->teacher()?->id,
+                'enrollment_ids' => $slot->rows->pluck('enrollment_id')->filter()->map(fn ($id) => (int) $id)->values()->all(),
+                'is_active' => $slot->isActive(),
+            ],
+            'duration' => (int) setting('academic.session_duration_minutes', 90),
+            'rooms' => $this->knownRooms(),
+        ]);
+    }
+
+    /**
+     * Update the whole slot: time/room/teacher for every row, add rows for
+     * newly selected students and remove rows of deselected students.
+     */
+    public function update(ScheduleRequest $request, Schedule $schedule): RedirectResponse
+    {
+        $data = $request->validated();
+        $selected = array_values(array_unique(array_map('intval', $data['enrollment_ids'])));
+
+        $representative = DB::transaction(function () use ($schedule, $data, $selected) {
+            $rows = ScheduleSlots::siblingsQuery($schedule)->get();
+            $assignmentId = $this->assignmentId((int) $data['class_id'], (int) $data['teacher_id']);
+            $attributes = [
+                'class_id' => $data['class_id'],
+                'day_of_week' => $data['day_of_week'],
+                'start_time' => $data['start_time'],
+                'end_time' => $data['end_time'],
+                'room' => $data['room'] ?? null,
+                'teacher_assignment_id' => $assignmentId,
+                'is_active' => $data['is_active'],
+            ];
+
+            // Reason: rows of deselected students are deleted; class reports and
+            // attendance keep their data (schedule_id is set to null).
+            $rows->filter(fn (Schedule $row) => ! in_array((int) $row->enrollment_id, $selected, true))->each->delete();
+
+            $kept = $rows->filter(fn (Schedule $row) => in_array((int) $row->enrollment_id, $selected, true));
+            $kept->each(fn (Schedule $row) => $row->update($attributes));
+
+            $existing = $kept->pluck('enrollment_id')->map(fn ($id) => (int) $id)->all();
+            foreach (array_diff($selected, $existing) as $enrollmentId) {
+                $kept->push(Schedule::create($attributes + ['enrollment_id' => $enrollmentId]));
+            }
+
+            return $kept->sortBy('id')->first();
+        });
+
+        AdminAudit::log('schedule.updated', $representative, ['students' => count($selected)]);
+
+        return redirect()->route('admin.schedules.show', $representative)->with('success', 'Perubahan jadwal disimpan untuk '.count($selected).' siswa.');
+    }
+
+    /**
+     * Activate or deactivate the whole slot.
+     */
+    public function toggleStatus(Schedule $schedule): RedirectResponse
+    {
+        $this->authorize('update', $schedule);
+
+        $slot = $this->slot($schedule);
+        $activate = ! $slot->isActive();
+
+        if ($activate && ! $schedule->className?->canShowInCalendar()) {
+            return back()->with('error', 'Kelas ini sudah selesai atau dibatalkan, jadwalnya tidak dapat diaktifkan.');
+        }
+
+        ScheduleSlots::siblingsQuery($schedule)->update(['is_active' => $activate]);
+        AdminAudit::log($activate ? 'schedule.activated' : 'schedule.deactivated', $schedule);
+
+        return back()->with('success', $activate ? 'Jadwal diaktifkan kembali.' : 'Jadwal dinonaktifkan dan tidak tampil di kalender.');
+    }
+
+    /**
+     * Delete the whole slot (reports and attendance keep their data).
+     */
+    public function destroy(Schedule $schedule): RedirectResponse
+    {
+        $this->authorize('delete', $schedule);
+
+        $count = DB::transaction(function () use ($schedule) {
+            $rows = ScheduleSlots::siblingsQuery($schedule)->get();
+            $rows->each->delete();
+
+            return $rows->count();
+        });
+        AdminAudit::log('schedule.deleted', $schedule, ['rows' => $count]);
+
+        return redirect()->route('admin.schedules.index')->with('success', "Jadwal dihapus ({$count} siswa). Riwayat laporan dan absensi tetap tersimpan.");
+    }
+
+    /**
+     * Load a slot (all sibling rows) with the relations the views need.
+     */
+    private function slot(Schedule $schedule): ScheduleSlot
+    {
+        $rows = ScheduleSlots::siblingsQuery($schedule)
+            ->with(['className.course:id,name', 'className.teachers:id,name', 'teacherAssignment.teacher:id,name,profile_photo_path',
+                'enrollment:id,student_id,status', 'enrollment.student:id,name,profile_photo_path'])
+            ->get();
+
+        return new ScheduleSlot(ScheduleSlots::key($schedule), $rows->isEmpty() ? collect([$schedule]) : $rows);
+    }
+
+    /**
+     * Seven weekday columns of slots.
+     *
+     * @return array<int, array{name: string, slots: \Illuminate\Support\Collection}>
+     */
+    private function week($slots): array
+    {
+        $week = [];
+        foreach (Schedule::DAYS as $day => $name) {
+            $week[$day] = ['name' => $name, 'slots' => $slots->filter(fn (ScheduleSlot $s) => $s->day() === $day)->values()];
+        }
+
+        return $week;
+    }
+
+    /**
+     * Open classes with teachers for the form (name + course; details load by JSON).
+     *
+     * @return array<int, array{value: int, label: string}>
+     */
+    private function classOptions(?int $keepClassId = null): array
+    {
+        return ClassName::query()
+            ->where(fn ($q) => $q->activeAndOngoing()->when($keepClassId, fn ($w) => $w->orWhere('class_names.id', $keepClassId)))
             ->whereHas('teachers')
-            ->whereHas('enrollments', function($q) {
-                $q->where('status', 'active');
-            })
-            ->get();
-        
-        // Get all active teachers and students
-        $teachers = User::role('teacher')
-            ->where('is_active', true)
-            ->with('teacherAssignments.class')
-            ->get();
-            
-        $students = User::role('student')
-            ->where('is_active', true)
-            ->with('enrollments.class')
-            ->get();
-            
-        // Keep original data structure for backward compatibility
-        $enrollments = Enrollment::whereHas('class', function($q) {
-            $q->activeAndOngoing();
-        })->with(['student', 'class'])->get();
-        $teacherAssignments = TeacherAssignment::whereHas('class', function($q) {
-            $q->activeAndOngoing();
-        })->with(['teacher', 'class'])->get();
-
-        return view('admin.schedules.create', compact('classes', 'teachers', 'students', 'enrollments', 'teacherAssignments'));
+            ->with('course:id,name')
+            ->withCount(['enrollments as seat_count' => fn ($q) => $q->whereIn('status', Enrollment::SEAT_STATUSES)])
+            ->orderBy('name')
+            ->get()
+            ->map(fn (ClassName $c) => [
+                'value' => $c->id,
+                'label' => $c->name.' · '.($c->course?->name ?? 'Tanpa kursus').' · '.$c->seat_count.' siswa',
+                'disabled' => $c->seat_count === 0 && $c->id !== $keepClassId,
+            ])
+            ->all();
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Rooms already in use, for the room suggestions list.
+     *
+     * @return array<int, string>
      */
-    public function store(Request $request)
+    private function knownRooms(): array
     {
-        $request->validate([
-            'class_id' => 'required|exists:class_names,id',
-            'day_of_week' => 'required|integer|between:1,7',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
-            'room' => 'required|string|max:100',
-            'enrollment_id' => 'required',
-            'teacher_assignment_id' => 'required',
-            'is_active' => 'boolean',
-        ]);
-
-        $class = ClassName::findOrFail($request->class_id);
-
-        // Check if class is still ongoing
-        if (!$class->canShowInCalendar()) {
-            return redirect()->back()->with('error', 'Cannot create schedule for completed or inactive classes.');
-        }
-
-        // Validate quota based on class type
-        $maxCapacity = ($class->type === 'group') ? 5 : 1;
-
-        $currentStudentsInSchedule = Schedule::where('class_id', $request->class_id)
-            ->where('day_of_week', $request->day_of_week)
-            ->where('start_time', $request->start_time)
-            ->count();
-
-        if ($currentStudentsInSchedule >= $maxCapacity) {
-            return redirect()->back()->with('error', 'Schedule is at full capacity for this class type.');
-        }
-
-        // Handle teacher assignment
-        $teacherAssignmentId = $request->teacher_assignment_id;
-        if (str_starts_with($teacherAssignmentId, 'teacher_')) {
-            $teacherId = str_replace('teacher_', '', $teacherAssignmentId);
-            $teacherAssignment = TeacherAssignment::firstOrCreate([
-                'teacher_id' => $teacherId,
-                'class_id' => $request->class_id,
-            ]);
-            $teacherAssignmentId = $teacherAssignment->id;
-        }
-
-        // Handle student enrollment
-        $enrollmentId = $request->enrollment_id;
-        if (str_starts_with($enrollmentId, 'student_')) {
-            $studentId = str_replace('student_', '', $enrollmentId);
-            $enrollment = Enrollment::firstOrCreate([
-                'student_id' => $studentId,
-                'class_id' => $request->class_id,
-            ]);
-            $enrollmentId = $enrollment->id;
-        }
-
-        Schedule::create([
-            'class_id' => $request->class_id,
-            'day_of_week' => $request->day_of_week,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
-            'room' => $request->room,
-            'enrollment_id' => $enrollmentId,
-            'teacher_assignment_id' => $teacherAssignmentId,
-            'is_active' => $request->boolean('is_active', true),
-        ]);
-
-        return redirect()->route('admin.schedules.index')->with('success', 'Schedule created successfully.');
+        return Schedule::query()->whereNotNull('room')->where('room', '!=', '')
+            ->distinct()->orderBy('room')->limit(30)->pluck('room')->prepend('Online')->unique()->values()->all();
     }
 
     /**
-     * Display the specified resource.
+     * Current teacher-assignment id for a teacher of the class (created when missing).
      */
-    public function show(Schedule $schedule)
+    private function assignmentId(int $classId, int $teacherId): int
     {
-        $schedule->load(['className', 'enrollment.student', 'teacherAssignment.teacher']);
-        return view('admin.schedules.show', compact('schedule'));
-    }
+        $assignment = TeacherAssignment::where('class_id', $classId)->where('teacher_id', $teacherId)->whereNull('unassigned_at')->first()
+            ?? TeacherAssignment::create(['class_id' => $classId, 'teacher_id' => $teacherId, 'assigned_at' => now()]);
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Schedule $schedule)
-    {
-        // Only show classes that have both teachers and active enrollments
-        $classes = ClassName::activeAndOngoing()
-            ->with('course')
-            ->whereHas('teachers')
-            ->whereHas('enrollments', function($q) {
-                $q->where('status', 'active');
-            })
-            ->get();
-        
-        // Get all active teachers and students
-        $teachers = User::role('teacher')
-            ->where('is_active', true)
-            ->with('teacherAssignments.class')
-            ->get();
-            
-        $students = User::role('student')
-            ->where('is_active', true)
-            ->with('enrollments.class')
-            ->get();
-            
-        // Keep original data structure for backward compatibility
-        $enrollments = Enrollment::whereHas('class', function($q) {
-            $q->activeAndOngoing();
-        })->with(['student', 'class'])->get();
-        $teacherAssignments = TeacherAssignment::whereHas('class', function($q) {
-            $q->activeAndOngoing();
-        })->with(['teacher', 'class'])->get();
-
-        return view('admin.schedules.edit', compact('schedule', 'classes', 'teachers', 'students', 'enrollments', 'teacherAssignments'));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Schedule $schedule)
-    {
-        $request->validate([
-            'class_id' => 'required|exists:class_names,id',
-            'day_of_week' => 'required|integer|between:1,7',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
-            'room' => 'required|string|max:100',
-            'enrollment_id' => 'required',
-            'teacher_assignment_id' => 'required',
-            'is_active' => 'boolean',
-        ]);
-
-        $class = ClassName::findOrFail($request->class_id);
-
-        // Check if class is still ongoing
-        if (!$class->canShowInCalendar()) {
-            return redirect()->back()->with('error', 'Cannot update schedule for completed or inactive classes.');
-        }
-
-        // Validate quota based on class type, excluding the current schedule
-        $maxCapacity = ($class->type === 'group') ? 5 : 1;
-
-        $currentStudentsInSchedule = Schedule::where('class_id', $request->class_id)
-            ->where('day_of_week', $request->day_of_week)
-            ->where('start_time', $request->start_time)
-            ->where('id', '!=', $schedule->id) // Exclude current schedule
-            ->count();
-
-        if ($currentStudentsInSchedule >= $maxCapacity) {
-            return redirect()->back()->with('error', 'Schedule is at full capacity for this class type.');
-        }
-
-        // Handle teacher assignment
-        $teacherAssignmentId = $request->teacher_assignment_id;
-        if (str_starts_with($teacherAssignmentId, 'teacher_')) {
-            $teacherId = str_replace('teacher_', '', $teacherAssignmentId);
-            $teacherAssignment = TeacherAssignment::firstOrCreate([
-                'teacher_id' => $teacherId,
-                'class_id' => $request->class_id,
-            ]);
-            $teacherAssignmentId = $teacherAssignment->id;
-        }
-
-        // Handle student enrollment
-        $enrollmentId = $request->enrollment_id;
-        if (str_starts_with($enrollmentId, 'student_')) {
-            $studentId = str_replace('student_', '', $enrollmentId);
-            $enrollment = Enrollment::firstOrCreate([
-                'student_id' => $studentId,
-                'class_id' => $request->class_id,
-            ]);
-            $enrollmentId = $enrollment->id;
-        }
-
-        $schedule->update([
-            'class_id' => $request->class_id,
-            'day_of_week' => $request->day_of_week,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
-            'room' => $request->room,
-            'enrollment_id' => $enrollmentId,
-            'teacher_assignment_id' => $teacherAssignmentId,
-            'is_active' => $request->boolean('is_active', true),
-        ]);
-
-        return redirect()->route('admin.schedules.index')->with('success', 'Schedule updated successfully.');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Schedule $schedule)
-    {
-        $schedule->delete();
-        return redirect()->route('admin.schedules.index')->with('success', 'Schedule deleted successfully.');
+        return (int) $assignment->id;
     }
 }

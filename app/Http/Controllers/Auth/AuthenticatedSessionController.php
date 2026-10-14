@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\Auth\ActiveRole;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -16,29 +18,38 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
-        return view('auth.login');
+        $registrationOpen = Route::has('register')
+            && filter_var(function_exists('setting') ? setting('security.registration_enabled', true) : true, FILTER_VALIDATE_BOOLEAN);
+
+        return view('auth.login', [
+            'canResetPassword' => Route::has('password.request'),
+            'canRegister' => $registrationOpen,
+        ]);
     }
 
     /**
      * Handle an incoming authentication request.
+     *
+     * Users holding roles with different dashboards choose one first; everybody
+     * else lands on the dashboard of their (only) role.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
 
         $request->session()->regenerate();
+        $request->session()->forget('active_role');
 
-        $user = Auth::user();
-        
-        // Check if user has both parent and student roles
-        if ($user->hasRole('parent') && $user->hasRole('student')) {
-            // Check if active role is already set in session
-            if (!$request->session()->has('active_role')) {
-                return redirect()->route('role.selection');
-            }
+        $user = $request->user();
+
+        if (ActiveRole::needsSelection($user)) {
+            return redirect()->route('role.selection');
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $role = ActiveRole::rolesOf($user)[0];
+        $request->session()->put('active_role', $role);
+
+        return redirect()->intended(route(ActiveRole::dashboardRoute($role), absolute: false));
     }
 
     /**

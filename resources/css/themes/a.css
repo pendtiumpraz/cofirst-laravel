@@ -1,0 +1,291 @@
+/*
+|--------------------------------------------------------------------------
+| Versi A · Sumi & Shu (墨と朱) — Editorial (default theme)
+|--------------------------------------------------------------------------
+|
+| Token contract (see PLANNING.md §5/§8). Colours are RGB triplets so that
+| Tailwind can add alpha: rgb(var(--cf-brand) / .5). Components and views use
+| only the semantic Tailwind utilities (bg-surface, text-fg-muted …); the
+| raw ramps are for illustrations, charts and course covers.
+|
+| Selectors: `:root` (no data-theme) falls back to Version A. A nested
+| `[data-theme="a"]` container re-declares the tokens for live previews.
+*/
+
+:root,
+[data-theme="a"] {
+    /* ── Ramps (constants, also used by the legacy palette safety net) ── */
+    /* primary — aizome indigo */
+    --cf-primary-50: 241 246 249;
+    --cf-primary-100: 223 234 241;
+    --cf-primary-200: 190 213 227;
+    --cf-primary-300: 144 182 205;
+    --cf-primary-400: 92 144 176;
+    --cf-primary-500: 47 113 150;
+    --cf-primary-600: 29 93 128;
+    --cf-primary-700: 23 75 105;
+    --cf-primary-800: 20 62 87;
+    --cf-primary-900: 18 52 72;
+    --cf-primary-950: 11 33 48;
+    /* accent — shu vermilion (hanko seal) */
+    --cf-accent-50: 253 244 241;
+    --cf-accent-100: 251 228 220;
+    --cf-accent-200: 246 199 184;
+    --cf-accent-300: 238 159 134;
+    --cf-accent-400: 224 112 79;
+    --cf-accent-500: 197 77 45;
+    --cf-accent-600: 174 64 39;
+    --cf-accent-700: 142 52 32;
+    --cf-accent-800: 116 44 29;
+    --cf-accent-900: 95 39 27;
+    --cf-accent-950: 52 18 11;
+    /* neutral — Tailwind stone */
+    --cf-neutral-50: 250 250 249;
+    --cf-neutral-100: 245 245 244;
+    --cf-neutral-200: 231 229 228;
+    --cf-neutral-300: 214 211 209;
+    --cf-neutral-400: 168 162 158;
+    --cf-neutral-500: 120 113 108;
+    --cf-neutral-600: 87 83 78;
+    --cf-neutral-700: 68 64 60;
+    --cf-neutral-800: 41 37 36;
+    --cf-neutral-900: 28 25 23;
+    --cf-neutral-950: 12 10 9;
+
+    /* ── Light 'Washi' ── */
+    --cf-canvas: 250 248 244;
+    --cf-surface: 255 255 255;
+    --cf-surface-2: 243 240 234;
+    --cf-surface-3: 236 231 223;
+
+    --cf-border: 230 225 216;
+    --cf-border-strong: 214 207 196;
+    --cf-border-input: 138 132 126; /* 3.70:1 on white */
+
+    --cf-fg: 28 27 25;
+    --cf-fg-muted: 74 70 66;
+    --cf-fg-subtle: 107 101 95;
+
+    --cf-brand: 29 93 128;
+    --cf-brand-hover: 23 75 105;
+    --cf-on-brand: 255 255 255;
+    --cf-brand-text: 23 75 105;
+    --cf-brand-soft: 241 246 249;
+    --cf-on-brand-soft: 23 75 105;
+
+    --cf-accent: 174 64 39;
+    --cf-accent-text: 174 64 39;
+    --cf-accent-solid: 174 64 39;
+    --cf-accent-solid-hover: 142 52 32;
+    --cf-on-accent: 255 255 255;
+
+    --cf-ring: 47 113 150;
+    --cf-nav-indicator: 174 64 39;
+    --cf-tab-active: 28 27 25;
+    /* The sidebar shares the canvas behind a hairline (content is the figure). */
+    --cf-sidebar-bg: var(--cf-canvas);
+
+    --cf-success: 46 118 80;
+    --cf-success-soft: 234 244 238;
+    --cf-success-solid: 46 118 80;
+    --cf-warning: 154 91 11;
+    --cf-warning-soft: 251 241 226;
+    --cf-warning-solid: 154 91 11;
+    --cf-danger: 176 40 63;
+    --cf-danger-soft: 251 234 236;
+    --cf-danger-solid: 176 40 63;
+    --cf-info: 44 92 153;
+    --cf-info-soft: 237 242 250;
+    --cf-info-solid: 44 92 153;
+
+    --cf-code-bg: 243 240 234;
+    --cf-code-fg: 28 27 25;
+    --cf-grid: 230 225 216;
+
+    --cf-chart-1: 29 93 128;
+    --cf-chart-2: 197 77 45;
+    --cf-chart-3: 107 143 62;
+    --cf-chart-4: 176 141 87;
+    --cf-chart-5: 120 113 108;
+    --cf-chart-6: 92 144 176;
+
+    --cf-selection: 29 93 128;
+    --cf-selection-alpha: 0.18;
+
+    /* ── Typography ── */
+    --cf-font-display: 'Newsreader Variable', ui-serif, Georgia, Cambria, 'Times New Roman', serif;
+    --cf-font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --cf-font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --cf-font-num: var(--cf-font-display);
+    --cf-font-eyebrow: var(--cf-font-sans);
+    --cf-display-weight: 500;
+    --cf-title-weight: 500;
+    --cf-display-tracking: -0.02em;
+    --cf-eyebrow-tracking: 0.14em;
+    --cf-eyebrow-size: 0.75rem;
+    --cf-eyebrow-weight: 600;
+    --cf-eyebrow-case: uppercase;
+    /* Sidebar / menu group labels (smaller eyebrow so 'SERTIFIKAT & GAMIFIKASI' fits one line). */
+    --cf-nav-label-size: 0.6875rem;
+    --cf-nav-label-tracking: 0.12em;
+    --cf-em-style: italic;
+    --cf-em-color: currentColor;
+    --cf-ui-text: 0.9375rem; /* 15px */
+    --cf-page-title-size: 1.875rem;
+    --cf-card-title-size: 1.125rem;
+    --cf-kpi-size: 2rem;
+    --cf-kpi-weight: 500;
+    --cf-btn-weight: 600;
+    --cf-th-case: uppercase;
+    --cf-th-tracking: 0.08em;
+    --cf-th-size: 0.75rem;
+    --cf-th-weight: 600;
+    --cf-th-fg: var(--cf-fg-subtle);
+    --cf-th-h: 44px;
+    --cf-stat-label-font: var(--cf-font-eyebrow);
+    --cf-stat-label-size: 0.75rem;
+    --cf-stat-label-case: uppercase;
+    --cf-stat-label-tracking: 0.08em;
+    --cf-stat-label-weight: 600;
+    --cf-stat-label-fg: var(--cf-fg-subtle);
+
+    /* ── Icons ── */
+    --cf-icon-stroke: 1.5;
+
+    /* ── Radii ── */
+    --cf-radius-sm: 6px;
+    --cf-radius-md: 10px;
+    --cf-radius-lg: 14px;
+    --cf-radius-xl: 20px;
+    --cf-radius-2xl: 28px;
+    --cf-badge-radius: 9999px;
+    --cf-badge-h: 1.5rem;
+    --cf-badge-px: 0.625rem;
+    --cf-badge-weight: 600;
+    --cf-badge-border-alpha: 0;
+    --cf-empty-tile: 3.5rem;
+    --cf-empty-radius: 9999px;
+    --cf-empty-border-alpha: 0;
+    --cf-toast-bar: 0px;
+
+    /* ── Shadows (practically shadowless, like print) ── */
+    --cf-shadow-1: 0 1px 2px rgb(28 27 25 / 0.05);
+    --cf-shadow-2: 0 1px 2px rgb(28 27 25 / 0.04), 0 12px 32px -12px rgb(28 27 25 / 0.18);
+    --cf-shadow-3: 0 32px 80px -24px rgb(28 27 25 / 0.32);
+    --cf-btn-primary-inset: 0 0 #0000;
+
+    /* ── Density: comfortable (default) ── */
+    --cf-control-h: 44px;
+    --cf-control-h-sm: 36px;
+    --cf-control-h-lg: 52px;
+    --cf-row-h: 52px;
+    --cf-card-p: 24px;
+    --cf-gap: 24px;
+    --cf-nav-item-h: 40px;
+    --cf-nav-active-weight: 600;
+
+    /* ── Shell ── */
+    --cf-sidebar-w: 264px;
+    --cf-rail-w: 72px;
+    --cf-topbar-h: 64px;
+    --cf-appbar-h: 56px;
+    --cf-tabbar-h: 64px;
+
+    /* ── Motion ── */
+    --cf-ease-out: cubic-bezier(0.2, 0, 0, 1);
+    --cf-dur-1: 150ms;
+    --cf-dur-2: 240ms;
+    --cf-dur-3: 300ms;
+    --cf-dur-4: 480ms;
+
+    /* Photos are never dimmed in light mode. */
+    --cf-photo-filter: none;
+}
+
+/* ── Compact density ── */
+[data-density="compact"]:not([data-theme="b"]),
+[data-density="compact"] [data-theme="a"] {
+    --cf-control-h: 40px;
+    --cf-control-h-sm: 32px;
+    --cf-row-h: 40px;
+    --cf-card-p: 20px;
+    --cf-gap: 16px;
+    --cf-ui-text: 0.875rem;
+}
+
+/* ── Phones: tighter card padding and gaps ── */
+@media (max-width: 767px) {
+    :root:not([data-theme="b"]),
+    [data-theme="a"] {
+        --cf-card-p: 20px;
+        --cf-gap: 16px;
+        --cf-page-title-size: 1.5rem;
+        /* Two KPI cells share 343px: 'Rp 48,2 jt' must fit without truncation. */
+        --cf-kpi-size: 1.625rem;
+    }
+}
+
+/* ── Dark 'Yoru' (warm sumi, never pure black) ── */
+.dark:not([data-theme="b"]),
+.dark [data-theme="a"] {
+    --cf-canvas: 15 14 13;
+    --cf-surface: 26 24 22;
+    --cf-surface-2: 35 32 30;
+    --cf-surface-3: 44 41 38;
+
+    --cf-border: 47 43 40;
+    --cf-border-strong: 62 57 52;
+    --cf-border-input: 126 119 111;
+
+    --cf-fg: 238 234 228;
+    --cf-fg-muted: 189 182 173;
+    --cf-fg-subtle: 150 143 134;
+
+    --cf-brand: 144 182 205;
+    --cf-brand-hover: 190 213 227;
+    --cf-on-brand: 11 33 48;
+    --cf-brand-text: 144 182 205;
+    --cf-brand-soft: 22 48 64;
+    --cf-on-brand-soft: 144 182 205;
+
+    --cf-accent: 174 64 39; /* the seal never changes */
+    --cf-accent-text: 224 112 79;
+    --cf-accent-solid: 174 64 39;
+    --cf-accent-solid-hover: 142 52 32;
+    --cf-on-accent: 255 255 255;
+
+    --cf-ring: 144 182 205;
+    --cf-nav-indicator: 224 112 79;
+    --cf-tab-active: 238 234 228;
+
+    --cf-success: 111 191 147;
+    --cf-success-soft: 22 38 29;
+    --cf-warning: 232 176 98;
+    --cf-warning-soft: 55 45 33;
+    --cf-danger: 240 138 155;
+    --cf-danger-soft: 46 26 29;
+    --cf-info: 143 178 227;
+    --cf-info-soft: 42 46 51;
+    /* *-solid keep their light values: white text stays ≥ 5.4:1. */
+
+    --cf-code-bg: 35 32 30;
+    --cf-code-fg: 238 234 228;
+    --cf-grid: 47 43 40;
+
+    --cf-chart-1: 144 182 205;
+    --cf-chart-2: 224 112 79;
+    --cf-chart-3: 163 196 122;
+    --cf-chart-4: 212 180 126;
+    --cf-chart-5: 168 162 158;
+    --cf-chart-6: 92 144 176;
+
+    --cf-selection: 144 182 205;
+    --cf-selection-alpha: 0.25;
+
+    /* Elevation comes from a surface step plus a border-strong edge. */
+    --cf-shadow-1: 0 0 #0000;
+    --cf-shadow-2: 0 0 #0000;
+    --cf-shadow-3: 0 0 #0000;
+
+    --cf-photo-filter: brightness(0.92);
+}

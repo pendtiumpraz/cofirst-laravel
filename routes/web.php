@@ -35,33 +35,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/role-selection', [\App\Http\Controllers\RoleSwitchController::class, 'setActiveRole'])->name('role.set');
     Route::post('/switch-role', [\App\Http\Controllers\RoleSwitchController::class, 'switchRole'])->name('role.switch');
 
-    // Main dashboard entry point: redirect to the dashboard of the user's role
-    Route::get('/dashboard', function () {
-        $user = Auth::user();
-
-        $targets = [
-            'superadmin' => 'admin.dashboard',
-            'admin' => 'admin.dashboard',
-            'teacher' => 'teacher.dashboard',
-            'parent' => 'parent.dashboard',
-            'student' => 'student.dashboard',
-            'finance' => 'finance.dashboard',
-        ];
-
-        // Reason: honour the role chosen on the role-selection screen first.
-        $active = session('active_role');
-        if ($active && isset($targets[$active]) && $user->hasRole($active)) {
-            return redirect()->route($targets[$active]);
-        }
-
-        foreach ($targets as $role => $route) {
-            if ($user->hasRole($role)) {
-                return redirect()->route($route);
-            }
-        }
-
-        return redirect()->route('login');
-    })->name('dashboard');
+    // Main dashboard entry point: redirect to the dashboard of the active role
+    // (role selection first for multi-role users; role-less accounts are signed out).
+    Route::get('/dashboard', [\App\Http\Controllers\RoleSwitchController::class, 'dashboard'])->name('dashboard');
 
     require __DIR__.'/web/shared.php';
     require __DIR__.'/web/account.php';

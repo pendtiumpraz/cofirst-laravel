@@ -3,155 +3,230 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\ClassName;
 use App\Models\Enrollment;
+use App\Models\Privacy\ParentalConsentRequest;
+use App\Models\Profile;
+use App\Models\User;
+use App\Services\Privacy\ConsentService;
+use App\Services\Privacy\ParentalConsentService;
+use App\Services\Privacy\PolicyService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rules;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Illuminate\Support\Str;
 
+/**
+ * Self-registration for students and parents (staff accounts are created by admins).
+ *
+ * UU 27/2022: the privacy notice and terms are acknowledged and recorded (Pasal 21, 24);
+ * optional consents are separate and unticked (Pasal 22 ayat (4)); a student younger than
+ * setting('privacy.child_age_threshold') gets an inactive account until a parent/guardian
+ * approves through an e-mailed link (Pasal 25 ayat (2); PP 33/2026 Pasal 38).
+ */
 class RegisteredUserController extends Controller
 {
-    /**
-     * Display the registration view.
-     */
-    public function create(): View
-    {
-        // Get available classes for registration
-        $classes = \App\Models\ClassName::with(['course', 'teachers'])
-            ->where('is_active', true)
-            ->whereIn('status', ['planned'])
-            ->whereDate('start_date', '>=', now())
-            ->whereRaw('(SELECT COUNT(*) FROM enrollments WHERE class_id = class_names.id AND status IN ("active", "pending")) < max_students')
-            ->orderBy('start_date')
-            ->get();
-            
-        return view('auth.register', compact('classes'));
+    public function __construct(
+        private readonly ConsentService $consents,
+        private readonly PolicyService $policies,
+        private readonly ParentalConsentService $parental,
+    ) {
     }
 
     /**
-     * Handle an incoming registration request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
+     * Registration form, or the "closed" state when self-registration is off.
      */
-    public function store(Request $request): RedirectResponse
+    public function create(Request $request): View
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'parent_name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:20'],
-            'address' => ['required', 'string', 'max:500'],
-            'birth_date' => ['required', 'date', 'before:today'],
-            'gender' => ['required', 'in:male,female'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'class_id' => ['required', 'exists:class_names,id'],
+        $roles = RegisterRequest::allowedRoles();
+
+        if (! setting('security.registration_enabled', true) || $roles === []) {
+            return view('auth.register', ['closed' => true]);
+        }
+
+        $role = in_array($request->query('peran'), $roles, true) ? $request->query('peran') : $roles[0];
+
+        return view('auth.register', [
+            'closed' => false,
+            'roles' => $roles,
+            'role' => $role,
+            'classes' => in_array('student', $roles, true) ? $this->openClasses() : collect(),
+            'optional' => $this->optionalPurposes(),
+            'threshold' => RegisterRequest::threshold(),
+            'parentalRequired' => (bool) setting('privacy.require_parental_consent', true),
+            'notice' => $this->policies->currentMeta('privacy_notice'),
+            'terms' => $this->policies->currentMeta('terms'),
+            'prefillEmail' => is_string($request->query('email')) ? mb_substr($request->query('email'), 0, 191) : null,
+            'invitation' => is_string($request->query('undangan')) ? mb_substr($request->query('undangan'), 0, 128) : null,
+        ]);
+    }
+
+    /**
+     * Create the account, record acknowledgements and consents, and start parental consent
+     * for children.
+     *
+     * @throws ValidationException
+     */
+    public function store(RegisterRequest $request): RedirectResponse
+    {
+        abort_unless(setting('security.registration_enabled', true) && RegisterRequest::allowedRoles() !== [], 403, 'Pendaftaran mandiri sedang ditutup.');
+
+        $role = $request->validated('role');
+        $needsGuardian = $request->needsGuardian();
+
+        $result = DB::transaction(function () use ($request, $role, $needsGuardian) {
+            $user = User::create([
+                'name' => $request->validated('name'),
+                'email' => $request->validated('email'),
+                'password' => Hash::make($request->validated('password')),
+                'is_active' => ! $needsGuardian,
+            ]);
+            $user->assignRole($role);
+
+            Profile::create([
+                'user_id' => $user->id,
+                'full_name' => $request->validated('name'),
+                'phone_number' => $request->validated('phone'),
+                'birth_date' => $role === 'student' ? $request->validated('birth_date') : null,
+            ]);
+            $user->load('profile');
+
+            $class = $role === 'student' && $request->validated('class_id')
+                ? $this->reserveSeat($user, (int) $request->validated('class_id'))
+                : null;
+
+            $this->policies->accept($user, $this->policies->currentMany(PolicyService::ACCEPTANCE_TYPES), 'registration', $request, $user);
+
+            $consentRequest = null;
+            if ($needsGuardian) {
+                $consentRequest = $this->parental->create($user, $request->validated('guardian_name'), $request->validated('guardian_email'), $request->validated('guardian_relationship'));
+            } else {
+                $this->recordOptionalConsents($user, (array) $request->validated('consents', []), $request);
+            }
+
+            return compact('user', 'class', 'consentRequest');
+        });
+
+        /** @var User $user */
+        $user = $result['user'];
+
+        if ($result['consentRequest']) {
+            $sent = $this->parental->send($result['consentRequest']);
+            ConsentService::audit('registration.pending_parental', $user, ['request_id' => $result['consentRequest']->id]);
+
+            return redirect()->route('register.success')->with('registration', [
+                'state' => 'pending',
+                'first_name' => strtok($user->name, ' '),
+                'guardian_email' => ParentalConsentRequest::mask($result['consentRequest']->guardian_email),
+                'email' => $user->email,
+                'sent' => $sent,
+                'class' => $result['class']?->name,
+                'expires' => PolicyService::date($result['consentRequest']->fresh()->expires_at, true),
+            ]);
+        }
+
+        if ($role === 'parent' && $request->validated('undangan')) {
+            $this->parental->linkInvitedParent($user, $request->validated('undangan'));
+        }
+
+        event(new Registered($user));
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        $message = 'Selamat datang, '.strtok($user->name, ' ').'! Akun Anda sudah aktif.';
+        if ($result['class']) {
+            $message .= ' Pendaftaran kelas '.$result['class']->name.' menunggu konfirmasi pembayaran dari admin.';
+        }
+
+        return redirect()->route('dashboard')->with('success', $message);
+    }
+
+    /**
+     * Status page after registration (parental consent pending, or a generic page).
+     */
+    public function success(Request $request): View
+    {
+        return view('auth.register-success', [
+            'registration' => $request->session()->get('registration'),
+            'dpoEmail' => (string) setting('privacy.dpo_email', ''),
+        ]);
+    }
+
+    /**
+     * Planned classes with free seats that start today or later.
+     *
+     * @return Collection<int, ClassName>
+     */
+    private function openClasses(): Collection
+    {
+        return ClassName::query()
+            ->with('course:id,name')
+            ->withSeatsTaken()
+            ->withAvailableSeats()
+            ->where('is_active', true)
+            ->where('status', ClassName::STATUS_PLANNED)
+            ->whereDate('start_date', '>=', today())
+            ->orderBy('start_date')
+            ->limit(50)
+            ->get(['id', 'course_id', 'name', 'start_date', 'max_students', 'type', 'delivery_method']);
+    }
+
+    /**
+     * Hold a seat with a pending enrollment (awaiting payment / admin confirmation).
+     *
+     * @throws ValidationException
+     */
+    private function reserveSeat(User $student, int $classId): ClassName
+    {
+        // Reason: lock the class row so two registrations cannot take the last seat together.
+        $class = ClassName::query()->whereKey($classId)->lockForUpdate()->first();
+
+        if (! $class || ! $class->is_active || $class->status !== ClassName::STATUS_PLANNED || ! $class->hasCapacity()) {
+            throw ValidationException::withMessages(['class_id' => 'Kelas ini sudah penuh atau tidak lagi dibuka. Silakan pilih kelas lain.']);
+        }
+
+        Enrollment::create([
+            'student_id' => $student->id,
+            'course_id' => $class->course_id,
+            'class_id' => $class->id,
+            'enrollment_date' => now(),
+            'status' => Enrollment::STATUS_PENDING,
+            'payment_status' => 'unpaid',
+            'notes' => 'Pendaftaran mandiri melalui situs.',
         ]);
 
-        DB::beginTransaction();
-        
-        try {
-            // Generate student username from name
-            $studentUsername = Str::slug($request->name) . '@coding1st.com';
-            $counter = 1;
-            while (User::where('email', $studentUsername)->exists()) {
-                $studentUsername = Str::slug($request->name) . $counter . '@coding1st.com';
-                $counter++;
+        return $class;
+    }
+
+    /**
+     * Optional, consent-based purposes offered at registration (not cookies; those use the banner).
+     */
+    private function optionalPurposes(): Collection
+    {
+        return $this->consents->purposes()
+            ->filter(fn ($p) => $p->is_active && $p->isConsentBased() && ! $p->is_required && ! $p->isCookie() && $p->audience !== 'children')
+            ->values();
+    }
+
+    /**
+     * Grant only the optional purposes that were ticked and apply to the new account.
+     */
+    private function recordOptionalConsents(User $user, array $keys, Request $request): void
+    {
+        $allowed = $this->consents->purposesFor($user, true)->pluck('key')->all();
+
+        foreach (array_unique($keys) as $key) {
+            $purpose = $this->consents->purpose($key);
+
+            if ($purpose && ! $purpose->is_required && ! $purpose->isCookie() && in_array($key, $allowed, true)) {
+                $this->consents->grant($user, $key, 'registration', $user, ['form' => 'register'], $request);
             }
-            
-            // Create student account
-            $student = User::create([
-                'name' => $request->name,
-                'email' => $studentUsername,
-                'password' => Hash::make($request->password),
-                'phone' => $request->phone,
-                'address' => $request->address,
-                'birth_date' => $request->birth_date,
-                'gender' => $request->gender,
-                'is_active' => false, // Inactive until payment
-            ]);
-            
-            // Assign student role
-            $student->assignRole('student');
-            
-            // Generate parent username
-            $parentUsername = 'parent-' . Str::slug($request->name) . '@coding1st.com';
-            $counter = 1;
-            while (User::where('email', $parentUsername)->exists()) {
-                $parentUsername = 'parent-' . Str::slug($request->name) . $counter . '@coding1st.com';
-                $counter++;
-            }
-            
-            // Create parent account
-            $parent = User::create([
-                'name' => $request->parent_name,
-                'email' => $parentUsername,
-                'password' => Hash::make($request->password),
-                'phone' => $request->phone,
-                'address' => $request->address,
-                'is_active' => false, // Inactive until payment
-            ]);
-            
-            // Assign parent role
-            $parent->assignRole('parent');
-            
-            // Link parent to student
-            DB::table('parent_student')->insert([
-                'parent_id' => $parent->id,
-                'student_id' => $student->id,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            
-            // Get the selected class
-            $class = ClassName::with('course')->findOrFail($request->class_id);
-            
-            // Verify class is still available
-            $currentEnrollments = Enrollment::where('class_id', $class->id)
-                ->whereIn('status', ['active', 'pending'])
-                ->count();
-                
-            if ($currentEnrollments >= $class->max_students) {
-                throw new \Exception('Class is full. Please select another class.');
-            }
-            
-            // Create enrollment with selected class
-            $enrollment = Enrollment::create([
-                'student_id' => $student->id,
-                'course_id' => $class->course_id,
-                'class_id' => $class->id,
-                'enrollment_date' => now(),
-                'status' => 'pending', // Pending payment and admin approval
-                'payment_status' => 'unpaid',
-            ]);
-            
-            DB::commit();
-            
-            // Send registration notification to admin
-            // TODO: Implement notification
-            
-            event(new Registered($student));
-            event(new Registered($parent));
-            
-            // Redirect to success page with registration info
-            return redirect()->route('register.success')->with([
-                'student_email' => $studentUsername,
-                'parent_email' => $parentUsername,
-                'course_name' => $class->course->name,
-                'class_name' => $class->name,
-                'class_start_date' => $class->start_date->format('d M Y'),
-                'teacher_name' => $class->teachers->first()->name ?? 'TBA',
-                'message' => 'Registration successful! Your accounts have been created but are inactive. Please wait for admin approval after payment.'
-            ]);
-            
-        } catch (\Exception $e) {
-            DB::rollback();
-            return back()->with('error', 'Registration failed. Please try again.')->withInput();
         }
     }
 }

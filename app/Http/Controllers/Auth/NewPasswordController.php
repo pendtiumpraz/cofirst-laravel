@@ -3,14 +3,17 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Models\User;
+use App\Services\Auth\UserSessionService;
+use App\Support\Auth\PasswordPolicy;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class NewPasswordController extends Controller
@@ -20,43 +23,49 @@ class NewPasswordController extends Controller
      */
     public function create(Request $request): View
     {
-        return view('auth.reset-password', ['request' => $request]);
+        return view('auth.reset-password', [
+            'request' => $request,
+            'token' => (string) $request->route('token'),
+            'email' => (string) $request->query('email', ''),
+            'requirements' => PasswordPolicy::requirements(),
+            'summary' => PasswordPolicy::summary(),
+        ]);
     }
 
     /**
      * Handle an incoming new password request.
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * A successful reset rotates the remember token and ends every existing session
+     * of the account, so whoever may have had access is signed out.
+     *
+     * @throws ValidationException
      */
-    public function store(Request $request): RedirectResponse
+    public function store(ResetPasswordRequest $request, UserSessionService $sessions): RedirectResponse
     {
-        $request->validate([
-            'token' => ['required'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
-
-        // Here we will attempt to reset the user's password. If it is successful we
-        // will update the password on an actual user model and persist it to the
-        // database. Otherwise we will parse the error and return the response.
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
-            function (User $user) use ($request) {
+            function (User $user) use ($request, $sessions) {
                 $user->forceFill([
-                    'password' => Hash::make($request->password),
+                    'password' => Hash::make($request->validated('password')),
                     'remember_token' => Str::random(60),
                 ])->save();
+
+                $sessions->deleteOthers($user, null);
 
                 event(new PasswordReset($user));
             }
         );
 
-        // If the password was successfully reset, we will redirect the user back to
-        // the application's home authenticated view. If there is an error we can
-        // redirect them back to where they came from with their error message.
-        return $status == Password::PASSWORD_RESET
-                    ? redirect()->route('login')->with('status', __($status))
-                    : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+        if ($status === Password::PASSWORD_RESET) {
+            return redirect()->route('login')
+                ->with('status', 'Kata sandi berhasil diganti. Silakan masuk dengan kata sandi baru Anda.');
+        }
+
+        // Reason: an unknown email and an invalid token get the same message (no account enumeration).
+        $message = $status === Password::RESET_THROTTLED
+            ? trans('passwords.throttled')
+            : 'Tautan atur ulang kata sandi tidak valid atau sudah kedaluwarsa. Minta tautan baru lalu coba lagi.';
+
+        return back()->withInput($request->only('email'))->withErrors(['email' => $message]);
     }
 }

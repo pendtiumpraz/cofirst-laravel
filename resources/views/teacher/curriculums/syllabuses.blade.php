@@ -1,30 +1,35 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Curriculum Syllabuses') }}
-        </h2>
-    </x-slot>
+<x-app-layout :title="'Pertemuan · '.$curriculum->title">
+    <x-ui.page-header title="Daftar pertemuan" :subtitle="$curriculum->title"
+        :breadcrumbs="['Kurikulum' => route('teacher.curriculums.index'), $curriculum->title => route('teacher.curriculums.show', $curriculum), 'Pertemuan' => null]" />
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Curriculum syllabuses feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show all syllabuses for this curriculum.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('teacher.curriculums.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Curriculums
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</x-app-layout> 
+    <x-ui.table caption="Pertemuan kurikulum {{ $curriculum->title }}" mobile="stack">
+        <x-slot:head>
+            <x-ui.th numeric>Ke</x-ui.th>
+            <x-ui.th>Judul</x-ui.th>
+            <x-ui.th numeric>Durasi</x-ui.th>
+            <x-ui.th numeric>Materi</x-ui.th>
+            <x-ui.th><span class="sr-only">Aksi</span></x-ui.th>
+        </x-slot:head>
+
+        @foreach ($syllabuses as $syllabus)
+            <tr>
+                <td class="num" data-label="Pertemuan ke">{{ $syllabus->meeting_number }}</td>
+                <td class="cell-primary" data-label="Judul">
+                    <a href="{{ route('teacher.syllabuses.show', $syllabus) }}" class="font-medium text-fg hover:text-brand-text">{{ $syllabus->title }}</a>
+                    @if (filled($syllabus->description))
+                        <p class="cell-secondary line-clamp-1">{{ $syllabus->description }}</p>
+                    @endif
+                </td>
+                <td class="num" data-label="Durasi">{{ $syllabus->duration_minutes }} mnt</td>
+                <td class="num" data-label="Materi">{{ $syllabus->active_materials_count }}</td>
+                <td class="cell-actions">
+                    <x-ui.button variant="ghost" size="sm" icon="arrow-right" label="Buka pertemuan {{ $syllabus->meeting_number }}" :href="route('teacher.syllabuses.show', $syllabus)" />
+                </td>
+            </tr>
+        @endforeach
+
+        <x-slot:empty>
+            <x-ui.empty-state icon="calendar-days" title="Belum ada pertemuan aktif." />
+        </x-slot:empty>
+    </x-ui.table>
+</x-app-layout>

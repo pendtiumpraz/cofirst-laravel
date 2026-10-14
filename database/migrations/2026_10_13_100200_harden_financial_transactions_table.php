@@ -77,10 +77,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('financial_transactions', function (Blueprint $table) {
-            $table->dropIndex('fin_tx_student_status_index');
-            $table->dropIndex('fin_tx_status_due_index');
-            $table->dropIndex('fin_tx_type_status_index');
-            $table->dropIndex('fin_tx_transaction_date_index');
+            // Reason: foreign keys go first. On MySQL/MariaDB fin_tx_student_status_index
+            // replaced the implicit index of the student_id foreign key, so it can only
+            // be dropped once that key is gone (error 1553 otherwise).
             $table->dropForeign(['student_id']);
             $table->dropForeign(['course_id']);
             $table->dropForeign(['enrollment_id']);
@@ -88,6 +87,10 @@ return new class extends Migration
             $table->dropForeign(['refund_of_id']);
             $table->dropForeign(['recorded_by']);
             $table->dropForeign(['verified_by']);
+            $table->dropIndex('fin_tx_student_status_index');
+            $table->dropIndex('fin_tx_status_due_index');
+            $table->dropIndex('fin_tx_type_status_index');
+            $table->dropIndex('fin_tx_transaction_date_index');
             $table->dropUnique(['invoice_number']);
         });
 

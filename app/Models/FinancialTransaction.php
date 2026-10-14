@@ -159,8 +159,8 @@ class FinancialTransaction extends Model
         return $this->belongsTo(self::class, 'refund_of_id');
     }
 
-    /** For a payment: its refund rows. */
-    public function refunds(): HasMany
+    /** For a payment: its refund rows (scopeRefunds() filters refund rows instead). */
+    public function refundTransactions(): HasMany
     {
         return $this->hasMany(self::class, 'refund_of_id');
     }

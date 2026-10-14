@@ -25,21 +25,30 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['role:admin|superadmin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('dashboard', [Admin\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('teachers/performance', [Admin\DashboardController::class, 'teachers'])->name('teachers.ranking');
 
-    // Users
-    Route::resource('users', UserController::class);
+    // Users (static segments before the resource wildcard)
+    Route::get('users/search', [UserController::class, 'search'])->name('users.search');
+    Route::resource('users', UserController::class)->withTrashed(['show']);
     Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+    Route::post('users/{user}/restore', [UserController::class, 'restore'])->withTrashed()->name('users.restore');
+    Route::post('users/{user}/password-link', [UserController::class, 'sendPasswordLink'])->name('users.password-link');
+    Route::post('users/{user}/family', [UserController::class, 'attachFamily'])->name('users.family.attach');
+    Route::delete('users/{user}/family/{related}', [UserController::class, 'detachFamily'])->name('users.family.detach');
 
     // Courses
-    Route::resource('courses', CourseController::class);
+    Route::resource('courses', CourseController::class)->withTrashed(['show']);
     Route::post('courses/{course}/toggle-status', [CourseController::class, 'toggleStatus'])->name('courses.toggle-status');
+    Route::post('courses/{course}/restore', [CourseController::class, 'restore'])->withTrashed()->name('courses.restore');
     Route::get('courses/{course}/curriculum', [ClassController::class, 'getCurriculumByCourse'])->name('courses.curriculum');
 
     // Classes
-    Route::resource('classes', ClassController::class);
+    Route::resource('classes', ClassController::class)->withTrashed(['show']);
+    Route::post('classes/{class}/restore', [ClassController::class, 'restore'])->withTrashed()->name('classes.restore');
     Route::get('classes/{class}/students', [ClassController::class, 'students'])->name('classes.students');
     Route::post('classes/{class}/add-student', [ClassController::class, 'addStudent'])->name('classes.add-student');
     Route::delete('classes/{class}/remove-student/{student}', [ClassController::class, 'removeStudent'])->name('classes.remove-student');
+    Route::patch('classes/{class}/enrollments/{enrollment}/status', [ClassController::class, 'updateStudentStatus'])->name('classes.student-status');
 
     // Curriculum, syllabus, materials
     Route::resource('curriculums', CurriculumController::class);
@@ -53,16 +62,23 @@ Route::middleware(['role:admin|superadmin'])->prefix('admin')->name('admin.')->g
     Route::resource('materials', MaterialController::class);
     Route::post('materials/{material}/toggle-status', [MaterialController::class, 'toggleStatus'])->name('materials.toggle-status');
     Route::get('materials/{material}/download', [MaterialController::class, 'download'])->name('materials.download');
+    Route::post('materials/{material}/move', [MaterialController::class, 'move'])->name('materials.move');
 
     // Reports
     Route::get('reports', [ReportController::class, 'adminIndex'])->name('reports.index');
+    Route::get('reports/export', [ReportController::class, 'adminExport'])->name('reports.export');
+    Route::get('reports/{report}', [ReportController::class, 'adminShow'])->name('reports.show');
 
     // Enrollments
+    Route::get('enrollments/export', [EnrollmentController::class, 'export'])->name('enrollments.export');
     Route::resource('enrollments', EnrollmentController::class);
     Route::post('enrollments/{enrollment}/toggle-status', [EnrollmentController::class, 'toggleStatus'])->name('enrollments.toggle-status');
 
-    // Schedules
+    // Schedules (weekly slots) and the JSON helpers of the schedule form
     Route::resource('schedules', Admin\ScheduleController::class);
+    Route::post('schedules/{schedule}/toggle-status', [Admin\ScheduleController::class, 'toggleStatus'])->name('schedules.toggle-status');
+    Route::get('schedule-data/teachers/{class}', [ScheduleDataController::class, 'teachers'])->name('schedule-data.teachers');
+    Route::get('schedule-data/students/{class}', [ScheduleDataController::class, 'students'])->name('schedule-data.students');
 
     // Class photo gallery
     Route::resource('class-photos', Admin\ClassPhotoController::class);
@@ -99,9 +115,3 @@ Route::middleware(['role:admin|superadmin'])->prefix('admin')->name('admin.')->g
     });
 });
 
-// JSON helpers used by the admin schedule forms
-Route::middleware(['role:admin|superadmin'])->prefix('api/schedule-data')->group(function () {
-    Route::get('teachers/{class_id}', [ScheduleDataController::class, 'getTeachersByClass']);
-    Route::get('students/{class_id}', [ScheduleDataController::class, 'getStudentsByClass']);
-    Route::get('enrollments/{class_id}', [ScheduleDataController::class, 'getEnrollmentsByClass']);
-});

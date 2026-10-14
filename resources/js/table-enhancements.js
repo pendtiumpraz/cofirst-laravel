@@ -1,212 +1,235 @@
-// Table Enhancement Script
-document.addEventListener('DOMContentLoaded', function() {
-    // Find all tables with data-enhance attribute
-    const tables = document.querySelectorAll('table[data-enhance="true"]');
-    
-    tables.forEach(table => {
-        enhanceTable(table);
-    });
+/**
+ * Progressive table enhancements for legacy tables:
+ *   <table data-enhance="true" [data-searchable="false"] [data-sortable="false"] [data-show-no="false"]>
+ *
+ * - search box (client-side filter of the current page; the term is carried
+ *   to the server as ?search= when following a pagination link)
+ * - click/keyboard sorting per column (skips th[data-sortable="false"],
+ *   e.g. headers rendered by <x-ui.th> that already sort server-side)
+ * - "No" column that continues the pagination offset
+ *
+ * Fixes vs. the first version: the No column is inserted before sort indexes
+ * are captured (sorting hit the wrong column), IDR amounts ('Rp 1.250.000')
+ * parse correctly, empty-state rows are ignored and renumbering keeps the
+ * page offset.
+ */
+
+const SKIP_HEADERS = ['no', 'aksi', 'actions', 'tindakan'];
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('table[data-enhance="true"]').forEach((table) => enhanceTable(table));
 });
 
+function dataRows(table) {
+    const tbody = table.tBodies[0];
+    if (!tbody) return [];
+
+    // Reason: a single full-width cell (colspan) is an empty-state row, not data.
+    return [...tbody.rows].filter((row) => !row.hasAttribute('data-empty') && !(row.cells.length === 1 && row.cells[0].colSpan > 1));
+}
+
 function enhanceTable(table) {
-    const wrapper = table.closest('.table-wrapper') || table.parentElement;
-    
-    // Add search functionality
+    if (table.dataset.enhanced === '1') return;
+    table.dataset.enhanced = '1';
+
+    const wrapper = table.closest('.table-wrapper, .table-wrap') || table.parentElement;
+    const offset = paginationOffset(wrapper);
+    table.dataset.offset = String(offset);
+
     if (table.dataset.searchable !== 'false') {
         addSearchFunctionality(table, wrapper);
     }
-    
-    // Add sorting functionality
+
+    if (table.dataset.showNo !== 'false') {
+        addNumberColumn(table, offset);
+    }
+
     if (table.dataset.sortable !== 'false') {
         addSortingFunctionality(table);
     }
-    
-    // Add NO column
-    if (table.dataset.showNo !== 'false') {
-        addNumberColumn(table);
-    }
-    
-    // Enhance pagination
+
     enhancePagination(wrapper);
 }
 
+/** First item number of the current page (from the pagination component). */
+function paginationOffset(wrapper) {
+    const scope = wrapper?.closest('section, main, body') || document;
+    const nav = scope.querySelector('[data-pagination-from]') || document.querySelector('[data-pagination-from]');
+    if (nav) {
+        const from = parseInt(nav.dataset.paginationFrom, 10);
+        return Number.isFinite(from) && from > 0 ? from : 1;
+    }
+
+    const legacy = document.querySelector('nav[aria-label="Pagination Navigation"] p.text-sm');
+    const match = legacy?.textContent.match(/\b(\d+)\b/);
+    return match ? parseInt(match[1], 10) : 1;
+}
+
 function addSearchFunctionality(table, wrapper) {
-    // Create search input
-    const searchContainer = document.createElement('div');
-    searchContainer.className = 'mb-4';
-    searchContainer.innerHTML = `
-        <div class="relative max-w-sm">
-            <input 
-                type="text" 
-                class="table-search w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Search..."
-            >
-            <svg class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+    const container = document.createElement('div');
+    container.className = 'mb-4';
+    container.innerHTML = `
+        <label class="relative block max-w-sm">
+            <span class="sr-only">Cari di tabel</span>
+            <svg class="pointer-events-none absolute left-3 top-1/2 size-[1.125rem] -translate-y-1/2 text-fg-subtle" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true" data-slot="icon">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
             </svg>
-        </div>
-    `;
-    
-    // Insert before table
-    wrapper.insertBefore(searchContainer, wrapper.firstChild);
-    
-    // Add search functionality
-    const searchInput = searchContainer.querySelector('.table-search');
-    const tbody = table.querySelector('tbody');
-    const rows = tbody.querySelectorAll('tr');
-    
-    searchInput.addEventListener('input', function(e) {
-        const searchTerm = e.target.value.toLowerCase();
-        
-        rows.forEach(row => {
-            const text = row.textContent.toLowerCase();
-            row.style.display = text.includes(searchTerm) ? '' : 'none';
+            <input type="search" class="table-search input pl-10" placeholder="Cari di tabel…" autocomplete="off">
+        </label>`;
+
+    wrapper.insertBefore(container, wrapper.firstChild);
+
+    const input = container.querySelector('.table-search');
+    const initial = new URLSearchParams(window.location.search).get('search');
+    if (initial) input.value = initial;
+
+    const apply = () => {
+        const term = input.value.trim().toLowerCase();
+        dataRows(table).forEach((row) => {
+            row.style.display = !term || row.textContent.toLowerCase().includes(term) ? '' : 'none';
         });
-        
-        // Update row numbers after filtering
         updateRowNumbers(table);
-    });
+    };
+
+    input.addEventListener('input', apply);
+    if (initial) apply();
+}
+
+/** Parse a cell for sorting: numbers, 'Rp 1.250.000', '94,1%', else text. */
+function sortValue(text) {
+    const trimmed = text.trim();
+    const numeric = trimmed.replace(/^rp\s*/i, '').replace(/[%\s]/g, '');
+
+    // Indonesian format: '.' thousands, ',' decimals.
+    if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(numeric) || /^-?\d+(,\d+)?$/.test(numeric)) {
+        return { number: parseFloat(numeric.replace(/\./g, '').replace(',', '.')), text: trimmed };
+    }
+
+    if (/^-?\d+(\.\d+)?$/.test(numeric)) {
+        return { number: parseFloat(numeric), text: trimmed };
+    }
+
+    return { number: null, text: trimmed };
 }
 
 function addSortingFunctionality(table) {
-    const headers = table.querySelectorAll('thead th');
-    const tbody = table.querySelector('tbody');
-    
+    const headerRow = table.tHead?.rows[0];
+    if (!headerRow) return;
+
+    const headers = [...headerRow.cells];
+
     headers.forEach((header, index) => {
-        // Skip if header has data-sortable="false"
-        if (header.dataset.sortable === 'false') return;
-        
-        // Skip the NO column and Actions column
-        if (header.textContent.trim() === 'No' || header.textContent.trim() === 'Actions') return;
-        
+        const label = header.textContent.trim().toLowerCase();
+        if (header.dataset.sortable === 'false' || SKIP_HEADERS.includes(label)) return;
+
         header.style.cursor = 'pointer';
         header.style.userSelect = 'none';
-        
-        // Add sort indicator
-        const sortIndicator = document.createElement('span');
-        sortIndicator.className = 'ml-2 text-gray-400';
-        sortIndicator.innerHTML = `
-            <svg class="inline-block w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path>
-            </svg>
-        `;
-        header.appendChild(sortIndicator);
-        
-        header.addEventListener('click', function() {
-            const rows = Array.from(tbody.querySelectorAll('tr:not([style*="display: none"])'));
-            const direction = header.dataset.sortDirection === 'asc' ? 'desc' : 'asc';
-            
-            // Reset all headers
-            headers.forEach(h => {
-                h.dataset.sortDirection = '';
-                const indicator = h.querySelector('svg');
-                if (indicator) {
-                    indicator.parentElement.className = 'ml-2 text-gray-400';
-                }
+        header.tabIndex = 0;
+        header.setAttribute('aria-sort', 'none');
+
+        const indicator = document.createElement('span');
+        indicator.className = 'ml-1 inline-block align-middle text-fg-subtle';
+        indicator.setAttribute('aria-hidden', 'true');
+        indicator.innerHTML =
+            '<svg class="inline-block size-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" data-slot="icon"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9"/></svg>';
+        header.appendChild(indicator);
+
+        const sort = () => {
+            const direction = header.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending';
+
+            headers.forEach((other) => {
+                if (other.hasAttribute('aria-sort')) other.setAttribute('aria-sort', 'none');
             });
-            
-            // Set current header
-            header.dataset.sortDirection = direction;
-            sortIndicator.className = 'ml-2 text-gray-600';
-            
-            // Sort rows
+            header.setAttribute('aria-sort', direction);
+
+            const tbody = table.tBodies[0];
+            const rows = dataRows(table);
+            const factor = direction === 'ascending' ? 1 : -1;
+
             rows.sort((a, b) => {
-                const aValue = a.cells[index].textContent.trim();
-                const bValue = b.cells[index].textContent.trim();
-                
-                // Try to parse as number
-                const aNum = parseFloat(aValue.replace(/[^0-9.-]/g, ''));
-                const bNum = parseFloat(bValue.replace(/[^0-9.-]/g, ''));
-                
-                if (!isNaN(aNum) && !isNaN(bNum)) {
-                    return direction === 'asc' ? aNum - bNum : bNum - aNum;
+                const left = sortValue(a.cells[index]?.textContent ?? '');
+                const right = sortValue(b.cells[index]?.textContent ?? '');
+
+                if (left.number !== null && right.number !== null) {
+                    return (left.number - right.number) * factor;
                 }
-                
-                // Sort as string
-                return direction === 'asc' 
-                    ? aValue.localeCompare(bValue)
-                    : bValue.localeCompare(aValue);
+
+                return left.text.localeCompare(right.text, 'id', { numeric: true, sensitivity: 'base' }) * factor;
             });
-            
-            // Reorder rows
-            rows.forEach(row => tbody.appendChild(row));
-            
-            // Update row numbers after sorting
+
+            rows.forEach((row) => tbody.appendChild(row));
             updateRowNumbers(table);
-        });
-    });
-}
+        };
 
-function addNumberColumn(table) {
-    const thead = table.querySelector('thead');
-    const tbody = table.querySelector('tbody');
-    const headerRow = thead.querySelector('tr');
-    
-    // Add header
-    const noHeader = document.createElement('th');
-    noHeader.className = 'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider';
-    noHeader.textContent = 'No';
-    noHeader.dataset.sortable = 'false';
-    headerRow.insertBefore(noHeader, headerRow.firstChild);
-    
-    // Calculate starting number based on pagination
-    let startNumber = 1;
-    
-    // Look for Laravel pagination info - search for "Showing X to Y"
-    const paginationText = document.querySelector('nav[aria-label="Pagination Navigation"] p.text-sm');
-    if (paginationText) {
-        // Extract first number from "Showing X to Y of Z results"
-        const text = paginationText.textContent;
-        const match = text.match(/\b(\d+)\b/); // Find first number
-        if (match) {
-            startNumber = parseInt(match[1]);
-        }
-    }
-    
-    // Add cells
-    const rows = tbody.querySelectorAll('tr');
-    rows.forEach((row, index) => {
-        const noCell = document.createElement('td');
-        noCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-900';
-        noCell.textContent = startNumber + index;
-        row.insertBefore(noCell, row.firstChild);
-    });
-}
-
-function updateRowNumbers(table) {
-    const tbody = table.querySelector('tbody');
-    const visibleRows = tbody.querySelectorAll('tr:not([style*="display: none"])');
-    
-    visibleRows.forEach((row, index) => {
-        const noCell = row.querySelector('td:first-child');
-        if (noCell && !isNaN(parseInt(noCell.textContent))) {
-            noCell.textContent = index + 1;
-        }
-    });
-}
-
-function enhancePagination(wrapper) {
-    // Find pagination links
-    const paginationLinks = wrapper.querySelectorAll('.pagination a');
-    
-    paginationLinks.forEach(link => {
-        // Preserve search parameters
-        link.addEventListener('click', function(e) {
-            const searchInput = wrapper.querySelector('.table-search');
-            if (searchInput && searchInput.value) {
-                e.preventDefault();
-                const url = new URL(link.href);
-                url.searchParams.set('search', searchInput.value);
-                window.location.href = url.toString();
+        header.addEventListener('click', sort);
+        header.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                sort();
             }
         });
     });
 }
 
-// Export for use in other scripts
+function addNumberColumn(table, offset) {
+    const headerRow = table.tHead?.rows[0];
+    if (!headerRow) return;
+
+    const reference = headerRow.cells[0];
+    const header = document.createElement('th');
+    header.className = reference?.className || '';
+    header.classList.add('num');
+    header.scope = 'col';
+    header.textContent = 'No';
+    header.dataset.sortable = 'false';
+    headerRow.insertBefore(header, reference || null);
+
+    dataRows(table).forEach((row, index) => {
+        const cell = document.createElement('td');
+        cell.className = 'num whitespace-nowrap text-fg-subtle';
+        cell.dataset.cfNo = '1';
+        cell.dataset.label = 'No';
+        cell.textContent = String(offset + index);
+        row.insertBefore(cell, row.firstChild);
+    });
+
+    // Empty-state rows span the extra column too.
+    [...(table.tBodies[0]?.rows ?? [])].forEach((row) => {
+        if (row.cells.length === 1 && row.cells[0].colSpan > 1) row.cells[0].colSpan += 1;
+    });
+}
+
+function updateRowNumbers(table) {
+    const offset = parseInt(table.dataset.offset || '1', 10);
+    let visible = 0;
+
+    dataRows(table).forEach((row) => {
+        const cell = row.querySelector('td[data-cf-no]');
+        if (!cell || row.style.display === 'none') return;
+        cell.textContent = String(offset + visible);
+        visible += 1;
+    });
+}
+
+function enhancePagination(wrapper) {
+    const scope = wrapper?.parentElement || document;
+    scope.querySelectorAll('.pagination a, .pagination-cf a').forEach((link) => {
+        link.addEventListener('click', (event) => {
+            const term = wrapper.querySelector('.table-search')?.value;
+            if (!term) return;
+
+            event.preventDefault();
+            const url = new URL(link.href);
+            url.searchParams.set('search', term);
+            window.location.href = url.toString();
+        });
+    });
+}
+
+// Public API (kept for scripts that call it directly).
 window.TableEnhancements = {
     enhance: enhanceTable,
     addSearch: addSearchFunctionality,
     addSorting: addSortingFunctionality,
-    addNumbers: addNumberColumn
+    addNumbers: addNumberColumn,
 };

@@ -2,12 +2,19 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Enrollment;
-use App\Models\User;
-use App\Models\ClassName;
-use Carbon\Carbon;
+use Database\Seeders\Data\DemoBlueprint;
+use Database\Seeders\Data\DemoContext;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
+/**
+ * Enroll every demo student in 1-3 classes (see DemoBlueprint::enrollments()).
+ *
+ * Statuses agree with the class status; one dropped (refunded) and one cancelled
+ * registration exist. Capacity (max_students) is checked before saving; the
+ * natural key (class_id, student_id) makes re-running idempotent.
+ */
 class EnrollmentSeeder extends Seeder
 {
     /**
@@ -15,68 +22,84 @@ class EnrollmentSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get all active students
-        $students = User::role('student')->where('is_active', true)->get();
-        
-        // Get all active classes
-        $classes = ClassName::where('status', 'active')->get();
-        
-        if ($students->isEmpty() || $classes->isEmpty()) {
-            echo "No students or classes found. Skipping enrollment seeding.\n";
-            return;
-        }
-        
-        // Create enrollments for existing students in existing classes
-        foreach ($students as $student) {
-            // Each student can be enrolled in classes, but limited by available classes
-            $maxEnrollments = min(3, $classes->count());
-            $enrollmentCount = rand(1, $maxEnrollments);
-            $classesToEnroll = $classes->random($enrollmentCount);
-            
-            foreach ($classesToEnroll as $class) {
-                // Check if enrollment already exists
-                $existingEnrollment = Enrollment::where('student_id', $student->id)
-                    ->where('class_id', $class->id)
-                    ->first();
-                
-                if (!$existingEnrollment) {
-                    Enrollment::create([
-                        'student_id' => $student->id,
-                        'class_id' => $class->id,
-                        'enrollment_date' => Carbon::now()->subDays(rand(1, 30)),
-                        'status' => collect(['active', 'completed', 'suspended'])->random(),
-                    ]);
+        $plans = DemoBlueprint::classes();
+        $exceptions = DemoBlueprint::paymentExceptions();
+        $count = 0;
+
+        foreach (DemoBlueprint::enrollments() as $studentKey => $classes) {
+            $student = DemoContext::user($studentKey);
+
+            foreach ($classes as $code => $status) {
+                $class = DemoContext::classByCode($code);
+                $plan = $plans[$code];
+
+                $existing = Enrollment::where('class_id', $class->id)->where('student_id', $student->id)->first();
+                $takesSeat = in_array($status, Enrollment::SEAT_STATUSES, true);
+
+                if ($takesSeat && ! $existing && ! $class->hasCapacity()) {
+                    $this->command?->warn("Kelas {$class->name} penuh, {$student->name} dilewati.");
+
+                    continue;
                 }
+
+                Enrollment::updateOrCreate(
+                    ['class_id' => $class->id, 'student_id' => $student->id],
+                    [
+                        'course_id' => $class->course_id,
+                        'enrollment_date' => $this->enrollmentDate($plan, $status, $studentKey)->toDateString(),
+                        'status' => $status,
+                        'payment_status' => $this->paymentStatus($plan, $status, $exceptions["{$studentKey}:{$code}"] ?? null),
+                        'notes' => $this->notes($status),
+                        'is_active' => in_array($status, Enrollment::SEAT_STATUSES, true),
+                    ]
+                );
+                $count++;
             }
         }
-        
-        // Create additional dummy enrollments if we don't have enough
-        $currentCount = Enrollment::count();
-        $targetCount = 25;
-        
-        if ($currentCount < $targetCount) {
-            $additionalNeeded = $targetCount - $currentCount;
-            
-            for ($i = 0; $i < $additionalNeeded; $i++) {
-                $randomStudent = $students->random();
-                $randomClass = $classes->random();
-                
-                // Check if enrollment already exists
-                $existingEnrollment = Enrollment::where('student_id', $randomStudent->id)
-                    ->where('class_id', $randomClass->id)
-                    ->first();
-                
-                if (!$existingEnrollment) {
-                    Enrollment::create([
-                        'student_id' => $randomStudent->id,
-                        'class_id' => $randomClass->id,
-                        'enrollment_date' => Carbon::now()->subDays(rand(1, 60)),
-                        'status' => collect(['active', 'completed', 'suspended'])->random(),
-                    ]);
-                }
-            }
+
+        $this->command?->info("Demo enrollments: {$count}.");
+    }
+
+    /**
+     * Registration date: 1-2 weeks before the first meeting, or recently for
+     * upcoming classes.
+     */
+    private function enrollmentDate(array $plan, string $status, string $studentKey): Carbon
+    {
+        $first = DemoContext::firstMeeting($plan);
+
+        if ($first->isFuture() || in_array($status, ['pending', 'cancelled'], true)) {
+            return Carbon::today()->subDays(DemoContext::pick($studentKey.$plan['name'], 10) + 1);
         }
-        
-        echo "Created " . Enrollment::count() . " enrollments total.\n";
+
+        return $first->copy()->subDays(7 + DemoContext::pick($studentKey.$plan['name'], 8));
+    }
+
+    /**
+     * payment_status consistent with the invoices FinancialTransactionSeeder creates.
+     */
+    private function paymentStatus(array $plan, string $status, ?string $exception): string
+    {
+        return match (true) {
+            ! empty($plan['free']) => 'paid',
+            $status === 'dropped' => 'refunded',
+            in_array($status, ['pending', 'cancelled'], true) => 'unpaid',
+            $exception === 'overdue' => 'unpaid',
+            in_array($exception, ['pending', 'second_installment_pending'], true) => 'pending',
+            default => 'paid',
+        };
+    }
+
+    /**
+     * Admin note for unusual statuses.
+     */
+    private function notes(string $status): ?string
+    {
+        return match ($status) {
+            'dropped' => 'Mengundurkan diri setelah pertemuan ke-2; biaya dikembalikan.',
+            'cancelled' => 'Pendaftaran dibatalkan sebelum kelas dimulai.',
+            'pending' => 'Menunggu pembayaran dan konfirmasi admin.',
+            default => null,
+        };
     }
 }

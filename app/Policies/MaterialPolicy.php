@@ -4,65 +4,90 @@ namespace App\Policies;
 
 use App\Models\Material;
 use App\Models\User;
-use Illuminate\Auth\Access\HandlesAuthorization;
+use App\Services\Academic\AcademicScope;
+use App\Services\Academic\ProgressService;
 
+/**
+ * Material access.
+ *
+ * - admin/superadmin: everything (also inactive materials);
+ * - teacher: active materials of active meetings of the curricula their classes use;
+ * - student: active material, active meeting, an active/completed enrollment in a class
+ *   with that curriculum, and the meeting unlocked (academic.material_unlock_mode);
+ * - parent: never opens paid content directly (sees titles in the child's progress).
+ */
 class MaterialPolicy
 {
-    use HandlesAuthorization;
-
-    /**
-     * Determine whether the user can view any materials.
-     */
-    public function viewAny(User $user)
-    {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+    public function __construct(
+        private readonly AcademicScope $scope,
+        private readonly ProgressService $progress,
+    ) {
     }
 
-    /**
-     * Determine whether the user can view the material.
-     */
-    public function view(User $user, Material $material)
+    /** Admin material list. */
+    public function viewAny(User $user): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return $this->scope->isAdmin($user);
     }
 
-    /**
-     * Determine whether the user can create materials.
-     */
-    public function create(User $user)
+    /** Open the material page. */
+    public function view(User $user, Material $material): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        if ($this->scope->isAdmin($user)) {
+            return true;
+        }
+
+        if ($user->hasRole('teacher') && $this->teacherCanRead($user, $material)) {
+            return true;
+        }
+
+        return $user->hasRole('student') && $this->progress->canStudentAccess($user, $material);
     }
 
-    /**
-     * Determine whether the user can update the material.
-     */
-    public function update(User $user, Material $material)
+    /** Download or stream the material file. */
+    public function download(User $user, Material $material): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return filled($material->file_path) && $this->view($user, $material);
     }
 
-    /**
-     * Determine whether the user can delete the material.
-     */
-    public function delete(User $user, Material $material)
+    /** Create materials. */
+    public function create(User $user): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return $this->scope->isAdmin($user);
     }
 
-    /**
-     * Determine whether the user can restore the material.
-     */
-    public function restore(User $user, Material $material)
+    /** Edit a material. */
+    public function update(User $user, Material $material): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return $this->scope->isAdmin($user);
     }
 
-    /**
-     * Determine whether the user can permanently delete the material.
-     */
-    public function forceDelete(User $user, Material $material)
+    /** Archive a material. */
+    public function delete(User $user, Material $material): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return $this->scope->isAdmin($user);
+    }
+
+    /** Restore an archived material. */
+    public function restore(User $user, Material $material): bool
+    {
+        return $this->scope->isAdmin($user);
+    }
+
+    /** Permanently delete (superadmin only). */
+    public function forceDelete(User $user, Material $material): bool
+    {
+        return $user->hasRole('superadmin');
+    }
+
+    /** Teachers read active materials of active meetings of their curricula. */
+    private function teacherCanRead(User $teacher, Material $material): bool
+    {
+        $syllabus = $material->syllabus;
+
+        return $syllabus
+            && $material->status === 'active'
+            && $syllabus->status === 'active'
+            && $this->scope->teacherCurriculumIds($teacher)->contains((int) $syllabus->curriculum_id);
     }
 }

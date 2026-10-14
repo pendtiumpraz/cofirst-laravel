@@ -3,69 +3,69 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
-use App\Models\Syllabus;
+use App\Models\ClassName;
 use App\Models\Curriculum;
+use App\Models\Syllabus;
+use App\Services\Academic\AcademicScope;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
+/**
+ * Guru › Silabus: the meetings of the curricula the teacher's classes use.
+ */
 class SyllabusController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly AcademicScope $scope)
     {
-        $this->middleware(['role:teacher']);
     }
 
-    /**
-     * Display a listing of syllabuses for teacher's classes
-     */
-    public function index()
+    /** Meetings with filters (curriculum, search). */
+    public function index(Request $request): View
     {
-        $teacher = Auth::user();
-        
-        // Get syllabuses from teacher's assigned classes
-        $syllabuses = Syllabus::whereHas('curriculum.course.classes.teachers', function($query) use ($teacher) {
-            $query->where('users.id', $teacher->id);
-        })
-        ->with([
-            'curriculum.course',
-            'materials' => function($query) {
-                $query->where('status', 'active')->orderBy('order');
-            }
-        ])
-        ->where('status', 'active')
-        ->withCount('materials')
-        ->orderBy('meeting_number')
-        ->get();
-        
-        return view('teacher.syllabuses.index', compact('syllabuses'));
-    }
+        $curriculumIds = $this->scope->teacherCurriculumIds($request->user());
+        $curriculumId = $curriculumIds->contains($request->integer('curriculum_id')) ? $request->integer('curriculum_id') : null;
 
-    /**
-     * Display the specified syllabus
-     */
-    public function show(Syllabus $syllabus)
-    {
-        $teacher = Auth::user();
-        
-        // Check if teacher has access to this syllabus (via assigned classes)
-        $hasAccess = $syllabus->curriculum->course->classes()
-                                ->whereHas('teachers', function($query) use ($teacher) {
-                                    $query->where('users.id', $teacher->id);
-                                })
-                                ->where('status', 'active')
-                                ->exists();
-        
-        if (!$hasAccess) {
-            abort(403, 'Anda tidak memiliki akses ke silabus ini.');
-        }
-        
-        $syllabus->load([
-            'curriculum.course',
-            'materials' => function($query) {
-                $query->where('status', 'active')->orderBy('order');
-            }
+        $syllabuses = Syllabus::query()->active()
+            ->whereIn('curriculum_id', $curriculumId ? [$curriculumId] : $curriculumIds)
+            ->with('curriculum:id,title,course_id', 'curriculum.course:id,name')
+            ->withCount(['materials as active_materials_count' => fn ($q) => $q->where('status', 'active')])
+            ->when($request->filled('search'), fn ($q) => $q->where('title', 'like', '%'.trim((string) $request->query('search')).'%'))
+            ->orderBy('curriculum_id')
+            ->orderBy('meeting_number')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('teacher.syllabuses.index', [
+            'syllabuses' => $syllabuses,
+            'curriculumOptions' => Curriculum::query()->whereIn('id', $curriculumIds)->orderBy('title')->pluck('title', 'id'),
         ]);
-        
-        return view('teacher.syllabuses.show', compact('syllabus'));
+    }
+
+    /** One meeting: objectives, activities, materials and a report shortcut. */
+    public function show(Request $request, Syllabus $syllabus): View
+    {
+        $this->authorize('view', $syllabus);
+
+        $syllabus->load(['curriculum.course:id,name', 'activeMaterials']);
+
+        $siblings = Syllabus::query()->active()
+            ->where('curriculum_id', $syllabus->curriculum_id)
+            ->orderBy('meeting_number')
+            ->get(['id', 'meeting_number', 'title']);
+        $position = $siblings->search(fn ($s) => $s->id === $syllabus->id);
+
+        $classes = ClassName::query()
+            ->whereIn('id', $this->scope->teacherClassIds($request->user()))
+            ->where('curriculum_id', $syllabus->curriculum_id)
+            ->whereIn('status', [ClassName::STATUS_PLANNED, ClassName::STATUS_ACTIVE])
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('teacher.syllabuses.show', [
+            'syllabus' => $syllabus,
+            'previous' => $position > 0 ? $siblings[$position - 1] : null,
+            'next' => $siblings[$position + 1] ?? null,
+            'classes' => $classes,
+        ]);
     }
 }

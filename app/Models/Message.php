@@ -104,7 +104,7 @@ class Message extends Model
      */
     public function markAsReadBy($userId)
     {
-        if (!$this->isReadBy($userId)) {
+        if (! $this->isReadBy($userId)) {
             MessageRead::create([
                 'message_id' => $this->id,
                 'user_id' => $userId,
@@ -140,9 +140,9 @@ class Message extends Model
                 // Plain text: views escape it; style system messages in the view.
                 return (string) $this->content;
             case 'image':
-                return "[Image]";
+                return '[Image]';
             case 'file':
-                return "[File: " . ($this->attachments['filename'] ?? 'Unknown') . "]";
+                return '[File: '.($this->attachments['filename'] ?? 'Unknown').']';
             default:
                 return $this->content;
         }

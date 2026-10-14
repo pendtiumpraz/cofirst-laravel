@@ -1,0 +1,283 @@
+/*
+|--------------------------------------------------------------------------
+| Versi B · Asagi Terminal (浅葱) — Presisi
+|--------------------------------------------------------------------------
+|
+| Same token names as Version A (resources/css/themes/a.css); only values
+| change, so dashboards use identical markup. Loaded after a.css so that
+| `[data-theme="b"]` overrides the `:root` fallback of Version A.
+*/
+
+[data-theme="b"] {
+    /* ── Ramps ── */
+    /* primary — asagi teal */
+    --cf-primary-50: 238 251 255;
+    --cf-primary-100: 215 244 254;
+    --cf-primary-200: 170 234 254;
+    --cf-primary-300: 114 217 248;
+    --cf-primary-400: 43 187 223;
+    --cf-primary-500: 6 126 153;
+    --cf-primary-600: 5 106 129;
+    --cf-primary-700: 1 86 106;
+    --cf-primary-800: 1 70 86;
+    --cf-primary-900: 2 56 69;
+    --cf-primary-950: 1 34 44;
+    /* accent — shu caret */
+    --cf-accent-50: 255 243 239;
+    --cf-accent-100: 254 227 219;
+    --cf-accent-200: 254 201 187;
+    --cf-accent-300: 255 162 137;
+    --cf-accent-400: 253 112 74;
+    --cf-accent-500: 238 77 28;
+    --cf-accent-600: 208 58 3;
+    --cf-accent-700: 172 47 2;
+    --cf-accent-800: 142 37 2;
+    --cf-accent-900: 118 32 6;
+    --cf-accent-950: 70 16 3;
+    /* neutral — Tailwind zinc */
+    --cf-neutral-50: 250 250 250;
+    --cf-neutral-100: 244 244 245;
+    --cf-neutral-200: 228 228 231;
+    --cf-neutral-300: 212 212 216;
+    --cf-neutral-400: 161 161 170;
+    --cf-neutral-500: 113 113 122;
+    --cf-neutral-600: 82 82 91;
+    --cf-neutral-700: 63 63 70;
+    --cf-neutral-800: 39 39 42;
+    --cf-neutral-900: 24 24 27;
+    --cf-neutral-950: 9 9 11;
+
+    /* ── Light ── */
+    --cf-canvas: 250 250 250;
+    --cf-surface: 255 255 255;
+    --cf-surface-2: 244 244 245;
+    --cf-surface-3: 228 228 231;
+
+    --cf-border: 228 228 231;
+    --cf-border-strong: 212 212 216;
+    --cf-border-input: 138 138 147; /* 3.42:1 on white (fixed) */
+
+    --cf-fg: 9 9 11;
+    --cf-fg-muted: 82 82 91;
+    --cf-fg-subtle: 106 106 115; /* never on surface-3 */
+
+    --cf-brand: 5 106 129;
+    --cf-brand-hover: 1 86 106;
+    --cf-on-brand: 255 255 255;
+    --cf-brand-text: 5 106 129;
+    --cf-brand-soft: 238 251 255;
+    --cf-on-brand-soft: 5 106 129;
+
+    --cf-accent: 238 77 28; /* caret and decoration only, never text */
+    --cf-accent-text: 172 47 2;
+    --cf-accent-solid: 208 58 3;
+    --cf-accent-solid-hover: 172 47 2;
+    --cf-on-accent: 255 255 255;
+
+    --cf-ring: 6 126 153;
+    --cf-nav-indicator: 5 106 129;
+    --cf-tab-active: 5 106 129;
+    /* Light: white sidebar on the zinc canvas; dark: the sidebar sits on the ink canvas. */
+    --cf-sidebar-bg: var(--cf-surface);
+
+    --cf-success: 21 128 61;
+    --cf-success-soft: 240 253 244;
+    --cf-success-solid: 21 128 61;
+    --cf-warning: 180 83 9;
+    --cf-warning-soft: 255 251 235;
+    --cf-warning-solid: 180 83 9;
+    --cf-danger: 190 18 60;
+    --cf-danger-soft: 255 241 242;
+    --cf-danger-solid: 190 18 60;
+    --cf-info: 79 70 229;
+    --cf-info-soft: 238 242 255;
+    --cf-info-solid: 79 70 229;
+
+    /* The 'terminal' code card is ink in both modes. */
+    --cf-code-bg: 9 9 11;
+    --cf-code-fg: 250 250 250;
+    --cf-grid: 228 228 231; /* use at 60% alpha */
+
+    --cf-chart-1: 6 126 153;
+    --cf-chart-2: 79 70 229;
+    --cf-chart-3: 238 77 28;
+    --cf-chart-4: 21 128 61;
+    --cf-chart-5: 217 119 6;
+    --cf-chart-6: 113 113 122;
+
+    --cf-selection: 43 187 223;
+    --cf-selection-alpha: 0.3;
+
+    /* ── Typography ── */
+    --cf-font-display: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --cf-font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --cf-font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --cf-font-num: var(--cf-font-mono);
+    --cf-font-eyebrow: var(--cf-font-mono);
+    --cf-display-weight: 600;
+    --cf-title-weight: 600;
+    --cf-display-tracking: -0.03em;
+    --cf-eyebrow-tracking: 0.08em;
+    --cf-eyebrow-size: 0.6875rem;
+    --cf-eyebrow-weight: 500;
+    --cf-eyebrow-case: uppercase;
+    --cf-nav-label-size: 0.6875rem;
+    --cf-nav-label-tracking: 0.06em;
+    --cf-em-style: normal;
+    --cf-em-color: rgb(var(--cf-brand-text));
+    --cf-ui-text: 0.875rem; /* 14px */
+    --cf-page-title-size: 1.5rem;
+    --cf-card-title-size: 0.9375rem;
+    --cf-kpi-size: 1.75rem;
+    --cf-kpi-weight: 600;
+    --cf-btn-weight: 500;
+    --cf-th-case: none;
+    --cf-th-tracking: 0;
+    --cf-th-size: 0.75rem;
+    --cf-th-weight: 500;
+    --cf-th-fg: var(--cf-fg-muted);
+    --cf-th-h: 36px;
+    --cf-stat-label-font: var(--cf-font-sans);
+    --cf-stat-label-size: 0.8125rem;
+    --cf-stat-label-case: none;
+    --cf-stat-label-tracking: 0;
+    --cf-stat-label-weight: 500;
+    --cf-stat-label-fg: var(--cf-fg-muted);
+
+    /* ── Icons ── */
+    --cf-icon-stroke: 1.75;
+
+    /* ── Radii (tight, engineered) ── */
+    --cf-radius-sm: 4px;
+    --cf-radius-md: 6px;
+    --cf-radius-lg: 10px;
+    --cf-radius-xl: 14px;
+    --cf-radius-2xl: 20px;
+    --cf-badge-radius: 4px;
+    --cf-badge-h: 1.25rem;
+    --cf-badge-px: 0.375rem;
+    --cf-badge-weight: 500;
+    --cf-badge-border-alpha: 0.2;
+    --cf-empty-tile: 2.5rem;
+    --cf-empty-radius: var(--cf-radius-lg);
+    --cf-empty-border-alpha: 1;
+    --cf-toast-bar: 3px;
+
+    /* ── Shadows (border-first elevation) ── */
+    --cf-shadow-1: 0 1px 2px rgb(9 9 11 / 0.05);
+    --cf-shadow-2: 0 1px 2px rgb(9 9 11 / 0.06), 0 8px 24px -6px rgb(9 9 11 / 0.14);
+    --cf-shadow-3: 0 24px 64px -12px rgb(9 9 11 / 0.28);
+    --cf-btn-primary-inset: inset 0 1px 0 rgb(255 255 255 / 0.12);
+
+    /* ── Density: comfortable ── */
+    --cf-control-h: 40px;
+    --cf-control-h-sm: 32px;
+    --cf-control-h-lg: 44px;
+    --cf-row-h: 44px;
+    --cf-card-p: 20px;
+    --cf-gap: 16px;
+    --cf-nav-item-h: 32px;
+    --cf-nav-active-weight: 500;
+
+    /* ── Shell ── */
+    --cf-sidebar-w: 248px;
+    --cf-rail-w: 60px;
+    --cf-topbar-h: 56px;
+    --cf-appbar-h: 56px;
+    --cf-tabbar-h: 64px;
+
+    /* ── Motion ── */
+    --cf-ease-out: cubic-bezier(0.2, 0, 0, 1);
+    --cf-dur-1: 120ms;
+    --cf-dur-2: 200ms;
+    --cf-dur-3: 300ms;
+    --cf-dur-4: 450ms;
+
+    --cf-photo-filter: none;
+}
+
+/* ── Compact density (finance and admin power users) ── */
+[data-density="compact"][data-theme="b"],
+[data-density="compact"] [data-theme="b"] {
+    --cf-control-h: 32px;
+    --cf-control-h-sm: 28px;
+    --cf-row-h: 36px;
+    --cf-card-p: 16px;
+    --cf-gap: 12px;
+    --cf-ui-text: 0.8125rem;
+}
+
+/* ── Phones: 15px UI text for parents (comfortable only) ── */
+@media (max-width: 767px) {
+    [data-theme="b"]:not([data-density="compact"]) {
+        --cf-ui-text: 0.9375rem;
+    }
+
+    /* Two KPI cells share 343px: mono 'Rp 48,2 jt' must fit without truncation. */
+    [data-theme="b"] {
+        --cf-kpi-size: 1.25rem;
+    }
+}
+
+/* ── Dark ── */
+.dark[data-theme="b"],
+.dark [data-theme="b"] {
+    --cf-canvas: 9 9 11;
+    --cf-surface: 17 17 19;
+    --cf-surface-2: 24 24 27;
+    --cf-surface-3: 39 39 42;
+
+    --cf-border: 39 39 42;
+    --cf-border-strong: 63 63 70;
+    --cf-border-input: 113 113 122;
+
+    --cf-fg: 250 250 250;
+    --cf-fg-muted: 161 161 170;
+    --cf-fg-subtle: 142 142 150;
+
+    --cf-brand: 43 187 223;
+    --cf-brand-hover: 114 217 248;
+    --cf-on-brand: 1 34 44;
+    --cf-brand-text: 114 217 248;
+    --cf-brand-soft: 20 37 44;
+    --cf-on-brand-soft: 114 217 248;
+
+    --cf-accent: 253 112 74;
+    --cf-accent-text: 253 112 74;
+    --cf-accent-solid: 208 58 3;
+    --cf-accent-solid-hover: 172 47 2;
+    --cf-on-accent: 255 255 255;
+
+    --cf-ring: 43 187 223;
+    --cf-nav-indicator: 43 187 223;
+    --cf-tab-active: 114 217 248;
+    --cf-sidebar-bg: var(--cf-canvas);
+
+    --cf-success: 74 222 128;
+    --cf-success-soft: 24 42 32;
+    --cf-warning: 251 191 36;
+    --cf-warning-soft: 45 38 21;
+    --cf-danger: 251 113 133;
+    --cf-danger-soft: 45 29 33;
+    --cf-info: 129 140 248;
+    --cf-info-soft: 30 32 47;
+
+    --cf-code-bg: 9 9 11;
+    --cf-code-fg: 250 250 250;
+    --cf-grid: 39 39 42;
+
+    --cf-chart-1: 43 187 223;
+    --cf-chart-2: 129 140 248;
+    --cf-chart-3: 253 112 74;
+    --cf-chart-4: 74 222 128;
+    --cf-chart-5: 251 191 36;
+    --cf-chart-6: 161 161 170;
+
+    --cf-selection: 43 187 223;
+    --cf-selection-alpha: 0.3;
+
+    --cf-shadow-1: inset 0 1px 0 rgb(255 255 255 / 0.04);
+    --cf-shadow-2: inset 0 1px 0 rgb(255 255 255 / 0.04);
+    --cf-shadow-3: 0 24px 64px -12px rgb(0 0 0 / 0.6);
+    --cf-btn-primary-inset: 0 0 #0000;
+}

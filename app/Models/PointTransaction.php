@@ -32,24 +32,38 @@ class PointTransaction extends Model
      * Transaction types
      */
     const TYPE_EARNED = 'earned';
+
     const TYPE_SPENT = 'spent';
+
     const TYPE_BONUS = 'bonus';
+
     const TYPE_PENALTY = 'penalty';
+
     const TYPE_REFUND = 'refund';
 
     /**
      * Common reasons for earning points
      */
     const REASON_LOGIN = 'login';
+
     const REASON_ASSIGNMENT_COMPLETE = 'assignment_complete';
+
     const REASON_QUIZ_COMPLETE = 'quiz_complete';
+
     const REASON_QUIZ_PERFECT = 'quiz_perfect';
+
     const REASON_ATTENDANCE = 'attendance';
+
     const REASON_PARTICIPATION = 'participation';
+
     const REASON_BADGE_EARNED = 'badge_earned';
+
     const REASON_LEVEL_UP = 'level_up';
+
     const REASON_STREAK_BONUS = 'streak_bonus';
+
     const REASON_REWARD_REDEMPTION = 'reward_redemption';
+
     const REASON_REFUND = 'refund';
 
     /**

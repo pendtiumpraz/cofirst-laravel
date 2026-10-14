@@ -1,30 +1,53 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Reports by Class') }}
-        </h2>
-    </x-slot>
+@php($f = \App\Services\Academic\Format::class)
+<x-app-layout :title="'Laporan · '.$class->name">
+    <x-ui.page-header :title="$class->name" eyebrow="Laporan per kelas" :subtitle="$class->course?->name"
+        :breadcrumbs="['Laporan siswa' => route('teacher.reports.index'), $class->name => null]">
+        <x-slot:actions>
+            <x-ui.button icon="plus" :href="route('teacher.reports.create', ['class_id' => $class->id])">Tulis laporan</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Reports by class feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show reports filtered by specific classes.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('teacher.reports.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Reports
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</x-app-layout> 
+    <x-ui.table caption="Laporan terbaru tiap siswa" mobile="stack">
+        <x-slot:head>
+            <x-ui.th>Siswa</x-ui.th>
+            <x-ui.th>Laporan terakhir</x-ui.th>
+            <x-ui.th>Progres</x-ui.th>
+            <x-ui.th numeric>Jumlah</x-ui.th>
+            <x-ui.th><span class="sr-only">Aksi</span></x-ui.th>
+        </x-slot:head>
+
+        @foreach ($students as $student)
+            @php($reports = $latest->get($student->id, collect()))
+            @php($last = $reports->first())
+            <tr>
+                <td class="cell-primary" data-label="Siswa">
+                    <a href="{{ route('teacher.reports.by-student', $student) }}" class="font-medium text-fg hover:text-brand-text">{{ $student->name }}</a>
+                </td>
+                <td data-label="Laporan terakhir">
+                    @if ($last)
+                        <a href="{{ route('teacher.reports.show', $last->id) }}" class="link">{{ $last->title }}</a>
+                        <p class="cell-secondary">{{ $f::date($last->report_date) }}</p>
+                    @else
+                        <span class="text-fg-subtle">Belum ada</span>
+                    @endif
+                </td>
+                <td data-label="Progres" class="min-w-[8rem]">
+                    @if ($last)
+                        <x-ui.progress :value="(float) $last->progress_percentage" size="sm" show-value label="Progres {{ $student->name }}"
+                            :tone="\App\Services\Academic\ProgressReportService::progressTone($last->progress_percentage)" />
+                    @else
+                        —
+                    @endif
+                </td>
+                <td class="num" data-label="Jumlah">{{ $reports->count() }}</td>
+                <td class="cell-actions">
+                    <x-ui.button variant="ghost" size="sm" icon="plus" label="Tulis laporan untuk {{ $student->name }}" :href="route('teacher.reports.create', ['class_id' => $class->id, 'student_id' => $student->id])" />
+                </td>
+            </tr>
+        @endforeach
+
+        <x-slot:empty>
+            <x-ui.empty-state icon="user-group" title="Kelas ini belum memiliki siswa aktif." />
+        </x-slot:empty>
+    </x-ui.table>
+</x-app-layout>

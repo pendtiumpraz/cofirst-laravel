@@ -66,8 +66,8 @@ class CertificateTemplate extends Model
      */
     public function getBackgroundImageUrlAttribute()
     {
-        return $this->background_image 
-            ? asset('storage/' . $this->background_image)
+        return $this->background_image
+            ? asset('storage/'.$this->background_image)
             : asset('images/certificate-bg-default.jpg');
     }
 }

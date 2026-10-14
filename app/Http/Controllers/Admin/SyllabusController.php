@@ -3,216 +3,178 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Syllabus;
+use App\Http\Requests\Academic\SyllabusRequest;
+use App\Models\ClassProgress;
+use App\Models\ClassReport;
 use App\Models\Curriculum;
+use App\Models\Syllabus;
+use App\Services\Academic\AcademicPrivacy;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
+/**
+ * Admin › Silabus: the meetings (pertemuan) of each curriculum, with objectives,
+ * activities, duration and materials.
+ */
 class SyllabusController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(['role:admin|superadmin']);
-    }
-
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request)
+    /** List meetings with filters. */
+    public function index(Request $request): View
     {
         $this->authorize('viewAny', Syllabus::class);
-        
-        $query = Syllabus::with(['curriculum.course', 'materials'])
-                         ->withCount('materials');
-        
-        // Filter by curriculum if provided
-        if ($request->filled('curriculum_id')) {
-            $query->where('curriculum_id', $request->curriculum_id);
-        }
-        
-        $syllabuses = $query->orderBy('curriculum_id')
-                           ->orderBy('meeting_number')
-                           ->paginate(15);
-        
-        $curriculums = Curriculum::with('course')->active()->get();
-        
-        return view('admin.syllabuses.index', compact('syllabuses', 'curriculums'));
-    }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(Request $request)
-    {
-        $this->authorize('create', Syllabus::class);
-        
-        $curriculums = Curriculum::with('course')->active()->get();
-        $selectedCurriculumId = $request->get('curriculum_id');
-        
-        // Get next meeting number for selected curriculum
-        $nextMeetingNumber = 1;
-        if ($selectedCurriculumId) {
-            $lastSyllabus = Syllabus::where('curriculum_id', $selectedCurriculumId)
-                                  ->orderBy('meeting_number', 'desc')
-                                  ->first();
-            $nextMeetingNumber = $lastSyllabus ? $lastSyllabus->meeting_number + 1 : 1;
-        }
-        
-        return view('admin.syllabuses.create', compact('curriculums', 'selectedCurriculumId', 'nextMeetingNumber'));
-    }
+        $syllabuses = Syllabus::query()
+            ->with('curriculum:id,title,course_id', 'curriculum.course:id,name')
+            ->withCount('materials')
+            ->when($request->integer('curriculum_id'), fn ($q, $id) => $q->where('curriculum_id', $id))
+            ->when(in_array($request->query('status'), ['active', 'inactive'], true), fn ($q) => $q->where('status', $request->query('status')))
+            ->when($request->filled('search'), fn ($q) => $q->where('title', 'like', '%'.trim((string) $request->query('search')).'%'))
+            ->orderBy('curriculum_id')
+            ->orderBy('meeting_number')
+            ->paginate(20)
+            ->withQueryString();
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        $this->authorize('create', Syllabus::class);
-        
-        $validated = $request->validate([
-            'curriculum_id' => 'required|exists:curriculums,id',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'meeting_number' => 'required|integer|min:1',
-            'learning_objectives' => 'nullable|string',
-            'activities' => 'nullable|string',
-            'duration_minutes' => 'required|integer|min:30|max:480',
-            'status' => 'required|in:active,inactive',
+        return view('admin.syllabuses.index', [
+            'syllabuses' => $syllabuses,
+            'curriculumOptions' => $this->curriculumOptions(),
         ]);
-        
-        // Check if meeting number already exists for this curriculum
-        $existingSyllabus = Syllabus::where('curriculum_id', $validated['curriculum_id'])
-                                  ->where('meeting_number', $validated['meeting_number'])
-                                  ->first();
-        
-        if ($existingSyllabus) {
-            return redirect()->back()
-                           ->withInput()
-                           ->withErrors(['meeting_number' => 'Nomor pertemuan sudah ada untuk kurikulum ini.']);
-        }
-        
-        $syllabus = Syllabus::create($validated);
-        
-        return redirect()->route('admin.syllabuses.index')
-                        ->with('success', 'Silabus berhasil dibuat.');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Syllabus $syllabus)
+    /** New meeting form (preselects ?curriculum_id and the next meeting number). */
+    public function create(Request $request): View
+    {
+        $this->authorize('create', Syllabus::class);
+
+        $curriculumId = $request->integer('curriculum_id') ?: null;
+        $next = $curriculumId ? (int) Syllabus::where('curriculum_id', $curriculumId)->max('meeting_number') + 1 : 1;
+
+        return view('admin.syllabuses.create', [
+            'syllabus' => new Syllabus([
+                'curriculum_id' => $curriculumId,
+                'meeting_number' => $next,
+                'duration_minutes' => (int) setting('academic.session_duration_minutes', 90),
+                'status' => 'active',
+            ]),
+            'curriculumOptions' => $this->curriculumOptions(),
+        ]);
+    }
+
+    /** Save a new meeting. */
+    public function store(SyllabusRequest $request): RedirectResponse
+    {
+        $syllabus = Syllabus::create($request->validated());
+
+        return redirect()->route('admin.syllabuses.show', $syllabus)
+            ->with('success', "Pertemuan {$syllabus->meeting_number} dibuat. Tambahkan materinya di bawah.");
+    }
+
+    /** Meeting detail with materials (ordering) and neighbours. */
+    public function show(Syllabus $syllabus): View
     {
         $this->authorize('view', $syllabus);
-        
-        $syllabus->load([
-            'curriculum.course',
-            'materials' => function($query) {
-                $query->orderBy('order');
-            }
+
+        $syllabus->load(['curriculum.course:id,name', 'materials']);
+
+        $siblings = Syllabus::where('curriculum_id', $syllabus->curriculum_id)
+            ->orderBy('meeting_number')
+            ->get(['id', 'meeting_number', 'title']);
+        $position = $siblings->search(fn ($s) => $s->id === $syllabus->id);
+
+        return view('admin.syllabuses.show', [
+            'syllabus' => $syllabus,
+            'previous' => $position > 0 ? $siblings[$position - 1] : null,
+            'next' => $siblings[$position + 1] ?? null,
+            'reportCount' => ClassReport::where('syllabus_id', $syllabus->id)->count(),
         ]);
-        
-        return view('admin.syllabuses.show', compact('syllabus'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Syllabus $syllabus)
+    /** Edit form. */
+    public function edit(Syllabus $syllabus): View
     {
         $this->authorize('update', $syllabus);
-        
-        $curriculums = Curriculum::with('course')->active()->get();
-        
-        return view('admin.syllabuses.edit', compact('syllabus', 'curriculums'));
-    }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Syllabus $syllabus)
-    {
-        $this->authorize('update', $syllabus);
-        
-        $validated = $request->validate([
-            'curriculum_id' => 'required|exists:curriculums,id',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'meeting_number' => 'required|integer|min:1',
-            'learning_objectives' => 'nullable|string',
-            'activities' => 'nullable|string',
-            'duration_minutes' => 'required|integer|min:30|max:480',
-            'status' => 'required|in:active,inactive',
+        return view('admin.syllabuses.edit', [
+            'syllabus' => $syllabus,
+            'curriculumOptions' => $this->curriculumOptions(),
         ]);
-        
-        // Check if meeting number already exists for this curriculum (excluding current syllabus)
-        $existingSyllabus = Syllabus::where('curriculum_id', $validated['curriculum_id'])
-                                  ->where('meeting_number', $validated['meeting_number'])
-                                  ->where('id', '!=', $syllabus->id)
-                                  ->first();
-        
-        if ($existingSyllabus) {
-            return redirect()->back()
-                           ->withInput()
-                           ->withErrors(['meeting_number' => 'Nomor pertemuan sudah ada untuk kurikulum ini.']);
-        }
-        
-        $syllabus->update($validated);
-        
-        return redirect()->route('admin.syllabuses.index')
-                        ->with('success', 'Silabus berhasil diperbarui.');
+    }
+
+    /** Save changes. */
+    public function update(SyllabusRequest $request, Syllabus $syllabus): RedirectResponse
+    {
+        $syllabus->update($request->validated());
+
+        return redirect()->route('admin.syllabuses.show', $syllabus)->with('success', 'Pertemuan diperbarui.');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Archive a meeting and its materials.
+     *
+     * Reason: progress rows and meeting reports point to the meeting; a meeting that
+     * was already taught is kept (deactivate it instead) so history stays intact.
      */
-    public function destroy(Syllabus $syllabus)
+    public function destroy(Syllabus $syllabus): RedirectResponse
     {
         $this->authorize('delete', $syllabus);
-        
-        // Check if syllabus has materials
-        if ($syllabus->materials()->count() > 0) {
-            return redirect()->route('admin.syllabuses.index')
-                           ->with('error', 'Tidak dapat menghapus silabus yang memiliki materi.');
+
+        $used = ClassReport::where('syllabus_id', $syllabus->id)->count()
+            + ClassProgress::where('syllabus_id', $syllabus->id)->where('status', '!=', 'not_started')->count();
+
+        if ($used > 0) {
+            return back()->with('error', 'Pertemuan ini sudah diajarkan dan tercatat di laporan/progres siswa. Nonaktifkan saja agar riwayat tetap utuh.');
         }
-        
-        $syllabus->delete();
-        
-        return redirect()->route('admin.syllabuses.index')
-                        ->with('success', 'Silabus berhasil dihapus.');
+
+        $curriculum = $syllabus->curriculum;
+
+        DB::transaction(function () use ($syllabus) {
+            $syllabus->materials()->get()->each->delete();
+            ClassProgress::where('syllabus_id', $syllabus->id)->delete();
+            $syllabus->delete();
+        });
+
+        AcademicPrivacy::audit('academic.syllabus.archived', $syllabus, ['title' => $syllabus->title]);
+
+        return $curriculum
+            ? redirect()->route('admin.curriculums.show', $curriculum)->with('success', 'Pertemuan diarsipkan.')
+            : redirect()->route('admin.syllabuses.index')->with('success', 'Pertemuan diarsipkan.');
     }
 
-    /**
-     * Toggle syllabus status
-     */
-    public function toggleStatus(Syllabus $syllabus)
+    /** Activate or deactivate. */
+    public function toggleStatus(Syllabus $syllabus): RedirectResponse
     {
         $this->authorize('update', $syllabus);
-        
-        $syllabus->update([
-            'status' => $syllabus->status === 'active' ? 'inactive' : 'active'
-        ]);
-        
-        $status = $syllabus->status === 'active' ? 'diaktifkan' : 'dinonaktifkan';
-        
-        return redirect()->back()
-                        ->with('success', "Silabus berhasil {$status}.");
+
+        $syllabus->update(['status' => $syllabus->status === 'active' ? 'inactive' : 'active']);
+
+        return back()->with('success', $syllabus->status === 'active' ? 'Pertemuan diaktifkan.' : 'Pertemuan dinonaktifkan.');
+    }
+
+    /** Active meetings of a curriculum (JSON for cascading selects). */
+    public function getByCurriculum(Curriculum $curriculum): JsonResponse
+    {
+        $this->authorize('view', $curriculum);
+
+        return response()->json(
+            $curriculum->syllabuses()->active()->get(['id', 'title', 'meeting_number'])
+        );
     }
 
     /**
-     * Get syllabuses for a specific curriculum (AJAX)
+     * Curricula grouped for a select, e.g. "Python · Regular".
+     *
+     * Returns:
+     *     array<int, string>
      */
-    public function getByCurriculum(Request $request)
+    private function curriculumOptions(): array
     {
-        $curriculumId = $request->get('curriculum_id');
-        
-        if (!$curriculumId) {
-            return response()->json([]);
-        }
-        
-        $syllabuses = Syllabus::where('curriculum_id', $curriculumId)
-                             ->where('status', 'active')
-                             ->orderBy('meeting_number')
-                             ->get(['id', 'title', 'meeting_number']);
-        
-        return response()->json($syllabuses);
+        return Curriculum::query()
+            ->with('course:id,name')
+            ->orderBy('course_id')->orderBy('title')
+            ->get(['id', 'title', 'course_id', 'status'])
+            ->mapWithKeys(fn (Curriculum $c) => [$c->id => trim(($c->course?->name ? $c->course->name.' · ' : '').$c->title.($c->status === 'inactive' ? ' (nonaktif)' : ''))])
+            ->all();
     }
 }

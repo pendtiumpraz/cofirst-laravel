@@ -1,30 +1,62 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Today\'s Attendance') }}
-        </h2>
-    </x-slot>
+@php
+    use App\Services\Teacher\AttendanceRecorder;
+    use App\Services\Teacher\TeachingSchedule;
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Today\'s attendance feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show today's attendance records.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('teacher.attendance.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Attendance
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</x-app-layout> 
+    $done = $sessions->filter(fn ($s) => $s->hasAttendance())->count();
+@endphp
+
+<x-app-layout title="Absensi Hari Ini">
+    <x-ui.page-header title="Absensi hari ini" :eyebrow="TeachingSchedule::format($now, 'l, j F Y')"
+        :subtitle="$sessions->isEmpty() ? 'Tidak ada sesi terjadwal hari ini.' : $done.' dari '.$sessions->count().' sesi sudah diabsen.'">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="clock" :href="route('teacher.attendance.index')">Riwayat absensi</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <x-ui.card title="Sesi hari ini" padding="none">
+        @if ($sessions->isEmpty())
+            <x-ui.empty-state icon="calendar" title="Tidak ada sesi hari ini."
+                description="Untuk pertemuan tambahan di luar jadwal, buka kelasnya lalu pilih Isi absensi.">
+                <x-slot:actions>
+                    <x-ui.button variant="secondary" size="sm" :href="route('teacher.classes')">Kelas saya</x-ui.button>
+                </x-slot:actions>
+            </x-ui.empty-state>
+        @else
+            <ul class="divide-y divide-line" role="list">
+                @foreach ($sessions as $session)
+                    @include('teacher.schedules.partials.session', ['session' => $session, 'now' => $now])
+                @endforeach
+            </ul>
+        @endif
+    </x-ui.card>
+
+    <x-ui.card title="Belum diabsen" class="mt-6" padding="none"
+        subtitle="Sesi {{ AttendanceRecorder::EDIT_WINDOW_DAYS }} hari terakhir yang belum memiliki data kehadiran">
+        @if ($missed->isEmpty())
+            <x-ui.empty-state icon="check-circle" title="Semua sesi sudah diabsen."
+                description="Data kehadiran yang lengkap membantu orang tua memantau anak." />
+        @else
+            <ul class="divide-y divide-line" role="list">
+                @foreach ($missed as $session)
+                    @include('teacher.schedules.partials.session', ['session' => $session, 'now' => $now, 'showDate' => true])
+                @endforeach
+            </ul>
+        @endif
+    </x-ui.card>
+
+    @if ($classes->isNotEmpty())
+        <x-ui.card title="Pertemuan di luar jadwal" class="mt-6"
+            subtitle="Pertemuan pengganti atau tambahan? Pilih kelas dan tanggalnya.">
+            <form method="GET" action="{{ route('teacher.attendance.today') }}" class="grid gap-4 sm:grid-cols-[1fr_12rem_auto] sm:items-end">
+                <x-ui.field label="Kelas" for="class">
+                    <x-ui.select name="class" placeholder="Pilih kelas" required :options="$classes->pluck('name', 'id')" />
+                </x-ui.field>
+                <x-ui.field label="Tanggal" for="date">
+                    <x-ui.input name="date" type="date" :value="$now->toDateString()" max="{{ $now->toDateString() }}"
+                        min="{{ $now->subDays(AttendanceRecorder::EDIT_WINDOW_DAYS)->toDateString() }}" required />
+                </x-ui.field>
+                <x-ui.button type="submit" variant="secondary" icon-right="arrow-right">Buka lembar absensi</x-ui.button>
+            </form>
+        </x-ui.card>
+    @endif
+</x-app-layout>

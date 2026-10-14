@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  *
  * Role states (admin(), teacher(), student(), parent(), finance(), superadmin())
  * assign the role after creating and create the role when it does not exist yet,

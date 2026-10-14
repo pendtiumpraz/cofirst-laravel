@@ -1,30 +1,41 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Children Curriculum') }}
-        </h2>
-    </x-slot>
+<x-app-layout title="Kurikulum anak">
+    <x-ui.page-header title="Kurikulum anak"
+        subtitle="Apa yang dipelajari anak Anda di setiap kelas, dan sudah sampai pertemuan ke berapa." />
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Children curriculum feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show curriculum information for your children\'s classes.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('parent.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Dashboard
-                            </a>
-                        </div>
-                    </div>
-                </div>
+    @forelse ($rows as $row)
+        <section class="mb-10" aria-labelledby="anak-{{ $row['child']->id }}">
+            <div class="mb-4 flex items-center gap-3">
+                <x-ui.avatar :user="$row['child']" size="md" decorative />
+                <h2 id="anak-{{ $row['child']->id }}" class="section-title">{{ $row['child']->name }}</h2>
             </div>
-        </div>
-    </div>
+
+            @if ($row['classes']->isEmpty())
+                <x-ui.empty-state icon="academic-cap" title="Belum terdaftar di kelas mana pun." class="card" />
+            @else
+                <div class="grid gap-gutter md:grid-cols-2">
+                    @foreach ($row['classes'] as $class)
+                        @php($summary = $row['summaries']->get($class->id))
+                        @php($next = $summary?->nextMeeting())
+                        <x-ui.card as="article" :title="$class->name" :subtitle="$class->curriculum?->title ?? 'Kurikulum belum ditetapkan'" level="3">
+                            @if ($summary?->hasCurriculum())
+                                <x-ui.progress :value="$summary->percent()" show-value
+                                    :tone="$summary->percent() >= 100 ? 'success' : 'brand'"
+                                    label="{{ $summary->completed() }} dari {{ $summary->total() }} pertemuan selesai" />
+                                @if ($next)
+                                    <p class="mt-3 text-sm text-fg-muted">Berikutnya: <span class="font-medium text-fg">Pertemuan {{ $next->meeting_number }} · {{ $next->title }}</span></p>
+                                @endif
+                            @endif
+                            <p class="mt-3 text-sm text-fg-subtle">{{ $class->course?->name }}@if ($class->teachers->isNotEmpty()) · {{ $class->teachers->pluck('name')->join(', ') }}@endif</p>
+                            <x-slot:footer>
+                                <x-ui.button size="sm" icon="queue-list" :href="route('parent.curriculum.child-progress', [$row['child'], $class])">Lihat kurikulum</x-ui.button>
+                            </x-slot:footer>
+                        </x-ui.card>
+                    @endforeach
+                </div>
+            @endif
+        </section>
+    @empty
+        <x-ui.empty-state size="page" icon="user-group" title="Belum ada anak yang terhubung dengan akun Anda."
+            description="Hubungi admin untuk menautkan akun siswa anak Anda." />
+    @endforelse
 </x-app-layout>

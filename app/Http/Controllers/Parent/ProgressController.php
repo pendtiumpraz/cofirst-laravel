@@ -3,241 +3,180 @@
 namespace App\Http\Controllers\Parent;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Enrollment;
-use App\Models\ClassProgress;
+use App\Models\Attendance;
+use App\Models\ClassName;
+use App\Models\ClassReport;
 use App\Models\MaterialAccess;
+use App\Models\User;
+use App\Services\Academic\AcademicScope;
+use App\Services\Academic\AcademicSettings;
+use App\Services\Academic\MaterialAccessService;
+use App\Services\Academic\ProgressService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Collection;
+use Illuminate\View\View;
 
+/**
+ * Orang Tua › Progres Anak: progress bars per child and class, the materials a child
+ * has opened, and the teachers' meeting notes (when
+ * academic.reports_visible_to_parents is on).
+ */
 class ProgressController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(['role:parent']);
+    public function __construct(
+        private readonly AcademicScope $scope,
+        private readonly ProgressService $progress,
+        private readonly MaterialAccessService $access,
+    ) {
     }
 
-    /**
-     * Display progress overview for all children
-     */
-    public function index()
+    /** All children with a progress bar per class. */
+    public function index(Request $request): View
     {
-        $parent = Auth::user();
-        
-        // Get all children with their enrollments and progress
-        $children = $parent->children()
-                          ->with([
-                              'enrollments' => function($query) {
-                                  $query->where('status', 'active')
-                                        ->with('class.curriculum.course');
-                              }
-                          ])
-                          ->get();
-        
-        // Calculate progress for each child
-        $progressData = [];
-        foreach ($children as $child) {
-            $childProgress = [];
-            foreach ($child->enrollments as $enrollment) {
-                $classId = $enrollment->class_id;
-                $totalMeetings = $enrollment->class->curriculum->syllabuses()->count();
-                $completedMeetings = ClassProgress::where('student_id', $child->id)
-                                                 ->where('class_id', $classId)
-                                                 ->where('status', 'completed')
-                                                 ->count();
-                
-                $childProgress[$classId] = [
-                    'class' => $enrollment->class,
-                    'total' => $totalMeetings,
-                    'completed' => $completedMeetings,
-                    'percentage' => $totalMeetings > 0 ? round(($completedMeetings / $totalMeetings) * 100, 2) : 0
-                ];
-            }
-            $progressData[$child->id] = $childProgress;
-        }
-        
-        return view('parent.progress.index', compact('children', 'progressData'));
+        $children = $request->user()->children()->orderBy('name')->get(['users.id', 'users.name']);
+
+        $rows = $children->map(fn (User $child) => [
+            'child' => $child,
+            'classes' => $classes = $this->classesOf($child),
+            'summaries' => $this->progress->summariesFor($child, $classes),
+        ]);
+
+        return view('parent.progress.index', ['rows' => $rows]);
     }
 
-    /**
-     * Display detailed progress for a specific child
-     */
-    public function child($childId)
+    /** One child: per class progress, attendance and recent activity. */
+    public function child(Request $request, User $child): View
     {
-        $parent = Auth::user();
-        
-        // Check if this child belongs to the parent
-        $child = $parent->children()->findOrFail($childId);
-        
-        // Get child's enrollments with detailed progress
-        $enrollments = Enrollment::where('student_id', $child->id)
-                                ->where('status', 'active')
-                                ->with([
-                                    'class.curriculum.course',
-                                    'class.curriculum.syllabuses' => function($query) {
-                                        $query->where('status', 'active')->orderBy('meeting_number');
-                                    }
-                                ])
-                                ->get();
-        
-        // Get detailed progress for each enrollment
-        $detailedProgress = [];
-        foreach ($enrollments as $enrollment) {
-            $classId = $enrollment->class_id;
-            
-            // Get all progress records for this class
-            $progress = ClassProgress::where('student_id', $child->id)
-                                   ->where('class_id', $classId)
-                                   ->with(['syllabus', 'material'])
-                                   ->orderBy('meeting_number')
-                                   ->get();
-            
-            // Get material access history
-            $materialAccess = MaterialAccess::where('student_id', $child->id)
-                                           ->whereHas('material.syllabus', function($query) use ($enrollment) {
-                                               $query->where('curriculum_id', $enrollment->class->curriculum_id);
-                                           })
-                                           ->with('material.syllabus')
-                                           ->latest('accessed_at')
-                                           ->get();
-            
-            $detailedProgress[$classId] = [
-                'class' => $enrollment->class,
-                'progress' => $progress,
-                'material_access' => $materialAccess,
-                'total_meetings' => $enrollment->class->curriculum->syllabuses->count(),
-                'completed_meetings' => $progress->where('status', 'completed')->count(),
-                'in_progress_meetings' => $progress->where('status', 'in_progress')->count()
-            ];
-        }
-        
-        return view('parent.progress.child', compact('child', 'detailedProgress'));
-    }
+        $this->authorizeChild($request, $child);
 
-    /**
-     * Display materials accessed by a specific child in a class
-     */
-    public function childMaterials($childId, $classId)
-    {
-        $parent = Auth::user();
-        
-        // Check if this child belongs to the parent
-        $child = $parent->children()->findOrFail($childId);
-        
-        // Check if child is enrolled in this class
-        $enrollment = Enrollment::where('student_id', $child->id)
-                               ->where('class_id', $classId)
-                               ->where('status', 'active')
-                               ->with('class.curriculum.course')
-                               ->firstOrFail();
-        
-        // Get completed meetings
-        $completedMeetings = ClassProgress::where('student_id', $child->id)
-                                         ->where('class_id', $classId)
-                                         ->where('status', 'completed')
-                                         ->pluck('meeting_number')
-                                         ->toArray();
-        
-        // Get available materials (only for completed meetings)
-        $availableMaterials = collect();
-        $curriculum = $enrollment->class->curriculum;
-        
-        foreach ($curriculum->syllabuses()->where('status', 'active')->orderBy('meeting_number')->get() as $syllabus) {
-            if (in_array($syllabus->meeting_number, $completedMeetings)) {
-                $materials = $syllabus->materials()->where('status', 'active')->orderBy('order')->get();
-                foreach ($materials as $material) {
-                    $material->syllabus_info = $syllabus;
-                    $availableMaterials->push($material);
-                }
-            }
-        }
-        
-        // Get material access history for this child
-        $accessHistory = MaterialAccess::where('student_id', $child->id)
-                                      ->whereIn('material_id', $availableMaterials->pluck('id'))
-                                      ->with('material.syllabus')
-                                      ->latest('accessed_at')
-                                      ->get();
-        
-        // Group access by material
-        $materialStats = [];
-        foreach ($availableMaterials as $material) {
-            $accesses = $accessHistory->where('material_id', $material->id);
-            $materialStats[$material->id] = [
-                'material' => $material,
-                'access_count' => $accesses->count(),
-                'total_time' => $accesses->sum('access_duration_seconds'),
-                'last_access' => $accesses->first()?->accessed_at,
-                'first_access' => $accesses->last()?->accessed_at
-            ];
-        }
-        
-        return view('parent.progress.child-materials', compact(
-            'child', 'enrollment', 'materialStats', 'completedMeetings'
-        ));
-    }
+        $classes = $this->classesOf($child);
+        $reportsVisible = AcademicSettings::reportsVisibleToParents();
 
-    /**
-     * Get progress summary for a child (AJAX)
-     */
-    public function getChildProgressSummary($childId)
-    {
-        $parent = Auth::user();
-        
-        // Check if this child belongs to the parent
-        $child = $parent->children()->findOrFail($childId);
-        
-        $enrollments = Enrollment::where('student_id', $child->id)
-                                ->where('status', 'active')
-                                ->with('class.curriculum.course')
-                                ->get();
-        
-        $summary = [];
-        foreach ($enrollments as $enrollment) {
-            $classId = $enrollment->class_id;
-            $totalMeetings = $enrollment->class->curriculum->syllabuses()->count();
-            $completedMeetings = ClassProgress::where('student_id', $child->id)
-                                            ->where('class_id', $classId)
-                                            ->where('status', 'completed')
-                                            ->count();
-            
-            $summary[] = [
-                'class_name' => $enrollment->class->name,
-                'course_name' => $enrollment->class->course->name,
-                'total_meetings' => $totalMeetings,
-                'completed_meetings' => $completedMeetings,
-                'percentage' => $totalMeetings > 0 ? round(($completedMeetings / $totalMeetings) * 100, 2) : 0,
-                'status' => $this->getProgressStatus($completedMeetings, $totalMeetings)
-            ];
-        }
-        
-        return response()->json([
-            'child_name' => $child->name,
-            'classes' => $summary
+        $attendance = Attendance::query()
+            ->where('student_id', $child->id)
+            ->whereIn('class_id', $classes->pluck('id'))
+            ->selectRaw('class_id, status, count(*) as total')
+            ->groupBy('class_id', 'status')
+            ->get()
+            ->groupBy('class_id')
+            ->map(fn ($rows) => $rows->pluck('total', 'status'));
+
+        $recentMaterials = MaterialAccess::query()
+            ->where('student_id', $child->id)
+            ->whereHas('material')
+            ->with('material:id,title,type')
+            ->latest('accessed_at')
+            ->limit(5)
+            ->get();
+
+        $latestReports = $reportsVisible
+            ? ClassReport::query()->forStudent($child)
+                ->with(['className:id,name', 'syllabus:id,title', 'teacher:id,name'])
+                ->orderByDesc('report_date')->limit(5)->get()
+            : collect();
+
+        return view('parent.progress.child', [
+            'child' => $child,
+            'classes' => $classes,
+            'summaries' => $this->progress->summariesFor($child, $classes),
+            'attendance' => $attendance,
+            'recentMaterials' => $recentMaterials,
+            'latestReports' => $latestReports,
+            'reportsVisible' => $reportsVisible,
         ]);
     }
 
-    /**
-     * Get progress status based on completion percentage
-     */
-    private function getProgressStatus($completed, $total)
+    /** Materials of one class that are open for the child, with when they were opened. */
+    public function childMaterials(Request $request, User $child, ClassName $class): View
     {
-        if ($total === 0) {
-            return 'not_started';
-        }
-        
-        $percentage = ($completed / $total) * 100;
-        
-        if ($percentage === 100) {
-            return 'completed';
-        } elseif ($percentage >= 75) {
-            return 'almost_done';
-        } elseif ($percentage >= 50) {
-            return 'halfway';
-        } elseif ($percentage >= 25) {
-            return 'getting_started';
-        } else {
-            return 'just_started';
-        }
+        $this->authorizeChild($request, $child);
+        abort_unless($this->scope->studentEnrollment($child, $class), 404, 'Anak Anda tidak terdaftar di kelas ini.');
+
+        $class->load(['course:id,name', 'curriculum:id,title']);
+        $summary = $this->progress->summary($child, $class, true);
+        $unlockedIds = $this->progress->unlockedMaterialIds($summary);
+
+        return view('parent.progress.child-materials', [
+            'child' => $child,
+            'class' => $class,
+            'summary' => $summary,
+            'unlockedIds' => $unlockedIds,
+            'accessStats' => $this->access->statsFor($child->id, $unlockedIds),
+            'trackingMode' => AcademicSettings::trackingMode(),
+        ]);
+    }
+
+    /** Meeting notes of one child (filterable by class). */
+    public function meetings(Request $request, User $child): View
+    {
+        $this->authorizeChild($request, $child);
+
+        $classes = $this->classesOf($child);
+        $visible = AcademicSettings::reportsVisibleToParents();
+
+        $reports = $visible
+            ? ClassReport::query()->forStudent($child)
+                ->when($classes->pluck('id')->contains($request->integer('class_id')), fn ($q) => $q->where('class_id', $request->integer('class_id')))
+                ->with(['className:id,name', 'syllabus:id,title', 'teacher:id,name'])
+                ->orderByDesc('report_date')->orderByDesc('id')
+                ->paginate(10)->withQueryString()
+            : null;
+
+        return view('parent.progress.meetings', compact('child', 'classes', 'reports', 'visible'));
+    }
+
+    /** One meeting note of the child (teacher follow-up notes stay internal). */
+    public function meeting(Request $request, User $child, ClassReport $classReport): View
+    {
+        $this->authorizeChild($request, $child);
+        abort_unless((int) $classReport->student_id === (int) $child->id, 404);
+        $this->authorize('view', $classReport);
+
+        $classReport->load(['teacher:id,name', 'className:id,name,course_id', 'className.course:id,name', 'syllabus:id,title,meeting_number', 'material:id,title,type']);
+
+        return view('parent.progress.meeting', ['child' => $child, 'report' => $classReport]);
+    }
+
+    /** Progress summary of a child as JSON (for widgets). */
+    public function getChildProgressSummary(Request $request, User $child): JsonResponse
+    {
+        $this->authorizeChild($request, $child);
+
+        $classes = $this->classesOf($child);
+        $summaries = $this->progress->summariesFor($child, $classes);
+
+        return response()->json([
+            'child_name' => $child->name,
+            'classes' => $classes->map(fn (ClassName $class) => [
+                'class_name' => $class->name,
+                'course_name' => $class->course?->name,
+                'total_meetings' => $summaries[$class->id]->total(),
+                'completed_meetings' => $summaries[$class->id]->completed(),
+                'percentage' => $summaries[$class->id]->percent(),
+                'status' => $summaries[$class->id]->label(),
+            ])->values(),
+        ]);
+    }
+
+    /** Abort unless the child belongs to the signed-in parent. */
+    private function authorizeChild(Request $request, User $child): void
+    {
+        abort_unless($this->scope->isParentOf($request->user(), $child), 403, 'Data siswa ini tidak terhubung dengan akun Anda.');
+    }
+
+    /**
+     * Classes of a child (active or completed enrollment).
+     *
+     * Returns:
+     *     Collection<int, ClassName>
+     */
+    private function classesOf(User $child): Collection
+    {
+        return ClassName::query()
+            ->whereIn('id', $this->scope->studentEnrollments($child)->keys())
+            ->with(['course:id,name', 'curriculum:id,title', 'teachers:id,name'])
+            ->orderBy('name')
+            ->get();
     }
 }

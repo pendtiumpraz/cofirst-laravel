@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * A weekly time slot of a class (day_of_week 1=Senin .. 7=Minggu, start/end time,
@@ -20,8 +21,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * serialised as "H:i".
  *
  * @property int $day_of_week
- * @property \Illuminate\Support\Carbon|null $start_time
- * @property \Illuminate\Support\Carbon|null $end_time
+ * @property Carbon|null $start_time
+ * @property Carbon|null $end_time
  */
 class Schedule extends Model
 {
@@ -58,6 +59,12 @@ class Schedule extends Model
 
     /** Get the class for this schedule. */
     public function className(): BelongsTo
+    {
+        return $this->belongsTo(ClassName::class, 'class_id');
+    }
+
+    /** Get the class for this schedule (legacy name used by some views). */
+    public function class(): BelongsTo
     {
         return $this->belongsTo(ClassName::class, 'class_id');
     }

@@ -1,46 +1,76 @@
-<div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-    <h3 class="text-lg font-semibold text-gray-900 mb-4">Upcoming Schedules (Next 7 Days)</h3>
-    <div class="overflow-x-auto">
-        <div class="flex space-x-4">
-            @php
-                $today = \Carbon\Carbon::today();
-            @endphp
+{{--
+    Agenda of the next N days built from weekly schedule rows (used by the teacher,
+    student and parent dashboards).
 
-            @for ($i = 0; $i < 7; $i++)
-                @php
-                    $date = $today->copy()->addDays($i);
-                    $dayOfWeek = $date->dayOfWeek === 0 ? 7 : $date->dayOfWeek; // Convert Sunday from 0 to 7
-                    $daySchedules = $schedules->filter(function ($schedule) use ($dayOfWeek) {
-                        return $schedule->day_of_week == $dayOfWeek;
-                    })->sortBy('start_time');
-                @endphp
+    <x-schedule-calendar :schedules="$schedules" />
+    <x-schedule-calendar :schedules="$schedules" title="Jadwal 7 hari ke depan" :days="7" show-students />
 
-                <div class="flex-none w-64 bg-gray-50 rounded-lg p-4">
-                    <h4 class="font-bold text-gray-800 mb-3">{{ $date->format('D, M d') }}</h4>
-                    @if ($daySchedules->isEmpty())
-                        <p class="text-gray-500 text-sm">No schedules</p>
+    - Rows of the same class/day/time/room (one per student) are shown once.
+    - Class start/end dates, inactive rows and completed/cancelled classes are honoured.
+    - Phones: a stacked day list; wider screens: the same list with a date column (no horizontal scroll).
+    - title: optional heading (callers that wrap it in a card usually omit it).
+    - show-students: show the number of students per session (staff views).
+--}}
+@props([
+    'schedules' => [],
+    'days' => 7,
+    'title' => null,
+    'showStudents' => false,
+    'hideEmptyDays' => false,
+])
+
+@php
+    $rows = $schedules instanceof \Illuminate\Database\Eloquent\Collection
+        ? $schedules->loadMissing(['className.course:id,name', 'teacherAssignment.teacher:id,name'])
+        : collect($schedules);
+    $agenda = \App\Services\Scheduling\ScheduleSlots::agenda($rows, \App\Services\Admin\AdminClock::now(), max(1, min(14, (int) $days)));
+    $total = collect($agenda)->sum(fn ($day) => $day['slots']->count());
+    $headingId = 'agenda-'.\Illuminate\Support\Str::random(6);
+@endphp
+
+<section {{ $attributes->class('w-full') }} @if ($title) aria-labelledby="{{ $headingId }}" @else aria-label="Jadwal {{ (int) $days }} hari ke depan" @endif>
+    @if ($title)
+        <h2 id="{{ $headingId }}" class="card-title mb-4">{{ $title }}</h2>
+    @endif
+
+    @if ($total === 0)
+        <x-ui.empty-state icon="calendar-days" title="Tidak ada kelas dalam {{ (int) $days }} hari ke depan."
+            description="Jadwal muncul di sini setelah kelas memiliki jadwal mingguan." />
+    @else
+        <ol class="divide-y divide-line" role="list">
+            @foreach ($agenda as $day)
+                @continue($hideEmptyDays && $day['slots']->isEmpty())
+                <li class="grid gap-2 py-3 first:pt-0 last:pb-0 sm:grid-cols-[8.5rem_1fr] sm:gap-4">
+                    <div class="flex items-center gap-2 sm:block">
+                        <p @class(['text-sm font-semibold', 'text-brand-text' => $day['is_today'], 'text-fg' => ! $day['is_today']])>
+                            {{ $day['date']->translatedFormat('l') }}
+                        </p>
+                        <p class="text-xs text-fg-subtle">{{ $day['date']->translatedFormat('j M') }}</p>
+                        @if ($day['is_today'])
+                            <x-ui.badge tone="primary" class="sm:mt-1">Hari ini</x-ui.badge>
+                        @endif
+                    </div>
+                    @if ($day['slots']->isEmpty())
+                        <p class="self-center text-sm text-fg-subtle">Tidak ada kelas.</p>
                     @else
-                        <ul class="space-y-2">
-                            @foreach ($daySchedules as $schedule)
-                                <li class="bg-white p-3 rounded-md shadow-sm border border-gray-200">
-                                    @php
-                                        // Handle both string and Carbon object time formats
-                                        $startTime = is_string($schedule->start_time) ? $schedule->start_time : $schedule->start_time->format('H:i');
-                                        $endTime = is_string($schedule->end_time) ? $schedule->end_time : $schedule->end_time->format('H:i');
-                                    @endphp
-                                    <p class="text-sm font-semibold text-gray-900">{{ $startTime }} - {{ $endTime }}</p>
-                                    <p class="text-xs text-gray-700">Class: {{ $schedule->className->name ?? 'N/A' }}</p>
-                                    <p class="text-xs text-gray-700">Teacher: {{ $schedule->teacherAssignment->teacher->name ?? $schedule->className->teachers->first()->name ?? 'N/A' }}</p>
-                                    <p class="text-xs text-gray-700">Student: {{ $schedule->enrollment->student->name ?? 'Current User' }}</p>
-                                    @if(isset($schedule->room) && $schedule->room)
-                                        <p class="text-xs text-gray-600">Room: {{ $schedule->room }}</p>
+                        <ul class="grid gap-2 md:grid-cols-2" role="list">
+                            @foreach ($day['slots'] as $slot)
+                                @php $teacher = $slot->teacher(); @endphp
+                                <li class="rounded-md border border-line bg-surface p-3">
+                                    <p class="num font-mono text-xs font-semibold text-fg-muted">{{ $slot->timeRange() }}</p>
+                                    <p class="mt-1 text-sm font-medium leading-snug text-fg">{{ $slot->class()?->name ?? 'Kelas' }}</p>
+                                    <p class="mt-0.5 text-xs text-fg-muted">
+                                        {{ $teacher?->name ?? 'Pengajar belum ditentukan' }}@if ($slot->room()) · {{ $slot->room() }}@endif
+                                    </p>
+                                    @if ($showStudents)
+                                        <x-ui.badge tone="neutral" class="mt-2">{{ $slot->studentCount() }} siswa</x-ui.badge>
                                     @endif
                                 </li>
                             @endforeach
                         </ul>
                     @endif
-                </div>
-            @endfor
-        </div>
-    </div>
-</div>
+                </li>
+            @endforeach
+        </ol>
+    @endif
+</section>

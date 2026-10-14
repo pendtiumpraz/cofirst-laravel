@@ -2,331 +2,376 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Admin\AddClassStudentRequest;
+use App\Http\Requests\Admin\ClassRequest;
+use App\Models\Attendance;
 use App\Models\ClassName;
 use App\Models\Course;
-use App\Models\User;
 use App\Models\Enrollment;
+use App\Models\Schedule;
+use App\Models\User;
+use App\Services\Admin\AdminAudit;
+use App\Services\Admin\ClassRosterService;
+use App\Services\Scheduling\ScheduleSlots;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
+/**
+ * Admin › Kelas: classes, their teachers (class_teacher pivot), roster and slots.
+ */
 class ClassController extends Controller
 {
-    /**
-     * Display a listing of classes.
-     */
-    public function index()
+    private const SORTS = ['name', 'start_date', 'seats_taken', 'created_at'];
+
+    private const PHOTO_DIR = 'class-photos';
+
+    public function __construct(private readonly ClassRosterService $roster)
     {
-        $classes = ClassName::with(['course', 'teachers', 'classPhotos' => function($query) {
-                $query->latest()->limit(1);
-            }])
-            ->withCount('enrollments')
-            ->paginate(20);
-            
-        // Debug logging
-        Log::info('Admin Classes Debug', [
-            'classes_count' => $classes->count(),
-            'total_classes' => $classes->total(),
-            'current_page' => $classes->currentPage(),
-            'first_class' => $classes->first() ? [
-                'id' => $classes->first()->id,
-                'name' => $classes->first()->name,
-                'course' => $classes->first()->course?->name,
-                'teachers_count' => $classes->first()->teachers?->count(),
-                'teachers' => $classes->first()->teachers?->pluck('name')->toArray(),
-                'status' => $classes->first()->status,
-                'is_active' => $classes->first()->is_active,
-            ] : null
-        ]);
-            
-        return view('admin.classes.index', compact('classes'));
     }
 
     /**
-     * Show the form for creating a new class.
+     * List classes with filters (status, type, course, teacher) and sorting.
      */
-    public function create()
+    public function index(Request $request): View
     {
-        $courses = Course::where('is_active', true)->get();
-        $teachers = User::role('teacher')->where('is_active', true)->get();
-        return view('admin.classes.create', compact('courses', 'teachers'));
+        $this->authorize('viewAny', ClassName::class);
+
+        $sorted = in_array($request->query('sort'), self::SORTS, true);
+        $sort = $sorted ? $request->query('sort') : 'start_date';
+        $direction = $sorted ? ($request->query('direction') === 'desc' ? 'desc' : 'asc') : 'desc';
+
+        $classes = ClassName::query()
+            ->with(['course:id,name', 'teachers:id,name,profile_photo_path'])
+            ->withSeatsTaken()
+            ->when($request->query('status') === 'archived', fn ($q) => $q->onlyTrashed())
+            ->when(in_array($request->query('status'), array_keys(ClassRequest::STATUSES), true), fn ($q) => $q->where('status', $request->query('status')))
+            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->query('type')))
+            ->when($request->filled('course'), fn ($q) => $q->where('course_id', (int) $request->query('course')))
+            ->when($request->filled('teacher'), fn ($q) => $q->taughtBy((int) $request->query('teacher')))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $term = '%'.str_replace(['%', '_'], ['\%', '\_'], trim((string) $request->query('search'))).'%';
+                $q->where('name', 'like', $term);
+            })
+            ->orderBy($sort, $direction)
+            ->orderBy('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        $counts = ClassName::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+
+        return view('admin.classes.index', [
+            'classes' => $classes,
+            'statuses' => ClassRequest::STATUSES,
+            'types' => ClassName::types(),
+            'courses' => Course::orderBy('name')->pluck('name', 'id'),
+            'teachers' => User::role('teacher')->orderBy('name')->pluck('name', 'id'),
+            'counts' => $counts,
+        ]);
     }
 
     /**
-     * Store a newly created class in storage.
+     * Create form.
      */
-    public function store(Request $request)
+    public function create(Request $request): View
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids,free_webinar,free_trial_30min',
-            'course_id' => 'required|exists:courses,id',
-            'curriculum_id' => 'nullable|exists:curriculums,id',
-            'teacher_ids' => 'required|array|min:1',
-            'teacher_ids.*' => 'exists:users,id',
-            'capacity' => 'required|integer|min:1',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after:start_date',
-            'is_active' => 'boolean',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
+        $this->authorize('create', ClassName::class);
+
+        $class = new ClassName([
+            'status' => ClassName::STATUS_PLANNED,
+            'course_id' => $request->integer('course') ?: null,
+            'delivery_method' => 'offline',
         ]);
 
-        $classData = [
-            'name' => $request->name,
-            'type' => $request->type,
-            'course_id' => $request->course_id,
-            'curriculum_id' => $request->curriculum_id,
-            'max_students' => $request->capacity,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'status' => $request->boolean('is_active', true) ? 'active' : 'planned',
-        ];
+        return view('admin.classes.create', $this->formData($class));
+    }
 
-        // Handle photo upload
+    /**
+     * Store a class with its teachers.
+     */
+    public function store(ClassRequest $request): RedirectResponse
+    {
+        $data = $this->classData($request);
+        $storedPhoto = $request->hasFile('photo') ? $request->file('photo')->store(self::PHOTO_DIR, 'public') : null;
+        if ($storedPhoto) {
+            $data['photo_path'] = $storedPhoto;
+        }
+
+        try {
+            $class = DB::transaction(function () use ($data, $request) {
+                $class = ClassName::create($data);
+                $class->syncTeachers($request->input('teacher_ids', []));
+
+                return $class;
+            });
+        } catch (\Throwable $e) {
+            if ($storedPhoto) {
+                Storage::disk('public')->delete($storedPhoto);
+            }
+            throw $e;
+        }
+
+        AdminAudit::log('class.created', $class, ['teachers' => count($request->input('teacher_ids', []))]);
+
+        return redirect()->route('admin.classes.show', $class)->with('success', "Kelas {$class->name} berhasil dibuat.");
+    }
+
+    /**
+     * Class detail: summary, students, weekly slots and teachers.
+     */
+    public function show(ClassName $class): View
+    {
+        $this->authorize('view', $class);
+
+        $class->load(['course:id,name', 'curriculum:id,title', 'teachers:id,name,email,profile_photo_path']);
+        $class->loadCount(['enrollments as seats_taken' => fn ($q) => $q->whereIn('status', Enrollment::SEAT_STATUSES)]);
+
+        $students = $class->enrollments()
+            ->whereIn('status', Enrollment::SEAT_STATUSES)
+            ->with(['student:id,name,profile_photo_path', 'student.profile:id,user_id,birth_date'])
+            ->orderBy('enrollment_date')
+            ->limit(12)
+            ->get();
+
+        $rows = Schedule::where('class_id', $class->id)
+            ->with(['teacherAssignment.teacher:id,name', 'enrollment.student:id,name'])
+            ->get()
+            ->each(fn (Schedule $row) => $row->setRelation('className', $class));
+        $slots = ScheduleSlots::group($rows);
+
+        $byStatus = Attendance::where('class_id', $class->id)
+            ->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
+        $recorded = (int) $byStatus->sum();
+        $attended = (int) $byStatus->only(Attendance::ATTENDED_STATUSES)->sum();
+
+        return view('admin.classes.show', [
+            'class' => $class,
+            'students' => $students,
+            'slots' => $slots,
+            'attendanceRate' => $recorded === 0 ? null : round($attended / $recorded * 100, 1),
+            'meetings' => $class->classReports()->distinct()->count('report_date'),
+        ]);
+    }
+
+    /**
+     * Edit form.
+     */
+    public function edit(ClassName $class): View
+    {
+        $this->authorize('update', $class);
+
+        $class->load('teachers:id');
+
+        return view('admin.classes.edit', $this->formData($class));
+    }
+
+    /**
+     * Update a class; teacher changes go through syncTeachers().
+     */
+    public function update(ClassRequest $request, ClassName $class): RedirectResponse
+    {
+        $data = $this->classData($request);
+        $old = $class->photo_path;
+
         if ($request->hasFile('photo')) {
-            $photo = $request->file('photo');
-            $filename = uniqid() . '-' . time() . '.' . $photo->getClientOriginalExtension();
-            
-            // Store the file directly
-            $path = $photo->storeAs('class-photos', $filename, 'public');
-            $classData['photo_path'] = $path;
-            
-            Log::info('Photo uploaded for class creation', [
-                'filename' => $filename,
-                'path' => $path,
-                'full_path' => storage_path('app/public/' . $path),
-                'exists' => Storage::disk('public')->exists($path)
-            ]);
+            $data['photo_path'] = $request->file('photo')->store(self::PHOTO_DIR, 'public');
+        } elseif ($request->boolean('remove_photo')) {
+            $data['photo_path'] = null;
         }
 
-        $class = ClassName::create($classData);
+        DB::transaction(function () use ($class, $data, $request) {
+            $class->update($data);
 
-        // Assign multiple teachers
-        foreach ($request->teacher_ids as $index => $teacherId) {
-            $class->teachers()->attach($teacherId, [
-                'role' => 'teacher', // All teachers are equal
-                'created_at' => now(),
-                'updated_at' => now()
-            ]);
-        }
-
-        // Record teacher assignments for backward compatibility
-        foreach ($request->teacher_ids as $teacherId) {
-        \App\Models\TeacherAssignment::create([
-                'teacher_id' => $teacherId,
-            'class_id' => $class->id,
-            'assigned_at' => now(),
-        ]);
-        }
-
-        return redirect()->route('admin.classes.index')->with('success', 'Class created successfully with ' . count($request->teacher_ids) . ' teacher(s) assigned.');
-    }
-
-    /**
-     * Display the specified class.
-     */
-    public function show(ClassName $class)
-    {
-        $class->load(['course', 'teacher', 'enrollments.student']);
-        return view('admin.classes.show', compact('class'));
-    }
-
-    /**
-     * Show the form for editing the specified class.
-     */
-    public function edit(ClassName $class)
-    {
-        $courses = Course::where('is_active', true)->get();
-        $teachers = User::role('teacher')->where('is_active', true)->get();
-        
-        Log::info('Editing class', [
-            'class_id' => $class->id,
-            'photo_path' => $class->photo_path,
-            'photo_url' => $class->photo_url,
-            'photo_exists' => $class->photo_path ? Storage::disk('public')->exists($class->photo_path) : false
-        ]);
-        
-        return view('admin.classes.edit', compact('class', 'courses', 'teachers'));
-    }
-
-    /**
-     * Update the specified class in storage.
-     */
-    public function update(Request $request, ClassName $class)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|in:private_home_call,private_office_1on1,private_online_1on1,public_school_extracurricular,offline_seminar,online_webinar,group_class_3_5_kids,free_webinar,free_trial_30min',
-            'course_id' => 'required|exists:courses,id',
-            'curriculum_id' => 'nullable|exists:curriculums,id',
-            'teacher_ids' => 'required|array|min:1',
-            'teacher_ids.*' => 'exists:users,id',
-            'capacity' => 'required|integer|min:1',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after:start_date',
-            'is_active' => 'boolean',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
-        ]);
-
-        // Get current teacher IDs for comparison
-        $currentTeacherIds = $class->teachers->pluck('id')->toArray();
-        $newTeacherIds = $request->teacher_ids;
-
-        // Check if teachers have changed
-        if ($currentTeacherIds !== $newTeacherIds) {
-            // Unassign current teachers from TeacherAssignment table
-            \App\Models\TeacherAssignment::where('class_id', $class->id)
-                ->whereNull('unassigned_at')
-                ->update(['unassigned_at' => now()]);
-
-            // Detach all current teachers from pivot table
-            $class->teachers()->detach();
-
-            // Assign new teachers to pivot table
-            foreach ($newTeacherIds as $index => $teacherId) {
-                $class->teachers()->attach($teacherId, [
-                    'role' => 'teacher', // All teachers are equal
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]);
+            // Reason: compare as sorted ints — the old code compared int vs string
+            // arrays and re-created every assignment on each save.
+            $current = $class->teachers()->pluck('users.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+            $new = collect($request->input('teacher_ids', []))->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
+            if ($current !== $new) {
+                $class->syncTeachers($new);
             }
+        });
 
-            // Assign new teachers to TeacherAssignment table for backward compatibility
-            foreach ($newTeacherIds as $teacherId) {
-            \App\Models\TeacherAssignment::create([
-                    'teacher_id' => $teacherId,
-                'class_id' => $class->id,
-                'assigned_at' => now(),
-            ]);
-            }
+        if ($old && array_key_exists('photo_path', $data) && $data['photo_path'] !== $old) {
+            Storage::disk('public')->delete($old);
         }
 
-        $classData = [
-            'name' => $request->name,
-            'type' => $request->type,
-            'course_id' => $request->course_id,
-            'curriculum_id' => $request->curriculum_id,
-            'max_students' => $request->capacity,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'status' => $request->boolean('is_active', true) ? 'active' : 'planned',
-        ];
+        AdminAudit::log('class.updated', $class, ['fields' => array_keys($class->getChanges())]);
 
-        // Handle photo upload
-        if ($request->hasFile('photo')) {
-            // Delete old photo if exists
-            if ($class->photo_path) {
-                Storage::disk('public')->delete($class->photo_path);
-            }
-
-            $photo = $request->file('photo');
-            $filename = $class->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
-            
-            // Store the file directly
-            $path = $photo->storeAs('class-photos', $filename, 'public');
-            $classData['photo_path'] = $path;
-            
-            Log::info('Photo uploaded for class update', [
-                'class_id' => $class->id,
-                'old_path' => $class->photo_path,
-                'new_path' => $path,
-                'exists' => Storage::disk('public')->exists($path)
-            ]);
-        }
-
-        $class->update($classData);
-        
-        return redirect()->route('admin.classes.index')->with('success', 'Class updated successfully with ' . count($request->teacher_ids) . ' teacher(s) assigned.');
+        return redirect()->route('admin.classes.show', $class)->with('success', "Perubahan kelas {$class->name} disimpan.");
     }
 
     /**
-     * Remove the specified class from storage.
+     * Archive (soft delete) a class that has no students holding a seat.
      */
-    public function destroy(ClassName $class)
+    public function destroy(ClassName $class): RedirectResponse
     {
-        // Check if class has enrollments
-        if ($class->enrollments()->count() > 0) {
-            return redirect()->route('admin.classes.index')->with('error', 'Cannot delete class with existing enrollments.');
+        $this->authorize('delete', $class);
+
+        $seats = $class->seatsTaken();
+        if ($seats > 0) {
+            return back()->with('error', "Kelas ini masih punya {$seats} siswa aktif/menunggu. Pindahkan atau keluarkan siswanya, atau ubah status kelas menjadi Selesai/Dibatalkan.");
         }
 
-        $class->delete();
-        return redirect()->route('admin.classes.index')->with('success', 'Class deleted successfully.');
+        DB::transaction(function () use ($class) {
+            $class->schedules()->update(['is_active' => false]);
+            $class->update(['is_active' => false]);
+            $class->delete();
+        });
+        AdminAudit::log('class.archived', $class);
+
+        return redirect()->route('admin.classes.index')->with('success', "Kelas {$class->name} diarsipkan. Absensi, laporan dan sertifikatnya tetap tersimpan.");
     }
 
     /**
-     * Show students in the class.
+     * Restore an archived class.
      */
-    public function students(ClassName $class)
+    public function restore(ClassName $class): RedirectResponse
     {
-        $class->load(['enrollments.student', 'course', 'teacher']);
-        return view('admin.classes.students', compact('class'));
+        $this->authorize('delete', $class);
+
+        $class->restore();
+        $class->update(['is_active' => $class->status !== ClassName::STATUS_CANCELLED]);
+        AdminAudit::log('class.restored', $class);
+
+        return redirect()->route('admin.classes.show', $class)->with('success', "Kelas {$class->name} dipulihkan.");
     }
 
     /**
-     * Add student to class.
+     * Full roster with status filter.
      */
-    public function addStudent(Request $request, ClassName $class)
+    public function students(Request $request, ClassName $class): View
     {
-        $request->validate([
-            'student_id' => 'required|exists:users,id'
+        $this->authorize('view', $class);
+
+        $class->load('course:id,name');
+        $class->loadCount(['enrollments as seats_taken' => fn ($q) => $q->whereIn('status', Enrollment::SEAT_STATUSES)]);
+
+        $filter = $request->query('status', 'seat');
+        $enrollments = $class->enrollments()
+            ->with(['student:id,name,email,profile_photo_path', 'student.profile:id,user_id,birth_date'])
+            ->when($filter === 'seat', fn ($q) => $q->whereIn('status', Enrollment::SEAT_STATUSES))
+            ->when(array_key_exists($filter, Enrollment::statuses()), fn ($q) => $q->where('status', $filter))
+            ->orderByRaw("case status when 'active' then 0 when 'pending' then 1 else 2 end")
+            ->orderBy('enrollment_date')
+            ->paginate(25)
+            ->withQueryString();
+
+        // Attendance rate per student in this class (one grouped query).
+        $rates = Attendance::where('class_id', $class->id)
+            ->whereIn('student_id', $enrollments->pluck('student_id'))
+            ->get(['student_id', 'status'])
+            ->groupBy('student_id')
+            ->map(fn ($rows) => Attendance::rateFor($rows));
+
+        AdminAudit::log('class.roster_viewed', $class, ['rows' => $enrollments->count()]);
+
+        return view('admin.classes.students', compact('class', 'enrollments', 'rates', 'filter'));
+    }
+
+    /**
+     * Add a student to the class (capacity-checked, transactional).
+     */
+    public function addStudent(AddClassStudentRequest $request, ClassName $class): RedirectResponse
+    {
+        $student = User::findOrFail($request->integer('student_id'));
+
+        $this->roster->enroll($class, $student, [
+            'status' => $request->input('status') ?: Enrollment::STATUS_ACTIVE,
+            'payment_status' => $request->input('payment_status') ?: 'unpaid',
         ]);
+        AdminAudit::log('class.student_added', $class, ['student_id' => $student->id]);
 
-        // Check if student is already enrolled
-        if ($class->enrollments()->where('student_id', $request->student_id)->exists()) {
-            return redirect()->back()->with('error', 'Student is already enrolled in this class.');
-        }
-
-        // Check class capacity
-        if ($class->enrollments()->count() >= $class->capacity) {
-            return redirect()->back()->with('error', 'Class is at full capacity.');
-        }
-
-        Enrollment::create([
-            'student_id' => $request->student_id,
-            'class_id' => $class->id,
-            'enrollment_date' => now(),
-            'status' => 'active'
-        ]);
-
-        return redirect()->back()->with('success', 'Student added to class successfully.');
+        return back()->with('success', "{$student->name} ditambahkan ke kelas {$class->name}.");
     }
 
     /**
-     * Remove a student from the class.
+     * Remove a student: the enrollment becomes "Keluar" (dropped) and their
+     * schedule rows are deactivated; history is kept.
      */
-    public function removeStudent(ClassName $class, User $student)
+    public function removeStudent(ClassName $class, User $student): RedirectResponse
     {
-        $enrollment = Enrollment::where('class_id', $class->id)
-                                ->where('student_id', $student->id)
-                                ->first();
-        
-        if ($enrollment) {
-            $enrollment->delete();
-            return redirect()->back()->with('success', 'Student removed from class successfully.');
+        $this->authorize('manageRoster', $class);
+
+        $enrollment = Enrollment::where('class_id', $class->id)->where('student_id', $student->id)
+            ->whereIn('status', Enrollment::SEAT_STATUSES)->first();
+
+        if (! $enrollment) {
+            return back()->with('error', 'Siswa ini tidak terdaftar aktif di kelas ini.');
         }
 
-        return redirect()->back()->with('error', 'Student not found in this class.');
+        $this->roster->changeStatus($enrollment, Enrollment::STATUS_DROPPED);
+        AdminAudit::log('class.student_removed', $class, ['student_id' => $student->id]);
+
+        return back()->with('success', "{$student->name} dikeluarkan dari kelas. Riwayat absensi dan laporannya tetap tersimpan.");
     }
 
     /**
-     * Get curriculum by course for AJAX requests.
+     * Change the status of one roster entry (approve, suspend, complete…).
      */
-    public function getCurriculumByCourse($courseId)
+    public function updateStudentStatus(Request $request, ClassName $class, Enrollment $enrollment): RedirectResponse
     {
-        $course = Course::with('curriculum')->find($courseId);
-        
-        if (!$course) {
-            return response()->json(['error' => 'Course not found'], 404);
-        }
+        $this->authorize('manageRoster', $class);
+        abort_unless((int) $enrollment->class_id === (int) $class->id, 404);
 
-        if (!$course->curriculum) {
-            return response()->json(null);
-        }
+        $validated = $request->validate(['status' => ['required', Rule::in(array_keys(Enrollment::statuses()))]], [], ['status' => 'status']);
+        $this->roster->changeStatus($enrollment, $validated['status']);
+        AdminAudit::log('enrollment.status_changed', $enrollment, ['status' => $validated['status']]);
+
+        return back()->with('success', 'Status siswa diperbarui menjadi '.Enrollment::statuses()[$validated['status']].'.');
+    }
+
+    /**
+     * Curricula of a course for the class form (JSON; empty list when none).
+     */
+    public function getCurriculumByCourse(Course $course): JsonResponse
+    {
+        $this->authorize('viewAny', ClassName::class);
 
         return response()->json([
-            'id' => $course->curriculum->id,
-            'title' => $course->curriculum->title,
-            'description' => $course->curriculum->description,
+            'curriculums' => $course->curriculums()->orderBy('id')->get(['id', 'title'])
+                ->map(fn ($c) => ['id' => $c->id, 'title' => $c->title])->values(),
         ]);
+    }
+
+    /**
+     * Shared data for the create/edit forms.
+     *
+     * @return array<string, mixed>
+     */
+    private function formData(ClassName $class): array
+    {
+        $courses = Course::orderBy('name')->get(['id', 'name', 'is_active']);
+        $courseId = old('course_id', $class->course_id);
+
+        return [
+            'class' => $class,
+            'courses' => $courses,
+            'curriculums' => $courseId ? \App\Models\Curriculum::where('course_id', $courseId)->orderBy('id')->pluck('title', 'id') : collect(),
+            'teachers' => User::role('teacher')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'profile_photo_path']),
+            'types' => ClassName::types(),
+            'statuses' => ClassRequest::STATUSES,
+            'delivery' => ClassRequest::DELIVERY,
+            'suggested' => ClassRequest::TYPE_SUGGESTED,
+            'typeMax' => ClassRequest::TYPE_CAPACITY,
+        ];
+    }
+
+    /**
+     * Column data from a validated class request.
+     *
+     * @return array<string, mixed>
+     */
+    private function classData(ClassRequest $request): array
+    {
+        $data = $request->safe()->only(['name', 'course_id', 'curriculum_id', 'type', 'delivery_method', 'description', 'start_date', 'end_date', 'max_students', 'status']);
+
+        // Reason: one source of truth — a cancelled class is inactive, every other status is active.
+        $data['is_active'] = $data['status'] !== ClassName::STATUS_CANCELLED;
+
+        return $data;
     }
 }

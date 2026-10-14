@@ -3,90 +3,155 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
+use App\Http\Requests\Admin\RoleRequest;
+use App\Models\User;
+use App\Services\Admin\AdminAudit;
+use App\Support\Admin\AccessControl;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
-use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
+/**
+ * Peran (superadmin only). System roles cannot be renamed or deleted because
+ * routes, dashboards and navigation depend on their names; the superadmin role
+ * always holds every permission.
+ */
 class RoleController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Roles with user and permission counts.
      */
-    public function index()
+    public function index(): View
     {
-        $roles = Role::with('permissions')->paginate(10);
-        return view('admin.roles.index', compact('roles'));
+        $roles = Role::query()
+            ->withCount(['permissions', 'users'])
+            ->orderByRaw('case when name in (\''.implode("','", AccessControl::SYSTEM_ROLES).'\') then 0 else 1 end')
+            ->orderBy('id')
+            ->get();
+
+        return view('admin.roles.index', [
+            'roles' => $roles,
+            'permissionTotal' => Permission::count(),
+        ]);
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Create form with the grouped permission matrix.
      */
-    public function create()
+    public function create(): View
     {
-        $permissions = Permission::all();
-        return view('admin.roles.create', compact('permissions'));
+        return view('admin.roles.create', [
+            'role' => new Role(),
+            'groups' => AccessControl::group(Permission::orderBy('name')->get()),
+            'granted' => [],
+        ]);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a custom role.
      */
-    public function store(Request $request)
+    public function store(RoleRequest $request): RedirectResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:roles,name'],
-            'permissions' => 'nullable|array',
-            'permissions.*' => 'exists:permissions,name',
+        $role = DB::transaction(function () use ($request) {
+            $role = Role::create(['name' => $request->input('name'), 'guard_name' => 'web']);
+            $role->syncPermissions($request->input('permissions', []));
+
+            return $role;
+        });
+
+        $this->flushCache();
+        AdminAudit::log('role.created', $role, ['permissions' => count($request->input('permissions', []))]);
+
+        return redirect()->route('admin.roles.show', $role)->with('success', 'Peran '.AccessControl::roleLabel($role->name).' dibuat.');
+    }
+
+    /**
+     * Role detail: permissions per module and a sample of its users.
+     */
+    public function show(Role $role): View
+    {
+        $role->load('permissions:id,name');
+        $users = User::role($role->name)->orderBy('name')->limit(12)->get(['id', 'name', 'profile_photo_path', 'is_active']);
+
+        return view('admin.roles.show', [
+            'role' => $role,
+            'groups' => AccessControl::group($role->permissions),
+            'users' => $users,
+            'userCount' => User::role($role->name)->count(),
+        ]);
+    }
+
+    /**
+     * Edit form.
+     */
+    public function edit(Role $role): View
+    {
+        $role->load('permissions:id,name');
+
+        return view('admin.roles.edit', [
+            'role' => $role,
+            'groups' => AccessControl::group(Permission::orderBy('name')->get()),
+            'granted' => $role->permissions->pluck('name')->all(),
+        ]);
+    }
+
+    /**
+     * Update a role (system roles keep their name; superadmin keeps every permission).
+     */
+    public function update(RoleRequest $request, Role $role): RedirectResponse
+    {
+        $before = $role->permissions()->pluck('name')->sort()->values()->all();
+
+        DB::transaction(function () use ($request, $role) {
+            if (! AccessControl::isSystemRole($role->name)) {
+                $role->update(['name' => $request->input('name')]);
+            }
+
+            // Reason: the superadmin role must never lose a permission (lockout).
+            $role->syncPermissions($role->name === 'superadmin'
+                ? Permission::pluck('name')->all()
+                : $request->input('permissions', []));
+        });
+
+        $this->flushCache();
+        $after = $role->permissions()->pluck('name')->sort()->values()->all();
+        AdminAudit::log('role.updated', $role, [
+            'granted' => array_values(array_diff($after, $before)),
+            'revoked' => array_values(array_diff($before, $after)),
         ]);
 
-        $role = Role::create(['name' => $request->name, 'guard_name' => 'web']);
-        $role->syncPermissions($request->permissions);
-
-        return redirect()->route('admin.roles.index')->with('success', 'Role created successfully.');
+        return redirect()->route('admin.roles.show', $role)->with('success', 'Peran '.AccessControl::roleLabel($role->name).' diperbarui.');
     }
 
     /**
-     * Display the specified resource.
+     * Delete a custom role that no user holds.
      */
-    public function show(Role $role)
+    public function destroy(Role $role): RedirectResponse
     {
-        $role->load('permissions');
-        return view('admin.roles.show', compact('role'));
-    }
+        if (AccessControl::isSystemRole($role->name)) {
+            return back()->with('error', 'Peran bawaan sistem tidak dapat dihapus.');
+        }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Role $role)
-    {
-        $permissions = Permission::all();
-        $role->load('permissions');
-        return view('admin.roles.edit', compact('role', 'permissions'));
-    }
+        $holders = User::role($role->name)->count();
+        if ($holders > 0) {
+            return back()->with('error', "Peran ini masih dipakai {$holders} pengguna. Pindahkan pengguna ke peran lain terlebih dahulu.");
+        }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Role $role)
-    {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('roles')->ignore($role->id)],
-            'permissions' => 'nullable|array',
-            'permissions.*' => 'exists:permissions,name',
-        ]);
-
-        $role->update(['name' => $request->name]);
-        $role->syncPermissions($request->permissions);
-
-        return redirect()->route('admin.roles.index')->with('success', 'Role updated successfully.');
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Role $role)
-    {
         $role->delete();
-        return redirect()->route('admin.roles.index')->with('success', 'Role deleted successfully.');
+        $this->flushCache();
+        AdminAudit::log('role.deleted', null, ['role' => $role->name]);
+
+        return redirect()->route('admin.roles.index')->with('success', 'Peran dihapus.');
+    }
+
+    /**
+     * Clear spatie's permission cache after changes.
+     */
+    private function flushCache(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

@@ -1,0 +1,238 @@
+/*
+|--------------------------------------------------------------------------
+| Overlays & navigation — modal, dropdown, toast, tabs, breadcrumbs, tooltip
+| Overlays always carry a border, so dark mode needs no shadow.
+|--------------------------------------------------------------------------
+*/
+
+@layer components {
+    /* ── Modal / bottom sheet ── */
+    .modal-root {
+        @apply fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:p-6;
+    }
+
+    .modal-backdrop {
+        @apply fixed inset-0 bg-neutral-950/50;
+    }
+
+    .modal-panel {
+        @apply relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border border-line-strong bg-surface text-fg shadow-3 sm:rounded-xl;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .modal-sm { @apply sm:max-w-sm; }
+    .modal-md { @apply sm:max-w-md; }
+    .modal-lg { @apply sm:max-w-lg; }
+    .modal-xl { @apply sm:max-w-xl; }
+    .modal-2xl { @apply sm:max-w-2xl; }
+    .modal-4xl { @apply sm:max-w-4xl; }
+
+    .modal-header {
+        @apply flex items-start justify-between gap-4 px-6 pb-2 pt-6;
+    }
+
+    .modal-title {
+        @apply text-xl text-fg;
+        font-family: var(--cf-font-display);
+        font-weight: var(--cf-title-weight);
+    }
+
+    .modal-description {
+        @apply mt-1 text-fg-muted;
+    }
+
+    .modal-body {
+        @apply overflow-y-auto px-6 py-4;
+    }
+
+    .modal-footer {
+        @apply flex flex-col-reverse gap-2 border-t border-line bg-surface-2/50 px-6 py-4 sm:flex-row sm:justify-end;
+    }
+
+    /* Drag handle on the mobile bottom sheet. */
+    .modal-handle {
+        @apply mx-auto mt-2 h-1 w-10 rounded-full bg-line-strong sm:hidden;
+    }
+
+    /* Native <dialog> used by CF.confirm(). */
+    dialog.cf-dialog {
+        @apply m-auto w-[calc(100%_-_2rem)] max-w-md overflow-hidden rounded-xl border border-line-strong bg-surface p-0 text-fg shadow-3;
+    }
+
+    dialog.cf-dialog::backdrop {
+        background: rgb(12 10 9 / 0.5);
+    }
+
+    /* ── Dropdown ── */
+    .dropdown-panel {
+        @apply absolute z-50 mt-2 min-w-[12rem] rounded-lg border border-line-strong bg-surface p-1 text-sm text-fg shadow-2;
+    }
+
+    .dropdown-item {
+        @apply flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm text-fg-muted no-underline;
+        min-height: 2.25rem;
+        transition: background-color var(--cf-dur-1) linear, color var(--cf-dur-1) linear;
+    }
+
+    .dropdown-item:hover,
+    .dropdown-item:focus-visible {
+        @apply bg-surface-2 text-fg;
+    }
+
+    .dropdown-item:focus-visible {
+        outline-offset: -2px;
+    }
+
+    .dropdown-item > svg {
+        @apply size-[1.125rem] shrink-0 text-fg-subtle;
+    }
+
+    .dropdown-item[aria-current='true'],
+    .dropdown-item.is-active {
+        @apply font-medium text-fg;
+    }
+
+    .dropdown-item-danger {
+        @apply text-danger;
+    }
+
+    .dropdown-item-danger > svg {
+        @apply text-danger;
+    }
+
+    .dropdown-item-danger:hover,
+    .dropdown-item-danger:focus-visible {
+        @apply bg-danger-soft text-danger;
+    }
+
+    .dropdown-divider {
+        @apply -mx-1 my-1 h-px bg-line;
+    }
+
+    .dropdown-label {
+        @apply eyebrow px-3 pb-1 pt-2;
+    }
+
+    @media (pointer: coarse) {
+        .dropdown-item {
+            min-height: 44px;
+        }
+    }
+
+    /* ── Toasts: top-centre on phones, bottom-right on desktop ── */
+    .toast-region {
+        @apply pointer-events-none fixed inset-x-0 top-0 z-[80] flex flex-col items-center gap-2 p-4 sm:bottom-0 sm:left-auto sm:right-0 sm:top-auto sm:items-end sm:p-6;
+        padding-top: max(1rem, env(safe-area-inset-top));
+    }
+
+    .toast {
+        --toast-c: var(--cf-info);
+        @apply pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-lg border border-line bg-surface p-4 text-sm text-fg;
+        box-shadow:
+            inset var(--cf-toast-bar) 0 0 0 rgb(var(--toast-c)),
+            var(--cf-shadow-2);
+    }
+
+    .dark .toast {
+        @apply border-line-strong;
+    }
+
+    .toast-icon {
+        @apply mt-0.5 size-5 shrink-0;
+        color: rgb(var(--toast-c));
+    }
+
+    .toast-title {
+        @apply font-semibold text-fg;
+    }
+
+    .toast-body {
+        @apply text-fg-muted;
+    }
+
+    .toast-success { --toast-c: var(--cf-success); }
+    .toast-error,
+    .toast-danger { --toast-c: var(--cf-danger); }
+    .toast-warning { --toast-c: var(--cf-warning); }
+    .toast-info { --toast-c: var(--cf-info); }
+
+    .toast-enter {
+        animation: cf-rise 200ms var(--cf-ease-out) both;
+    }
+
+    /* ── Tabs (underline) ── */
+    .tabs-list {
+        @apply -mb-px flex gap-6 overflow-x-auto border-b border-line;
+        scrollbar-width: none;
+    }
+
+    .tabs-list::-webkit-scrollbar {
+        display: none;
+    }
+
+    .tab {
+        @apply relative inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap text-sm font-medium text-fg-subtle no-underline;
+        transition: color var(--cf-dur-1) linear;
+    }
+
+    .tab:hover {
+        @apply text-fg;
+    }
+
+    .tab:focus-visible {
+        outline-offset: -2px;
+    }
+
+    .tab[aria-selected='true'],
+    .tab[aria-current='page'],
+    .tab.is-active {
+        @apply text-fg;
+    }
+
+    .tab[aria-selected='true']::after,
+    .tab[aria-current='page']::after,
+    .tab.is-active::after {
+        content: '';
+        @apply absolute inset-x-0 -bottom-px h-0.5 rounded-full;
+        background-color: rgb(var(--cf-nav-indicator));
+    }
+
+    .tab > svg {
+        @apply size-[1.125rem];
+    }
+
+    /* ── Breadcrumbs ── */
+    .breadcrumbs {
+        @apply flex min-w-0 flex-wrap items-center gap-1.5 text-[0.8125rem] text-fg-subtle;
+    }
+
+    .breadcrumbs a {
+        @apply rounded-sm text-fg-subtle no-underline hover:text-fg hover:underline;
+    }
+
+    .breadcrumbs [aria-current='page'] {
+        @apply truncate font-medium text-fg;
+    }
+
+    .breadcrumbs-sep {
+        @apply select-none text-line-strong;
+    }
+
+    /* ── Tooltip (CSS only, data-tooltip on a positioned element) ──
+       Rendered only while hovered/focused so it never widens scroll areas. */
+    [data-tooltip] {
+        @apply relative;
+    }
+
+    [data-tooltip]:is(:hover, :focus-visible)::after {
+        content: attr(data-tooltip);
+        @apply pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-sm bg-fg px-2 py-1 text-xs font-medium text-canvas;
+        animation: cf-fade 150ms linear both;
+    }
+
+    @media (hover: none) {
+        [data-tooltip]:is(:hover, :focus-visible)::after {
+            content: none;
+        }
+    }
+}

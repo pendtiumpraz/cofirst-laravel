@@ -19,9 +19,12 @@ Route::middleware(['role:teacher'])->prefix('teacher')->name('teacher.')->group(
     Route::get('classes', [TeacherController::class, 'classes'])->name('classes');
     Route::get('classes/{class}', [TeacherController::class, 'classDetail'])->name('class-detail');
     Route::get('students', [TeacherController::class, 'students'])->name('students.index');
+    Route::get('schedules', [TeacherController::class, 'schedule'])->name('schedules.index');
 
-    // Curriculum (read-only)
+    // Curriculum (read-only) + per-class meeting progress
     Route::get('curriculums', [Teacher\CurriculumController::class, 'index'])->name('curriculums.index');
+    Route::get('curriculums/class/{class}/progress', [Teacher\CurriculumController::class, 'classProgress'])->name('curriculums.class-progress');
+    Route::post('curriculums/class/{class}/progress', [Teacher\CurriculumController::class, 'updateClassProgress'])->name('curriculums.class-progress.update');
     Route::get('curriculums/{curriculum}', [Teacher\CurriculumController::class, 'show'])->name('curriculums.show');
     Route::get('curriculums/{curriculum}/syllabuses', [Teacher\CurriculumController::class, 'syllabuses'])->name('curriculums.syllabuses');
     Route::get('curriculums/{curriculum}/materials', [Teacher\CurriculumController::class, 'materials'])->name('curriculums.materials');
@@ -43,6 +46,8 @@ Route::middleware(['role:teacher'])->prefix('teacher')->name('teacher.')->group(
     // Teacher handovers
     Route::resource('handovers', Teacher\HandoverController::class);
     Route::post('handovers/{handover}/approve', [Teacher\HandoverController::class, 'approve'])->name('handovers.approve');
+    Route::post('handovers/{handover}/reject', [Teacher\HandoverController::class, 'reject'])->name('handovers.reject');
+    Route::post('handovers/{handover}/complete', [Teacher\HandoverController::class, 'complete'])->name('handovers.complete');
 
     // Class photos
     Route::get('class-photos/upload/{class}', [Teacher\ClassPhotoController::class, 'upload'])->name('class-photos.upload');
@@ -59,4 +64,7 @@ Route::middleware(['role:teacher'])->prefix('teacher')->name('teacher.')->group(
     // Attendance
     Route::get('attendance', [Teacher\AttendanceController::class, 'index'])->name('attendance.index');
     Route::get('attendance/today', [Teacher\AttendanceController::class, 'today'])->name('attendance.today');
+    Route::get('attendance/export', [Teacher\AttendanceController::class, 'export'])->name('attendance.export');
+    Route::get('attendance/classes/{class}', [Teacher\AttendanceController::class, 'take'])->name('attendance.take');
+    Route::post('attendance/classes/{class}', [Teacher\AttendanceController::class, 'store'])->name('attendance.store');
 });

@@ -1,30 +1,21 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Admin Reports') }}
-        </h2>
-    </x-slot>
+@php($f = \App\Services\Academic\Format::class)
+<x-app-layout title="Laporan akademik">
+    <x-ui.page-header title="Laporan akademik"
+        subtitle="Laporan perkembangan siswa, kepatuhan berita acara pengajar, dan progres belajar per kelas."
+        :breadcrumbs="['Admin' => route('admin.dashboard'), 'Laporan akademik' => null]">
+        @if ($tab === 'laporan')
+            <x-slot:actions>
+                <x-ui.button variant="secondary" icon="arrow-down-tray" :href="route('admin.reports.export', request()->except(['page', 'tab']))">Ekspor CSV</x-ui.button>
+            </x-slot:actions>
+        @endif
+        <x-ui.tabs :active="$tab" label="Bagian laporan" :tabs="collect($tabs)->map(fn ($label, $key) => ['label' => $label, 'href' => route('admin.reports.index', ['tab' => $key])])->all()" />
+    </x-ui.page-header>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Admin reports feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show comprehensive reports and analytics for administrators.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('admin.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Dashboard
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</x-app-layout> 
+    @if ($tab === 'laporan')
+        @include('admin.reports.partials.reports-tab')
+    @elseif ($tab === 'berita-acara')
+        @include('admin.reports.partials.compliance-tab')
+    @else
+        @include('admin.reports.partials.progress-tab')
+    @endif
+</x-app-layout>

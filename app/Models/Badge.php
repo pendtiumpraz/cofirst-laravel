@@ -32,16 +32,22 @@ class Badge extends Model
      * Badge categories
      */
     const CATEGORY_ACADEMIC = 'academic';
+
     const CATEGORY_SOCIAL = 'social';
+
     const CATEGORY_ATTENDANCE = 'attendance';
+
     const CATEGORY_SPECIAL = 'special';
 
     /**
      * Badge levels
      */
     const LEVEL_BRONZE = 'bronze';
+
     const LEVEL_SILVER = 'silver';
+
     const LEVEL_GOLD = 'gold';
+
     const LEVEL_PLATINUM = 'platinum';
 
     /**

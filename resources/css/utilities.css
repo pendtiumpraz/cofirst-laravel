@@ -1,0 +1,49 @@
+/*
+|--------------------------------------------------------------------------
+| Small utilities that Tailwind does not ship
+|--------------------------------------------------------------------------
+*/
+
+@layer utilities {
+    /* Tabular, lining numerals for money, tables and KPIs. */
+    .num {
+        font-variant-numeric: lining-nums tabular-nums;
+    }
+
+    .scrollbar-thin {
+        scrollbar-width: thin;
+        scrollbar-color: rgb(var(--cf-border-strong)) transparent;
+    }
+
+    .scrollbar-none {
+        scrollbar-width: none;
+    }
+
+    .scrollbar-none::-webkit-scrollbar {
+        display: none;
+    }
+
+    .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .pt-safe {
+        padding-top: env(safe-area-inset-top);
+    }
+
+    .hairline {
+        border-color: rgb(var(--cf-border));
+    }
+
+    /* Faint 32px grid motif (B: hero, CTA, auth, page empty states only). */
+    .bg-grid {
+        background-image:
+            linear-gradient(to right, rgb(var(--cf-grid) / 0.6) 1px, transparent 1px),
+            linear-gradient(to bottom, rgb(var(--cf-grid) / 0.6) 1px, transparent 1px);
+        background-size: 32px 32px;
+    }
+
+    .bg-grid-fade {
+        mask-image: radial-gradient(ellipse at top, #000 30%, transparent 75%);
+    }
+}

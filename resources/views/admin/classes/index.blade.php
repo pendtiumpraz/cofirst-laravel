@@ -1,213 +1,112 @@
 @php
-use Illuminate\Support\Facades\Storage;
+    use App\Services\Admin\AdminClock;
+
+    $statusTone = ['active' => 'success', 'planned' => 'info', 'completed' => 'neutral', 'cancelled' => 'danger'];
 @endphp
 
-@extends('layouts.app')
+<x-app-layout title="Kelas">
+    <x-ui.page-header title="Kelas" subtitle="Rombongan belajar per kursus: pengajar, kapasitas, periode dan status."
+        :breadcrumbs="['Admin' => route('admin.dashboard'), 'Kelas' => null]">
+        <x-slot:actions>
+            @can('create', App\Models\ClassName::class)
+                <x-ui.button icon="plus" :href="route('admin.classes.create')">Buat kelas</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-@section('title', 'Class Management')
+    <x-ui.tabs class="mt-6" label="Status kelas" :active="request('status', 'all')" :tabs="[
+        'all' => ['label' => 'Semua', 'href' => route('admin.classes.index', request()->except(['status', 'page']))],
+        'active' => ['label' => 'Berlangsung', 'count' => (int) ($counts['active'] ?? 0), 'href' => route('admin.classes.index', ['status' => 'active'] + request()->except(['status', 'page']))],
+        'planned' => ['label' => 'Direncanakan', 'count' => (int) ($counts['planned'] ?? 0), 'href' => route('admin.classes.index', ['status' => 'planned'] + request()->except(['status', 'page']))],
+        'completed' => ['label' => 'Selesai', 'count' => (int) ($counts['completed'] ?? 0), 'href' => route('admin.classes.index', ['status' => 'completed'] + request()->except(['status', 'page']))],
+        'cancelled' => ['label' => 'Dibatalkan', 'count' => (int) ($counts['cancelled'] ?? 0), 'href' => route('admin.classes.index', ['status' => 'cancelled'] + request()->except(['status', 'page']))],
+        'archived' => ['label' => 'Arsip', 'href' => route('admin.classes.index', ['status' => 'archived'])],
+    ]" />
 
-@section('content')
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Class Management</h1>
-            <p class="text-gray-600">Manage all classes and schedules</p>
-        </div>
-        <a href="{{ route('admin.classes.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Add Class
-        </a>
-    </div>
+    <x-ui.table caption="Daftar kelas" mobile="stack" class="mt-6">
+        <x-slot:toolbar>
+            <x-ui.filter-bar placeholder="Cari nama kelas…" class="w-full" :keep="['sort', 'direction', 'status']">
+                <x-ui.select name="course" :options="$courses" placeholder="Semua kursus" :value="request('course')" class="sm:w-48" aria-label="Kursus" />
+                <x-ui.select name="type" :options="$types" placeholder="Semua tipe" :value="request('type')" class="sm:w-48" aria-label="Tipe kelas" />
+                <x-ui.select name="teacher" :options="$teachers" placeholder="Semua pengajar" :value="request('teacher')" class="sm:w-44" aria-label="Pengajar" />
+            </x-ui.filter-bar>
+        </x-slot:toolbar>
 
-    <!-- Classes Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div class="p-6">
-                    @if($classes->count() > 0)
-                        <div class="table-wrapper">
-                            <div class="shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teacher</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enrolled</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach ($classes as $class)
-                                        <tr class="hover:bg-gray-50 transition-colors">
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="flex items-center">
-                                                    <div class="h-10 w-10 flex-shrink-0 bg-gradient-to-r from-indigo-400 to-blue-500 rounded-full flex items-center justify-center">
-                                                        <span class="text-sm font-medium text-white">{{ substr($class->name, 0, 1) }}</span>
-                                                    </div>
-                                                    <div class="ml-4">
-                                                        <div class="text-sm font-medium text-gray-900">{{ $class->name }}</div>
-                                                        @if($class->description)
-                                                            <div class="text-sm text-gray-500">{{ Str::limit($class->description, 50) }}</div>
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                @if($class->photo_path)
-                                                    <img src="{{ $class->photo_url }}" 
-                                                         alt="{{ $class->name }}" 
-                                                         class="h-10 w-10 rounded-lg object-cover shadow-sm"
-                                                         onerror="this.onerror=null; this.src='{{ asset('images/default-class-photo.png') }}';">
-                                                @elseif($class->classPhotos->isNotEmpty() && $class->classPhotos->first()->photo_path)
-                                                    <img src="/storage/{{ $class->classPhotos->first()->photo_path }}" 
-                                                         alt="{{ $class->name }}" 
-                                                         class="h-10 w-10 rounded-lg object-cover shadow-sm"
-                                                         onerror="this.onerror=null; this.src='{{ asset('images/default-class-photo.png') }}';">
-                                                @else
-                                                    <div class="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                                                        <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                                        </svg>
-                                                    </div>
-                                                @endif
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                                    @if($class->type === 'private_home_call' || $class->type === 'private_office_1on1' || $class->type === 'private_online_1on1') bg-purple-100 text-purple-800
-                                                    @elseif($class->type === 'group_class_3_5_kids') bg-blue-100 text-blue-800
-                                                    @elseif($class->type === 'public_school_extracurricular') bg-green-100 text-green-800
-                                                    @elseif($class->type === 'offline_seminar' || $class->type === 'online_webinar') bg-yellow-100 text-yellow-800
-                                                    @elseif($class->type === 'free_webinar' || $class->type === 'free_trial_30min') bg-orange-100 text-orange-800
-                                                    @else bg-gray-100 text-gray-800 @endif">
-                                                    @if($class->type === 'private_home_call')
-                                                        Private - Home Call
-                                                    @elseif($class->type === 'private_office_1on1')
-                                                        Private - Office 1-on-1
-                                                    @elseif($class->type === 'private_online_1on1')
-                                                        Private - Online 1-on-1
-                                                    @elseif($class->type === 'group_class_3_5_kids')
-                                                        Group Class (3-5 Kids)
-                                                    @elseif($class->type === 'public_school_extracurricular')
-                                                        Public School Extracurricular
-                                                    @elseif($class->type === 'offline_seminar')
-                                                        Offline Seminar
-                                                    @elseif($class->type === 'online_webinar')
-                                                        Online Webinar
-                                                    @elseif($class->type === 'free_webinar')
-                                                        Free Webinar
-                                                    @elseif($class->type === 'free_trial_30min')
-                                                        Free Trial 30 Min
-                                                    @else
-                                                        {{ ucfirst(str_replace('_', ' ', $class->type)) }}
-                                                    @endif
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-sm font-medium text-gray-900">{{ $class->course->name }}</div>
-                                                <div class="text-sm text-gray-500">{{ $class->course->level ?? 'N/A' }}</div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                @if($class->teachers && $class->teachers->count() > 0)
-                                                    <div class="flex flex-col space-y-1">
-                                                        @foreach($class->teachers as $index => $teacher)
-                                                            <div class="flex items-center">
-                                                                <x-user-avatar 
-                                                                    :user="$teacher" 
-                                                                    size="sm" 
-                                                                    gradient="blue"
-                                                                />
-                                                                <div class="ml-3">
-                                                                    <div class="text-sm font-medium text-gray-900">{{ $teacher->name }}</div>
-                                                                </div>
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
-                                                @else
-                                                    <div class="text-sm text-gray-500">No teachers assigned</div>
-                                                @endif
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="flex items-center">
-                                                    <div class="bg-blue-100 rounded-full px-3 py-1">
-                                                        <span class="text-sm font-medium text-blue-800">{{ $class->enrollments_count }}/{{ $class->max_students }}</span>
-                                                    </div>
-                                                    <div class="ml-3">
-                                                        <div class="w-20 bg-gray-200 rounded-full h-2">
-                                                            <div class="bg-blue-600 h-2 rounded-full" style="width: {{ $class->max_students > 0 ? ($class->enrollments_count / $class->max_students) * 100 : 0 }}%"></div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $class->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                                                    <span class="w-2 h-2 mr-1 rounded-full {{ $class->status === 'active' ? 'bg-green-400' : 'bg-yellow-400' }}"></span>
-                                                    {{ ucfirst($class->status) }}
-                                            </span>
-                                        </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <div class="flex items-center space-x-3">
-                                                    <a href="{{ route('admin.classes.show', $class) }}" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                                                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"/>
-                                                        </svg>
-                                                        View
-                                                    </a>
-                                                    <a href="{{ route('admin.classes.edit', $class) }}" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
-                                                        </svg>
-                                                        Edit
-                                                    </a>
-                                                    <form action="{{ route('admin.classes.destroy', $class) }}" method="POST" class="inline">
-                                                @csrf
-                                                @method('DELETE')
-                                                        <button type="submit" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500" onclick="return confirm('Are you sure?')">
-                                                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"/>
-                                                            </svg>
-                                                            Delete
-                                                        </button>
-                                            </form>
-                                                </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+        <x-slot:head>
+            <x-ui.th sort="name">Kelas</x-ui.th>
+            <x-ui.th>Pengajar</x-ui.th>
+            <x-ui.th sort="seats_taken" default-direction="desc">Kursi</x-ui.th>
+            <x-ui.th sort="start_date" numeric default-direction="desc">Periode</x-ui.th>
+            <x-ui.th>Status</x-ui.th>
+            <x-ui.th align="right"><span class="sr-only">Aksi</span></x-ui.th>
+        </x-slot:head>
+
+        @foreach ($classes as $class)
+            @php $taken = $class->seatsTaken(); @endphp
+            <tr>
+                <td class="cell-primary" data-label="Kelas">
+                    <a href="{{ route('admin.classes.show', $class) }}" class="font-medium text-fg hover:text-brand-text">{{ $class->name }}</a>
+                    <p class="cell-secondary">{{ $class->course?->name ?? 'Tanpa kursus' }} · {{ $class->type_label }}</p>
+                </td>
+                <td data-label="Pengajar">
+                    @if ($class->teachers->isEmpty())
+                        <span class="text-sm text-warning">Belum ada pengajar</span>
                     @else
-                        <div class="text-center py-12">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                            </svg>
-                            <h3 class="mt-2 text-lg font-medium text-gray-900">No classes found</h3>
-                            <p class="mt-1 text-sm text-gray-500">Get started by creating a new class.</p>
-                            <div class="mt-6">
-                                <a href="{{ route('admin.classes.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/>
-                                    </svg>
-                                    Create Class
-                                </a>
+                        <div class="flex items-center gap-2">
+                            <div class="flex -space-x-2">
+                                @foreach ($class->teachers->take(3) as $teacher)
+                                    <x-ui.avatar :user="$teacher" size="xs" class="ring-2 ring-surface" />
+                                @endforeach
                             </div>
+                            <span class="truncate text-sm text-fg-muted">{{ $class->teachers->pluck('name')->implode(', ') }}</span>
                         </div>
                     @endif
-
-                    @if($classes->hasPages())
-                        <div class="mt-6">
-                        {{ $classes->links() }}
+                </td>
+                <td data-label="Kursi" class="min-w-[9rem]">
+                    <div class="flex items-center gap-2">
+                        <x-ui.progress class="flex-1" size="sm" :value="$taken" :max="max(1, $class->max_students)"
+                            :tone="$class->isFull() ? 'danger' : ($taken / max(1, $class->max_students) >= 0.8 ? 'warning' : 'brand')" :label="'Kursi terisi '.$class->name" />
+                        <span class="num text-sm text-fg-muted">{{ $taken }}/{{ $class->max_students }}</span>
                     </div>
+                </td>
+                <td class="num" data-label="Periode">{{ AdminClock::format($class->start_date, 'j M') }} – {{ AdminClock::format($class->end_date, 'j M Y') }}</td>
+                <td data-label="Status">
+                    @if ($class->trashed())
+                        <x-ui.badge tone="neutral" dot>Diarsipkan</x-ui.badge>
+                    @else
+                        <x-ui.badge :tone="$statusTone[$class->status] ?? 'neutral'" dot>{{ $class->status_label }}</x-ui.badge>
                     @endif
-        </div>
-    </div>
-</div>
-@endsection
+                </td>
+                <td class="cell-actions">
+                    <div class="inline-flex items-center gap-1">
+                        @if ($class->trashed())
+                            @can('delete', $class)
+                                <form method="POST" action="{{ route('admin.classes.restore', $class) }}">
+                                    @csrf
+                                    <x-ui.button type="submit" variant="secondary" size="sm" icon="arrow-uturn-left">Pulihkan</x-ui.button>
+                                </form>
+                            @endcan
+                        @else
+                            <x-ui.button variant="ghost" size="sm" icon="users" :href="route('admin.classes.students', $class)" :label="'Siswa '.$class->name" />
+                            @can('update', $class)
+                                <x-ui.button variant="ghost" size="sm" icon="pencil-square" :href="route('admin.classes.edit', $class)" :label="'Ubah '.$class->name" />
+                            @endcan
+                        @endif
+                    </div>
+                </td>
+            </tr>
+        @endforeach
+
+        <x-slot:empty>
+            @if (request()->hasAny(['search', 'course', 'type', 'teacher', 'status']))
+                <x-ui.empty-state icon="magnifying-glass" title="Tidak ada kelas yang cocok." description="Coba kata kunci lain atau hapus filter.">
+                    <x-slot:actions><x-ui.button variant="secondary" size="sm" :href="route('admin.classes.index')">Hapus filter</x-ui.button></x-slot:actions>
+                </x-ui.empty-state>
+            @else
+                <x-ui.empty-state icon="rectangle-group" title="Belum ada kelas." description="Buat kelas dari kursus yang sudah ada, lalu tambahkan pengajar dan siswa." />
+            @endif
+        </x-slot:empty>
+
+        <x-slot:footer>{{ $classes->links() }}</x-slot:footer>
+    </x-ui.table>
+</x-app-layout>

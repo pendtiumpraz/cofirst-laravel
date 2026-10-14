@@ -1,0 +1,128 @@
+/*
+|--------------------------------------------------------------------------
+| .prose-cf — long-form text (privacy policy, terms, class reports, DPA)
+|--------------------------------------------------------------------------
+*/
+
+@layer components {
+    .prose-cf {
+        @apply max-w-measure text-fg;
+        font-size: 1rem;
+        line-height: 1.7;
+        hyphens: auto;
+        overflow-wrap: break-word;
+    }
+
+    .prose-cf > :first-child {
+        @apply mt-0;
+    }
+
+    .prose-cf > :last-child {
+        @apply mb-0;
+    }
+
+    .prose-cf :where(p, ul, ol, dl, blockquote, pre, table, figure) {
+        @apply my-4;
+    }
+
+    .prose-cf :where(h1, h2, h3, h4) {
+        @apply scroll-mt-24 text-fg;
+        font-family: var(--cf-font-display);
+        font-weight: var(--cf-title-weight);
+        letter-spacing: var(--cf-display-tracking);
+        hyphens: manual;
+    }
+
+    .prose-cf h1 {
+        @apply mb-4 mt-0 text-3xl leading-tight;
+    }
+
+    .prose-cf h2 {
+        @apply mb-3 mt-10 border-t border-line pt-6 text-2xl leading-snug;
+    }
+
+    .prose-cf h3 {
+        @apply mb-2 mt-8 text-xl leading-snug;
+    }
+
+    .prose-cf h4 {
+        @apply mb-2 mt-6 font-sans text-base font-semibold tracking-normal;
+    }
+
+    .prose-cf :where(a) {
+        @apply font-medium text-brand-text underline decoration-brand-text/40 decoration-1 underline-offset-4 hover:decoration-2;
+    }
+
+    .prose-cf :where(strong, b) {
+        @apply font-semibold text-fg;
+    }
+
+    .prose-cf :where(ul) {
+        @apply list-disc pl-6;
+    }
+
+    .prose-cf :where(ol) {
+        @apply list-decimal pl-6;
+    }
+
+    .prose-cf :where(li) {
+        @apply my-1.5 pl-1;
+    }
+
+    .prose-cf :where(li)::marker {
+        color: rgb(var(--cf-fg-subtle));
+    }
+
+    .prose-cf :where(ol > li)::marker {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .prose-cf :where(dt) {
+        @apply mt-3 font-semibold;
+    }
+
+    .prose-cf :where(dd) {
+        @apply ml-0 text-fg-muted;
+    }
+
+    .prose-cf :where(blockquote) {
+        @apply rounded-md bg-surface-2 py-3 pl-4 pr-4 italic text-fg-muted;
+        box-shadow: inset 2px 0 0 rgb(var(--cf-nav-indicator));
+    }
+
+    .prose-cf :where(code):not(pre code) {
+        @apply rounded-sm bg-surface-2 px-1.5 py-0.5 font-mono text-[0.875em];
+    }
+
+    .prose-cf :where(pre) {
+        @apply overflow-x-auto rounded-lg bg-code p-4 font-mono text-sm leading-6 text-code-fg;
+    }
+
+    .prose-cf :where(hr) {
+        @apply my-8 border-line;
+    }
+
+    .prose-cf :where(table) {
+        @apply w-full border-collapse text-sm;
+    }
+
+    .prose-cf :where(th) {
+        @apply border-b border-line-strong bg-surface-2 px-3 py-2 text-left font-semibold;
+    }
+
+    .prose-cf :where(td) {
+        @apply border-b border-line px-3 py-2 align-top;
+    }
+
+    .prose-cf :where(img, figure) {
+        @apply rounded-lg;
+    }
+
+    .prose-cf :where(figcaption) {
+        @apply mt-2 text-[0.8125rem] text-fg-subtle;
+    }
+
+    .prose-cf .lead {
+        @apply text-lg leading-relaxed text-fg-muted;
+    }
+}

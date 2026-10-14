@@ -1,0 +1,16 @@
+/*
+|--------------------------------------------------------------------------
+| Landing A ('Majalah sekolah') — extra entry loaded after app.css
+|--------------------------------------------------------------------------
+|
+| Newsreader with optical sizing for the large editorial headlines. Same
+| family name as the app cut, declared later, so it wins on landing pages.
+| Preload only the latin roman file; the italic swaps in lazily.
+*/
+
+@import '@fontsource-variable/newsreader/opsz.css';
+@import '@fontsource-variable/newsreader/opsz-italic.css';
+
+:root {
+    --cf-landing-display-weight: 420;
+}

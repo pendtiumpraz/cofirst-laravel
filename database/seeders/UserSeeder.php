@@ -2,210 +2,140 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use App\Models\Profile;
+use App\Models\User;
+use Database\Seeders\Data\DemoBlueprint;
+use Database\Seeders\Data\DemoContext;
+use Faker\Generator;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
 
+/**
+ * Demo accounts: 1 superadmin, 1 admin, 1 finance, 8 teachers, 12 parents,
+ * 16 children (ages 8-17, linked to their parents) and 8 adult students.
+ *
+ * The demo logins superadmin@, admin@, finance@, teacher@, student@ and
+ * parent@codingfirst.com (password "password") are kept; student@ is a child of
+ * parent@. Re-running updates the same rows (keyed by e-mail).
+ */
 class UserSeeder extends Seeder
 {
+    private string $passwordHash;
+
+    private Generator $faker;
+
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        // Non-aktifkan pengecekan foreign key sementara
-        // DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        // User::truncate();
-        // Profile::truncate();
-        // DB::table('model_has_roles')->truncate();
-        // DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        // Reason: these accounts share a known password; never create them in
+        // production unless demo data was explicitly enabled (see DemoSeeder::allowed()).
+        if (! DemoSeeder::allowed()) {
+            $this->command?->warn('UserSeeder skipped: production. Set SEED_DEMO_DATA=true to seed demo accounts there.');
 
-        // Ambil semua roles
-        $superadminRole = Role::where('name', 'superadmin')->first();
-        $adminRole = Role::where('name', 'admin')->first();
-        $teacherRole = Role::where('name', 'teacher')->first();
-        $studentRole = Role::where('name', 'student')->first();
-        $parentRole = Role::where('name', 'parent')->first();
-        $financeRole = Role::where('name', 'finance')->first();
-
-        // 1. Create Super Admin
-        $superadmin = User::firstOrCreate(
-            ['email' => 'superadmin@codingfirst.com'],
-            [
-                'name' => 'Super Admin',
-                'password' => Hash::make('password'),
-                'is_active' => true,
-            ]
-        );
-        if (!$superadmin->hasRole($superadminRole)) {
-            $superadmin->assignRole($superadminRole);
-        }
-        if (!Profile::where('user_id', $superadmin->id)->exists()) {
-            Profile::factory()->create(['user_id' => $superadmin->id]);
+            return;
         }
 
-        // 2. Create Admin
-        $admin = User::firstOrCreate(
-            ['email' => 'admin@codingfirst.com'],
-            [
-                'name' => 'Admin User',
-                'password' => Hash::make('password'),
-                'is_active' => true,
-            ]
-        );
-        if (!$admin->hasRole($adminRole)) {
-            $admin->assignRole($adminRole);
-        }
-        if (!Profile::where('user_id', $admin->id)->exists()) {
-            Profile::factory()->create(['user_id' => $admin->id]);
+        // Reason: hashing once keeps the seeder fast (bcrypt is deliberately slow).
+        $this->passwordHash = Hash::make(DemoBlueprint::PASSWORD);
+        $this->faker = DemoContext::faker(1);
+
+        foreach (DemoBlueprint::staff() as $person) {
+            $this->account($person, $person['role'], $person['bio']);
         }
 
-        // 3. Create Finance User
-        $finance = User::firstOrCreate(
-            ['email' => 'finance@codingfirst.com'],
-            [
-                'name' => 'Finance User',
-                'password' => Hash::make('password'),
-                'is_active' => true,
-            ]
-        );
-        if (!$finance->hasRole($financeRole)) {
-            $finance->assignRole($financeRole);
-        }
-        if (!Profile::where('user_id', $finance->id)->exists()) {
-            Profile::factory()->create(['user_id' => $finance->id]);
+        foreach (DemoBlueprint::teachers() as $person) {
+            $this->account($person, 'teacher', $person['bio']);
         }
 
-        // 4. Create Teachers
-        // Create specific test teacher first
-        $testTeacher = User::firstOrCreate(
-            ['email' => 'teacher@codingfirst.com'],
-            [
-                'name' => 'Test Teacher',
-                'password' => Hash::make('password'),
-                'is_active' => true,
-            ]
-        );
-        if (!$testTeacher->hasRole($teacherRole)) {
-            $testTeacher->assignRole($teacherRole);
-        }
-        if (!Profile::where('user_id', $testTeacher->id)->exists()) {
-            Profile::factory()->create(['user_id' => $testTeacher->id]);
-        }
+        // Reason: create the demo parent and the demo student before the other
+        // parents/students so they are the first user of their role.
+        $families = DemoBlueprint::families();
+        $parents = [];
+        $children = [];
 
-        // Create specific teachers for course specialization
-        $specificTeachers = [
-            ['name' => 'Dika', 'email' => 'dika@codingfirst.com'],
-            ['name' => 'Lazu', 'email' => 'lazu@codingfirst.com'],
-            ['name' => 'Ghaza', 'email' => 'ghaza@codingfirst.com'],
-            ['name' => 'Galih', 'email' => 'galih@codingfirst.com'],
-            ['name' => 'Fajrul', 'email' => 'fajrul@codingfirst.com'],
-            ['name' => 'Diyan', 'email' => 'diyan@codingfirst.com'],
-            ['name' => 'Rizca', 'email' => 'rizca@codingfirst.com'],
-            ['name' => 'Joan', 'email' => 'joan@codingfirst.com'],
-            ['name' => 'Hafidz', 'email' => 'hafidz@codingfirst.com'],
-            ['name' => 'Savero', 'email' => 'savero@codingfirst.com'],
-            ['name' => 'Unggul', 'email' => 'unggul@codingfirst.com'],
-            ['name' => 'Haritz', 'email' => 'haritz@codingfirst.com'],
-            ['name' => 'Muslimin', 'email' => 'muslimin@codingfirst.com'],
-        ];
+        foreach ($families as $parentKey => $family) {
+            $parents[$parentKey] = $this->account($family, 'parent', 'Orang tua siswa Coding First.');
 
-        foreach ($specificTeachers as $teacherData) {
-            $teacher = User::firstOrCreate(
-                ['email' => $teacherData['email']],
-                [
-                    'name' => $teacherData['name'],
-                    'password' => Hash::make('password'),
-                    'is_active' => true,
-                ]
-            );
-            if (!$teacher->hasRole($teacherRole)) {
-                $teacher->assignRole($teacherRole);
-            }
-            if (!Profile::where('user_id', $teacher->id)->exists()) {
-                Profile::factory()->create(['user_id' => $teacher->id]);
+            if ($parentKey === array_key_first($families)) {
+                foreach ($family['children'] as $childKey => $child) {
+                    $children[$childKey] = $this->account($child, 'student', null);
+                }
             }
         }
 
-        // Create additional random teachers if needed
-        $existingTeachersCount = User::role('teacher')->count();
-        $teachersNeeded = max(0, 15 - $existingTeachersCount);
-        
-        if ($teachersNeeded > 0) {
-            $teachers = User::factory($teachersNeeded)->create([
-                'password' => Hash::make('password'),
-                'is_active' => true,
-            ]);
-            $teachers->each(function ($teacher) use ($teacherRole) {
-                $teacher->assignRole($teacherRole);
-                Profile::factory()->create(['user_id' => $teacher->id]);
-            });
+        foreach ($families as $parentKey => $family) {
+            foreach ($family['children'] as $childKey => $child) {
+                $children[$childKey] ??= $this->account($child, 'student', null);
+                $this->linkParent($parents[$parentKey], $children[$childKey]);
+            }
         }
 
-        // 5. Create Students and Parents (10 users each)
-        // Create specific test student first
-        $testStudent = User::firstOrCreate(
-            ['email' => 'student@codingfirst.com'],
+        foreach (DemoBlueprint::adults() as $person) {
+            $this->account($person, 'student', 'Peserta kelas dewasa.');
+        }
+
+        DemoContext::flush();
+        $this->command?->info('Demo users: '.count(DemoContext::emails()).' accounts, '.count($children).' children linked to parents.');
+    }
+
+    /**
+     * Create or update one account with its role and profile.
+     *
+     * Args:
+     *     person (array): name, email, gender, age.
+     *     role (string): Role name.
+     *     bio (string|null): Profile bio.
+     *
+     * Returns:
+     *     User: The account.
+     */
+    private function account(array $person, string $role, ?string $bio): User
+    {
+        $user = User::withTrashed()->firstOrNew(['email' => $person['email']]);
+        // Reason: forceFill because email_verified_at/deleted_at are not mass assignable;
+        // a previously archived demo account is restored.
+        $user->forceFill([
+            'name' => $person['name'],
+            'password' => $this->passwordHash,
+            'is_active' => true,
+            'email_verified_at' => $user->email_verified_at ?? Carbon::now()->subMonths(6),
+            'deleted_at' => null,
+        ])->save();
+
+        $user->syncRoles([$role]);
+
+        // Reason: a stable birthday per person (age from the blueprint, day from the e-mail).
+        $birthDate = Carbon::today()->subYears($person['age'])
+            ->subDays(DemoContext::pick($person['email'], 300) + 1);
+
+        Profile::updateOrCreate(
+            ['user_id' => $user->id],
             [
-                'name' => 'Test Student',
-                'password' => Hash::make('password'),
-                'is_active' => true,
+                'full_name' => $person['name'],
+                'phone_number' => $this->faker->numerify('08##########'),
+                'address' => $this->faker->streetAddress().', '.$this->faker->city(),
+                'birth_date' => $birthDate->toDateString(),
+                'gender' => $person['gender'],
+                'bio' => $bio,
+                'avatar' => null,
             ]
         );
-        if (!$testStudent->hasRole($studentRole)) {
-            $testStudent->assignRole($studentRole);
-        }
-        if (!Profile::where('user_id', $testStudent->id)->exists()) {
-            Profile::factory()->create(['user_id' => $testStudent->id]);
-        }
 
-        // Create specific test parent first
-        $testParent = User::firstOrCreate(
-            ['email' => 'parent@codingfirst.com'],
-            [
-                'name' => 'Test Parent',
-                'password' => Hash::make('password'),
-                'is_active' => true,
-            ]
+        return $user;
+    }
+
+    /**
+     * Link a parent and a child once (parent_student pivot).
+     */
+    private function linkParent(User $parent, User $child): void
+    {
+        DB::table('parent_student')->updateOrInsert(
+            ['parent_id' => $parent->id, 'student_id' => $child->id],
+            ['created_at' => now(), 'updated_at' => now()]
         );
-        if (!$testParent->hasRole($parentRole)) {
-            $testParent->assignRole($parentRole);
-        }
-        if (!Profile::where('user_id', $testParent->id)->exists()) {
-            Profile::factory()->create(['user_id' => $testParent->id]);
-        }
-
-        // Create additional random students and parents
-        $existingStudentsCount = User::role('student')->count();
-        $studentsNeeded = max(0, 10 - $existingStudentsCount);
-        
-        $existingParentsCount = User::role('parent')->count();
-        $parentsNeeded = max(0, 10 - $existingParentsCount);
-        
-        if ($studentsNeeded > 0) {
-            $students = User::factory($studentsNeeded)->create([
-                'password' => Hash::make('password'),
-                'is_active' => true,
-            ]);
-            
-            $students->each(function ($student) use ($studentRole) {
-                $student->assignRole($studentRole);
-                Profile::factory()->create(['user_id' => $student->id]);
-            });
-        }
-        
-        if ($parentsNeeded > 0) {
-            $parents = User::factory($parentsNeeded)->create([
-                'password' => Hash::make('password'),
-                'is_active' => true,
-            ]);
-            
-            $parents->each(function ($parent) use ($parentRole) {
-                $parent->assignRole($parentRole);
-                Profile::factory()->create(['user_id' => $parent->id]);
-            });
-        }
     }
 }

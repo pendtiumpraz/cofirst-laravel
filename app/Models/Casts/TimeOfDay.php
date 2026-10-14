@@ -54,7 +54,11 @@ class TimeOfDay implements CastsAttributes, SerializesCastableAttributes
      */
     public function serialize(Model $model, string $key, mixed $value, array $attributes): ?string
     {
-        return $value instanceof DateTimeInterface ? $value->format('H:i') : $value;
+        // Reason: Eloquent has already turned the Carbon into a UTC ISO string at this
+        // point, so the raw stored time is used to avoid a timezone shift.
+        $time = self::normalize($attributes[$key] ?? $value);
+
+        return $time === null ? null : substr($time, 0, 5);
     }
 
     /**

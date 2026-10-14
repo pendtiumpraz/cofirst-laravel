@@ -1,30 +1,54 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Child Materials Progress') }}
-        </h2>
-    </x-slot>
+@php($f = \App\Services\Academic\Format::class)
+<x-app-layout :title="'Materi · '.$child->name">
+    <x-ui.page-header :title="'Materi '.$class->name" :eyebrow="$child->name"
+        subtitle="Materi yang sudah terbuka untuk anak Anda dan kapan terakhir dibuka."
+        :breadcrumbs="['Progres anak' => route('parent.progress.index'), $child->name => route('parent.progress.child', $child), 'Materi' => null]" />
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Child materials progress feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show your child\'s progress in learning materials.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('parent.progress.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Progress
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</x-app-layout> 
+    @php($rows = $summary->meetings->flatMap(fn ($m) => $m['syllabus']->activeMaterials->filter(fn ($mat) => in_array($mat->id, $unlockedIds, true))->map(fn ($mat) => ['material' => $mat, 'meeting' => $m['number']])))
+
+    <x-ui.table caption="Materi terbuka" mobile="stack">
+        <x-slot:head>
+            <x-ui.th>Materi</x-ui.th>
+            <x-ui.th numeric>Pertemuan</x-ui.th>
+            <x-ui.th>Jenis</x-ui.th>
+            @if ($trackingMode === 'detailed')
+                <x-ui.th numeric>Dibuka</x-ui.th>
+            @endif
+            <x-ui.th numeric>Terakhir dibuka</x-ui.th>
+        </x-slot:head>
+
+        @foreach ($rows as $row)
+            @php($stat = $accessStats->get($row['material']->id))
+            <tr>
+                <td class="cell-primary" data-label="Materi">
+                    <span class="font-medium text-fg">{{ $row['material']->title }}</span>
+                    @if (filled($row['material']->description))
+                        <p class="cell-secondary line-clamp-1">{{ $row['material']->description }}</p>
+                    @endif
+                </td>
+                <td class="num" data-label="Pertemuan">{{ $row['meeting'] }}</td>
+                <td data-label="Jenis">@include('admin.materials.partials.type-badge', ['type' => $row['material']->type])</td>
+                @if ($trackingMode === 'detailed')
+                    <td class="num" data-label="Dibuka">{{ $stat ? $stat['count'].'×' : '—' }}</td>
+                @endif
+                <td class="num" data-label="Terakhir dibuka">
+                    @if ($stat)
+                        {{ $f::dateTime($stat['last'], 'd M Y') }}
+                    @else
+                        <x-ui.badge>Belum dibuka</x-ui.badge>
+                    @endif
+                </td>
+            </tr>
+        @endforeach
+
+        <x-slot:empty>
+            <x-ui.empty-state icon="lock-closed" title="Belum ada materi yang terbuka."
+                description="Materi terbuka mengikuti pertemuan yang sudah dijalani anak Anda." />
+        </x-slot:empty>
+    </x-ui.table>
+
+    <p class="mt-4 flex items-start gap-2 text-sm text-fg-subtle">
+        <x-ui.icon name="shield-check" class="mt-0.5 shrink-0" />
+        <span>Kami hanya mencatat kapan materi dibuka, bukan isi aktivitas di perangkat anak. Riwayat dihapus otomatis setelah masa simpan berakhir.</span>
+    </p>
+</x-app-layout>

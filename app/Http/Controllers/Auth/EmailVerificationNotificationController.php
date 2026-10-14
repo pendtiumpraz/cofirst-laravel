@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 class EmailVerificationNotificationController extends Controller
 {
     /**
-     * Send a new email verification notification.
+     * Send a new email verification notification (throttled 6/minute in routes/auth.php).
      */
     public function store(Request $request): RedirectResponse
     {
@@ -19,6 +19,7 @@ class EmailVerificationNotificationController extends Controller
 
         $request->user()->sendEmailVerificationNotification();
 
+        // 'verification-link-sent' is translated by the verify-email page and the app toast.
         return back()->with('status', 'verification-link-sent');
     }
 }

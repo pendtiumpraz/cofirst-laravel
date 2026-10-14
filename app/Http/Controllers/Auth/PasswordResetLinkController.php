@@ -3,13 +3,21 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\PasswordResetLinkRequest;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\View\View;
 
 class PasswordResetLinkController extends Controller
 {
+    /**
+     * Neutral confirmation shown whatever the outcome.
+     *
+     * Reason: telling "email not found" apart from "link sent" lets anyone test which
+     * emails (of students and parents) are registered — account enumeration.
+     */
+    public const NEUTRAL_STATUS = 'Jika email tersebut terdaftar, kami telah mengirim tautan untuk membuat kata sandi baru. Periksa kotak masuk dan folder spam Anda.';
+
     /**
      * Display the password reset link request view.
      */
@@ -19,26 +27,14 @@ class PasswordResetLinkController extends Controller
     }
 
     /**
-     * Handle an incoming password reset link request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
+     * Send a reset link when the email belongs to an account.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(PasswordResetLinkRequest $request): RedirectResponse
     {
-        $request->validate([
-            'email' => ['required', 'email'],
-        ]);
+        Password::sendResetLink($request->only('email'));
 
-        // We will send the password reset link to this user. Once we have attempted
-        // to send the link, we will examine the response then see the message we
-        // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        $minutes = (int) config('auth.passwords.'.config('auth.defaults.passwords', 'users').'.expire', 60);
 
-        return $status == Password::RESET_LINK_SENT
-                    ? back()->with('status', __($status))
-                    : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+        return back()->with('status', self::NEUTRAL_STATUS." Tautan berlaku {$minutes} menit.");
     }
 }

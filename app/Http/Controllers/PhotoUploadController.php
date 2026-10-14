@@ -2,69 +2,58 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Http\Requests\Profile\ProfilePhotoRequest;
+use App\Services\Auth\PrivacyBridge;
+use App\Services\Auth\ProfilePhotoService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
+/**
+ * Profil › Foto profil: upload and removal of the signed-in user's own photo.
+ *
+ * Answers JSON for script callers and redirects back to the profile otherwise.
+ */
 class PhotoUploadController extends Controller
 {
     /**
-     * Upload profile photo
+     * Upload (or replace) the profile photo.
      */
-    public function uploadProfilePhoto(Request $request)
-    {
-        $request->validate([
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
-            'crop_data' => 'nullable|json'
-        ]);
-
-        $user = $request->user();
-
-        // Delete old photo if exists
-        if ($user->profile_photo_path) {
-            Storage::disk('public')->delete($user->profile_photo_path);
-        }
-
-        // Store new photo
-        $photo = $request->file('photo');
-        $filename = 'profile-photos/' . $user->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
-        
-        // Store the file directly
-        // Note: Cropping functionality requires image manipulation library
-        // For now, we'll store the original image
-        $path = $photo->storeAs('profile-photos', basename($filename), 'public');
-        
-        // Update user record
-        $user->update([
-            'profile_photo_path' => $path,
-            'photo_crop_data' => $request->crop_data ? json_decode($request->crop_data, true) : null
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'photo_url' => $user->profile_photo_url,
-            'message' => 'Profile photo uploaded successfully'
-        ]);
-    }
-
-    /**
-     * Delete profile photo
-     */
-    public function deleteProfilePhoto(Request $request)
+    public function uploadProfilePhoto(ProfilePhotoRequest $request, ProfilePhotoService $photos): JsonResponse|RedirectResponse
     {
         $user = $request->user();
+        $photos->replace($user, $request->file('photo'));
 
-        if ($user->profile_photo_path) {
-            Storage::disk('public')->delete($user->profile_photo_path);
-            $user->update([
-                'profile_photo_path' => null,
-                'photo_crop_data' => null
+        $message = 'Foto profil berhasil diperbarui.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'photo_url' => $user->profile_photo_url,
+                'message' => $message,
             ]);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Profile photo deleted successfully'
-        ]);
+        return redirect()->to(route('profile.edit').'#foto')->with('success', $message);
+    }
+
+    /**
+     * Delete the profile photo (file removed from storage).
+     */
+    public function deleteProfilePhoto(Request $request, ProfilePhotoService $photos): JsonResponse|RedirectResponse
+    {
+        $removed = $photos->remove($request->user());
+
+        if ($removed) {
+            PrivacyBridge::audit('account.photo.deleted', $request->user());
+        }
+
+        $message = $removed ? 'Foto profil telah dihapus.' : 'Anda belum memiliki foto profil.';
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+
+        return redirect()->to(route('profile.edit').'#foto')->with($removed ? 'success' : 'info', $message);
     }
 }

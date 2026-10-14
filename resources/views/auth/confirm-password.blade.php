@@ -1,27 +1,29 @@
-<x-guest-layout>
-    <div class="mb-4 text-sm text-gray-600">
-        {{ __('This is a secure area of the application. Please confirm your password before continuing.') }}
-    </div>
+{{-- Konfirmasi kata sandi before a sensitive page (password.confirm middleware). --}}
+<x-guest-layout title="Konfirmasi kata sandi" heading="Konfirmasi kata sandi"
+    subheading="Halaman berikutnya berisi data penting. Demi keamanan, masukkan kembali kata sandi Anda.">
 
-    <form method="POST" action="{{ route('password.confirm') }}">
+    <form method="POST" action="{{ route('password.confirm') }}" class="space-y-5"
+        x-data="{ submitting: false }"
+        x-on:submit="submitting = true"
+        x-on:pageshow.window="submitting = false">
         @csrf
 
-        <!-- Password -->
-        <div>
-            <x-input-label for="password" :value="__('Password')" />
+        @include('auth.partials.password-input', [
+            'name' => 'password',
+            'label' => 'Kata sandi',
+            'autocomplete' => 'current-password',
+            'autofocus' => true,
+        ])
 
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password" />
-
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
-
-        <div class="flex justify-end mt-4">
-            <x-primary-button>
-                {{ __('Confirm') }}
-            </x-primary-button>
-        </div>
+        <x-ui.button type="submit" size="lg" block icon="lock-open" loading-when="submitting" loading-text="Memeriksa…">
+            Konfirmasi
+        </x-ui.button>
     </form>
+
+    <p class="mt-8 text-center text-sm">
+        <a href="{{ route('dashboard') }}" class="link inline-flex min-h-11 items-center gap-1.5 font-medium">
+            <x-ui.icon name="m-arrow-left" class="size-4" />
+            Kembali ke dasbor
+        </a>
+    </p>
 </x-guest-layout>

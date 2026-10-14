@@ -23,9 +23,16 @@ use Illuminate\Support\Facades\Route;
 // Profile
 Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
 Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-Route::post('/profile/photo', [PhotoUploadController::class, 'uploadProfilePhoto'])->name('profile.photo.upload');
+Route::delete('/profile', [ProfileController::class, 'destroy'])
+    ->middleware('throttle:5,1,profile-destroy')
+    ->name('profile.destroy');
+Route::post('/profile/photo', [PhotoUploadController::class, 'uploadProfilePhoto'])
+    ->middleware('throttle:10,1,profile-photo')
+    ->name('profile.photo.upload');
 Route::delete('/profile/photo', [PhotoUploadController::class, 'deleteProfilePhoto'])->name('profile.photo.delete');
+Route::delete('/profile/sessions', [ProfileController::class, 'destroyOtherSessions'])
+    ->middleware('throttle:6,1,profile-sessions')
+    ->name('profile.sessions.destroy');
 
 // Project gallery (students, teachers, parents, admins)
 Route::middleware(['role:student|teacher|parent|admin|superadmin'])->group(function () {

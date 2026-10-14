@@ -1,0 +1,12 @@
+/*
+|--------------------------------------------------------------------------
+| Landing B ('Halaman produk') — extra entry loaded after app.css
+|--------------------------------------------------------------------------
+|
+| Geist and Geist Mono already ship with app.css; this entry exists so the
+| landing template can add page-only rules without growing the app bundle.
+*/
+
+:root {
+    --cf-landing-display-weight: 600;
+}

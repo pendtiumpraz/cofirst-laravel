@@ -76,6 +76,8 @@ Route::middleware(['role:parent'])->prefix('parent')->name('parent.')->group(fun
     Route::get('progress/child/{child}', [\App\Http\Controllers\Parent\ProgressController::class, 'child'])->name('progress.child');
     Route::get('progress/child/{child}/materials/{class}', [\App\Http\Controllers\Parent\ProgressController::class, 'childMaterials'])->name('progress.child-materials');
     Route::get('progress/child/{child}/summary', [\App\Http\Controllers\Parent\ProgressController::class, 'getChildProgressSummary'])->name('progress.child-summary');
+    Route::get('progress/child/{child}/meetings', [\App\Http\Controllers\Parent\ProgressController::class, 'meetings'])->name('progress.meetings');
+    Route::get('progress/child/{child}/meetings/{classReport}', [\App\Http\Controllers\Parent\ProgressController::class, 'meeting'])->name('progress.meeting');
 
     Route::get('child/{student}/reports', [StudentController::class, 'childReports'])->name('child-reports');
     Route::get('child/{student}/schedule', [StudentController::class, 'childSchedule'])->name('child-schedule');

@@ -3,61 +3,59 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\ClassName;
-use App\Models\TeacherAssignment;
 use App\Models\Enrollment;
+use App\Models\Schedule;
+use Illuminate\Http\JsonResponse;
 
+/**
+ * JSON helpers for the admin schedule form (routes admin.schedule-data.*,
+ * role:admin|superadmin + SchedulePolicy).
+ *
+ * Data minimisation (UU PDP Pasal 16): only ids and names are returned — never
+ * emails or full user records — and only to staff who manage schedules.
+ */
 class ScheduleDataController extends Controller
 {
-    public function getTeachersByClass($class_id)
+    /**
+     * Teachers of a class with their current assignment id.
+     */
+    public function teachers(ClassName $class): JsonResponse
     {
-        $class = ClassName::with('teachers')->findOrFail($class_id);
-        $teachers = $class->teachers->map(function ($teacher) use ($class_id) {
-            // Try to find existing TeacherAssignment
-            $teacherAssignment = TeacherAssignment::where('teacher_id', $teacher->id)
-                                                 ->where('class_id', $class_id)
-                                                 ->first();
-            
-            return [
+        $this->authorize('viewAny', Schedule::class);
+
+        $assignments = $class->activeTeacherAssignments()->get(['id', 'teacher_id'])->keyBy('teacher_id');
+
+        $teachers = $class->teachers()->orderBy('name')->get(['users.id', 'users.name'])
+            ->map(fn ($teacher) => [
                 'id' => $teacher->id,
                 'name' => $teacher->name,
-                'email' => $teacher->email,
-                'assignment_id' => $teacherAssignment ? $teacherAssignment->id : null,
-                'has_assignment' => $teacherAssignment ? true : false
-            ];
-        });
+                'assignment_id' => $assignments->get($teacher->id)?->id,
+            ])->values();
 
-        return response()->json($teachers);
+        return response()->json(['data' => $teachers]);
     }
 
-    public function getStudentsByClass($class_id)
+    /**
+     * Students holding a seat (pending/active) in a class, with their enrollment id.
+     */
+    public function students(ClassName $class): JsonResponse
     {
-        $class = ClassName::findOrFail($class_id);
-        $enrollments = Enrollment::where('class_id', $class_id)
-                                ->where('status', 'active')
-                                ->with('student')
-                                ->get();
+        $this->authorize('viewAny', Schedule::class);
 
-        $students = $enrollments->map(function ($enrollment) {
-            return [
-                'id' => $enrollment->student->id,
-                'name' => $enrollment->student->name,
-                'email' => $enrollment->student->email,
-                'enrollment_id' => $enrollment->id
-            ];
-        });
+        $students = $class->enrollments()
+            ->whereIn('status', Enrollment::SEAT_STATUSES)
+            ->with('student:id,name')
+            ->get(['id', 'student_id', 'status'])
+            ->filter(fn (Enrollment $e) => $e->student !== null)
+            ->sortBy(fn (Enrollment $e) => mb_strtolower($e->student->name))
+            ->map(fn (Enrollment $e) => [
+                'enrollment_id' => $e->id,
+                'id' => $e->student->id,
+                'name' => $e->student->name,
+                'pending' => $e->status === Enrollment::STATUS_PENDING,
+            ])->values();
 
-        return response()->json($students);
-    }
-
-    public function getEnrollmentsByClass($class_id)
-    {
-        $class = ClassName::findOrFail($class_id);
-        $enrollments = Enrollment::where('class_id', $class_id)
-                                ->with('student')
-                                ->get();
-
-        return response()->json($enrollments);
+        return response()->json(['data' => $students]);
     }
 }

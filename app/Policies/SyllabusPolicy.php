@@ -4,65 +4,63 @@ namespace App\Policies;
 
 use App\Models\Syllabus;
 use App\Models\User;
-use Illuminate\Auth\Access\HandlesAuthorization;
+use App\Services\Academic\AcademicScope;
 
+/**
+ * Syllabus (meeting) access: admins manage; teachers read the meetings of the
+ * curricula their classes use (active meetings only).
+ */
 class SyllabusPolicy
 {
-    use HandlesAuthorization;
-
-    /**
-     * Determine whether the user can view any syllabuses.
-     */
-    public function viewAny(User $user)
+    public function __construct(private readonly AcademicScope $scope)
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
     }
 
-    /**
-     * Determine whether the user can view the syllabus.
-     */
-    public function view(User $user, Syllabus $syllabus)
+    /** Admin syllabus list. */
+    public function viewAny(User $user): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return $this->scope->isAdmin($user);
     }
 
-    /**
-     * Determine whether the user can create syllabuses.
-     */
-    public function create(User $user)
+    /** Read one meeting. */
+    public function view(User $user, Syllabus $syllabus): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        if ($this->scope->isAdmin($user)) {
+            return true;
+        }
+
+        return $user->hasRole('teacher')
+            && $syllabus->status === 'active'
+            && $this->scope->teacherCurriculumIds($user)->contains((int) $syllabus->curriculum_id);
     }
 
-    /**
-     * Determine whether the user can update the syllabus.
-     */
-    public function update(User $user, Syllabus $syllabus)
+    /** Create meetings. */
+    public function create(User $user): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return $this->scope->isAdmin($user);
     }
 
-    /**
-     * Determine whether the user can delete the syllabus.
-     */
-    public function delete(User $user, Syllabus $syllabus)
+    /** Edit a meeting. */
+    public function update(User $user, Syllabus $syllabus): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return $this->scope->isAdmin($user);
     }
 
-    /**
-     * Determine whether the user can restore the syllabus.
-     */
-    public function restore(User $user, Syllabus $syllabus)
+    /** Archive a meeting. */
+    public function delete(User $user, Syllabus $syllabus): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return $this->scope->isAdmin($user);
     }
 
-    /**
-     * Determine whether the user can permanently delete the syllabus.
-     */
-    public function forceDelete(User $user, Syllabus $syllabus)
+    /** Restore an archived meeting. */
+    public function restore(User $user, Syllabus $syllabus): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return $this->scope->isAdmin($user);
+    }
+
+    /** Permanently delete (superadmin only). */
+    public function forceDelete(User $user, Syllabus $syllabus): bool
+    {
+        return $user->hasRole('superadmin');
     }
 }

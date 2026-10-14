@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Attendance of one student at one class meeting (table `attendance`).
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $schedule_id
  * @property int|null $teacher_id
  * @property int|null $meeting_number
- * @property \Illuminate\Support\Carbon $attendance_date
+ * @property Carbon $attendance_date
  * @property string $status
  */
 class Attendance extends Model

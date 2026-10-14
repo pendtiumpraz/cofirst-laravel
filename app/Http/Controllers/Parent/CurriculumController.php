@@ -3,95 +3,75 @@
 namespace App\Http\Controllers\Parent;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Enrollment;
 use App\Models\ClassName;
+use App\Models\ClassReport;
+use App\Models\User;
+use App\Services\Academic\AcademicScope;
+use App\Services\Academic\AcademicSettings;
+use App\Services\Academic\ProgressService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
+/**
+ * Orang Tua › Kurikulum: what each child learns in each class, meeting by meeting.
+ * Parents only ever see their own children (AcademicScope::isParentOf).
+ */
 class CurriculumController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(['role:parent']);
+    public function __construct(
+        private readonly AcademicScope $scope,
+        private readonly ProgressService $progress,
+    ) {
     }
 
-    /**
-     * Display parent's children and their enrolled classes
-     */
-    public function index()
+    /** Per child, one card per class with its curriculum and progress. */
+    public function index(Request $request): View
     {
-        $user = Auth::user();
-        
-        // Get parent's children with their enrollments
-        $children = $user->children()->with([
-            'enrollments' => function($query) {
-                $query->where('status', 'active');
-            },
-            'enrollments.class.course',
-            'enrollments.class.curriculum',
-            'enrollments.className.teachers'
-        ])->get();
+        $children = $request->user()->children()->orderBy('name')->get(['users.id', 'users.name']);
 
-        return view('parent.curriculum.index', compact('children'));
+        $rows = $children->map(function (User $child) {
+            $classes = ClassName::query()
+                ->whereIn('id', $this->scope->studentEnrollments($child)->keys())
+                ->with(['course:id,name', 'curriculum:id,title,type', 'teachers:id,name'])
+                ->orderBy('name')
+                ->get();
+
+            return [
+                'child' => $child,
+                'classes' => $classes,
+                'summaries' => $this->progress->summariesFor($child, $classes),
+            ];
+        });
+
+        return view('parent.curriculum.index', ['rows' => $rows]);
     }
 
-    /**
-     * Show curriculum progress for a specific child's class
-     */
-    public function showChildProgress($childId, $classId)
+    /** Read-only meeting timeline of one child's class, with the latest meeting notes. */
+    public function showChildProgress(Request $request, User $child, ClassName $class): View
     {
-        $user = Auth::user();
-        
-        // Verify parent-child relationship
-        if (!$user->children()->where('student_id', $childId)->exists()) {
-            abort(403, 'Unauthorized access to student data.');
-        }
-        
-        // Verify child is enrolled in this class
-        $enrollment = Enrollment::where('student_id', $childId)
-            ->where('class_id', $classId)
-            ->where('status', 'active')
-            ->first();
-            
-        if (!$enrollment) {
-            abort(404, 'Child is not enrolled in this class.');
-        }
-        
-        $child = User::findOrFail($childId);
-        $class = ClassName::with([
-            'course',
-            'curriculum.syllabuses' => function($query) {
-                $query->where('status', 'active')->orderBy('order');
-            },
-            'curriculum.syllabuses.materials' => function($query) {
-                $query->where('status', 'active')->orderBy('order');
-            },
-            'teacher'
-        ])->findOrFail($classId);
-        
-        // Get child's material progress
-        $childProgress = $this->getChildProgress($childId, $class->curriculum->id);
-        
-        return view('parent.curriculum.child-progress', compact('child', 'class', 'childProgress'));
-    }
-    
-    /**
-     * Get child's progress for materials in a curriculum
-     * This is a placeholder - you might want to implement a proper progress tracking system
-     */
-    private function getChildProgress($childId, $curriculumId)
-    {
-        // For now, return sample data
-        // In a real implementation, you would track which materials have been:
-        // - studied (completed)
-        // - currently being studied (in progress)
-        // - not yet studied (not started)
-        
-        return [
-            'completed' => [], // material IDs that are completed
-            'in_progress' => [], // material IDs that are in progress
-            'not_started' => [] // material IDs that haven't been started
-        ];
+        abort_unless($this->scope->isParentOf($request->user(), $child), 403, 'Data siswa ini tidak terhubung dengan akun Anda.');
+        abort_unless($this->scope->studentEnrollment($child, $class), 404, 'Anak Anda tidak terdaftar di kelas ini.');
+
+        $class->load(['course:id,name', 'curriculum:id,title,type,description,objectives,duration_weeks', 'teachers:id,name']);
+        $summary = $this->progress->summary($child, $class, true);
+        $reportsVisible = AcademicSettings::reportsVisibleToParents();
+
+        $latestReports = $reportsVisible
+            ? ClassReport::query()->forStudent($child)
+                ->where('class_id', $class->id)
+                ->with(['teacher:id,name', 'syllabus:id,title'])
+                ->orderByDesc('report_date')
+                ->limit(3)
+                ->get()
+            : collect();
+
+        return view('parent.curriculum.child-progress', [
+            'child' => $child,
+            'class' => $class,
+            'summary' => $summary,
+            'unlockedIds' => $this->progress->unlockedMaterialIds($summary),
+            'latestReports' => $latestReports,
+            'reportsVisible' => $reportsVisible,
+        ]);
     }
 }

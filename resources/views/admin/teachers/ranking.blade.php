@@ -1,48 +1,54 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Teacher Ranking') }}
-        </h2>
-    </x-slot>
+@php
+    $sortUrl = fn ($key) => route('admin.teachers.ranking', ['period' => $period, 'sort' => $key]);
+    $columns = ['classes' => 'Kelas aktif', 'students' => 'Siswa aktif', 'meetings' => 'Pertemuan', 'reports' => 'Laporan', 'attendance' => 'Kehadiran'];
+@endphp
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 bg-white border-b border-gray-200">
-                    <div class="table-wrapper">
-                        <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Rank
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Teacher
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Total Students
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach ($teachers as $teacher)
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        {{ $loop->iteration }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        {{ $teacher->name }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        {{ $teacher->student_count }}
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                        </table>
+<x-app-layout title="Kinerja pengajar">
+    <x-ui.page-header title="Kinerja pengajar" subtitle="Beban mengajar, pertemuan terlaksana, laporan dan kehadiran siswa per pengajar."
+        :breadcrumbs="['Admin' => route('admin.dashboard'), 'Pengguna' => route('admin.users.index'), 'Kinerja pengajar' => null]" />
+
+    <x-ui.tabs class="mt-6" label="Periode" :active="$period" :tabs="collect($periods)->mapWithKeys(fn ($label, $key) => [$key => ['label' => $label, 'href' => route('admin.teachers.ranking', ['period' => $key, 'sort' => $sort])]])->all()" />
+
+    <x-ui.table caption="Kinerja pengajar" mobile="stack" class="mt-6">
+        <x-slot:head>
+            <x-ui.th>Pengajar</x-ui.th>
+            @foreach ($columns as $key => $label)
+                <th scope="col" class="num" @if ($sort === $key) aria-sort="descending" @endif>
+                    <a href="{{ $sortUrl($key) }}" class="th-sort" @if ($sort === $key) aria-current="true" @endif>
+                        <span>{{ $label }}</span>
+                        <x-ui.icon :name="$sort === $key ? 'chevron-down' : 'chevron-up-down'" />
+                    </a>
+                </th>
+            @endforeach
+        </x-slot:head>
+
+        @foreach ($rows as $row)
+            <tr>
+                <td class="cell-primary" data-label="Pengajar">
+                    <div class="flex items-center gap-3">
+                        <x-ui.avatar :user="$row['teacher']" size="sm" decorative />
+                        <a href="{{ route('admin.users.show', $row['teacher']) }}" class="min-w-0 truncate font-medium text-fg hover:text-brand-text">{{ $row['teacher']->name }}</a>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                </td>
+                <td class="num" data-label="Kelas aktif">{{ $row['classes'] }}</td>
+                <td class="num" data-label="Siswa aktif">{{ $row['students'] }}</td>
+                <td class="num" data-label="Pertemuan">{{ $row['meetings'] }}</td>
+                <td class="num" data-label="Laporan">{{ $row['reports'] }}</td>
+                <td class="num" data-label="Kehadiran">
+                    @if ($row['attendance'] === null)
+                        <span class="text-fg-subtle">—</span>
+                    @else
+                        <span @class(['text-danger' => $row['attendance'] < 75, 'text-fg' => $row['attendance'] >= 75])>{{ number_format($row['attendance'], 1, ',', '.') }}%</span>
+                    @endif
+                </td>
+            </tr>
+        @endforeach
+
+        <x-slot:empty>
+            <x-ui.empty-state icon="presentation-chart-bar" title="Belum ada pengajar aktif." description="Tambahkan akun dengan peran Guru di menu Pengguna." />
+        </x-slot:empty>
+        <x-slot:footer>
+            <p class="text-xs text-fg-subtle">Pertemuan = tanggal laporan pertemuan per kelas. Kehadiran = hadir + terlambat dibanding seluruh catatan absensi kelas yang diajar.</p>
+        </x-slot:footer>
+    </x-ui.table>
 </x-app-layout>

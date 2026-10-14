@@ -31,6 +31,7 @@ class Course extends Model
         'benefits',
         'level',
         'duration_weeks',
+        'duration_hours',
         'is_active',
         'thumbnail',
     ];
@@ -39,6 +40,7 @@ class Course extends Model
         'price' => 'decimal:2',
         'is_active' => 'boolean',
         'duration_weeks' => 'integer',
+        'duration_hours' => 'integer',
     ];
 
     /**

@@ -1,144 +1,98 @@
-@extends('layouts.app')
+@php
+    use App\Services\Admin\AdminClock;
 
-@section('title', 'Enrollment Management')
+    $statusTone = ['pending' => 'warning', 'active' => 'success', 'suspended' => 'warning', 'completed' => 'info', 'dropped' => 'neutral', 'cancelled' => 'neutral', 'inactive' => 'neutral'];
+    $paymentTone = ['unpaid' => 'danger', 'pending' => 'warning', 'paid' => 'success', 'refunded' => 'info'];
+    $current = request('status', 'all');
+    $tab = fn ($key) => route('admin.enrollments.index', ($key === 'all' ? [] : ['status' => $key]) + request()->except(['status', 'page']));
+@endphp
 
-@section('content')
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Enrollment Management</h1>
-            <p class="text-gray-600">Manage all student enrollments and their details</p>
-        </div>
-        <a href="{{ route('admin.enrollments.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Add Enrollment
-        </a>
-    </div>
+<x-app-layout title="Pendaftaran">
+    <x-ui.page-header title="Pendaftaran" subtitle="Siswa di setiap kelas, antrean persetujuan dan status pembayarannya."
+        :breadcrumbs="['Admin' => route('admin.dashboard'), 'Pendaftaran' => null]">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="arrow-down-tray" :href="route('admin.enrollments.export', request()->query())">Ekspor CSV</x-ui.button>
+            @can('create', App\Models\Enrollment::class)
+                <x-ui.button icon="plus" :href="route('admin.enrollments.create')">Daftarkan siswa</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <!-- Enrollments Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div class="p-6">
-            @if($enrollments->count() > 0)
-                <div class="table-wrapper">
-                    <div class="shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enrollment Date</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    @foreach($enrollments as $enrollment)
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <div class="h-10 w-10 flex-shrink-0 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                                                    <span class="text-sm font-medium text-white">{{ substr($enrollment->student->name, 0, 1) }}</span>
-                                                </div>
-                                                <div class="ml-4">
-                                                    <div class="text-sm font-medium text-gray-900">{{ $enrollment->student->name }}</div>
-                                                    <div class="text-sm text-gray-500">{{ $enrollment->student->email }}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm font-medium text-gray-900">{{ $enrollment->class->name }}</div>
-                                            <div class="text-sm text-gray-500">{{ ucfirst(str_replace('_', ' ', $enrollment->class->type)) }}</div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <div class="h-8 w-8 flex-shrink-0 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
-                                                    <span class="text-xs font-medium text-white">{{ substr($enrollment->class->course->name, 0, 1) }}</span>
-                                                </div>
-                                                <div class="ml-3">
-                                                    <div class="text-sm font-medium text-gray-900">{{ $enrollment->class->course->name }}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <svg class="w-4 h-4 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 7h12v11H4V7z"/>
-                                                </svg>
-                                                <span class="text-sm text-gray-900">{{ $enrollment->enrollment_date->format('M d, Y') }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                                {{ $enrollment->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                                                <span class="w-2 h-2 mr-1 rounded-full {{ $enrollment->status === 'active' ? 'bg-green-400' : 'bg-yellow-400' }}"></span>
-                                                {{ ucfirst($enrollment->status) }}
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <div class="flex items-center space-x-3">
-                                                <a href="{{ route('admin.enrollments.show', $enrollment) }}" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"/>
-                                                    </svg>
-                                                    View
-                                                </a>
-                                                <a href="{{ route('admin.enrollments.edit', $enrollment) }}" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
-                                                    </svg>
-                                                    Edit
-                                                </a>
-                                                <form action="{{ route('admin.enrollments.destroy', $enrollment) }}" method="POST" class="inline" 
-                                                      onsubmit="return confirm('Are you sure you want to delete this enrollment?')">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"/>
-                                                        </svg>
-                                                        Delete
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
+    @if (($counts['pending'] ?? 0) > 0 && $current !== 'pending')
+        <x-ui.alert tone="warning" icon="clock" class="mt-6" :title="$counts['pending'].' pendaftaran menunggu persetujuan'">
+            Periksa pembayaran lalu setujui agar siswa mendapat jadwal kelas.
+            <x-slot:actions><x-ui.button size="sm" variant="secondary" :href="$tab('pending')">Buka antrean</x-ui.button></x-slot:actions>
+        </x-ui.alert>
+    @endif
+
+    <x-ui.tabs class="mt-6" label="Status pendaftaran" :active="$current" :tabs="[
+        'all' => ['label' => 'Semua', 'count' => (int) $counts->sum(), 'href' => $tab('all')],
+        'pending' => ['label' => 'Menunggu', 'count' => (int) ($counts['pending'] ?? 0), 'href' => $tab('pending')],
+        'active' => ['label' => 'Aktif', 'count' => (int) ($counts['active'] ?? 0), 'href' => $tab('active')],
+        'suspended' => ['label' => 'Ditangguhkan', 'count' => (int) ($counts['suspended'] ?? 0), 'href' => $tab('suspended')],
+        'completed' => ['label' => 'Selesai', 'count' => (int) ($counts['completed'] ?? 0), 'href' => $tab('completed')],
+        'dropped' => ['label' => 'Keluar', 'count' => (int) ($counts['dropped'] ?? 0), 'href' => $tab('dropped')],
+    ]" />
+
+    <x-ui.table caption="Daftar pendaftaran" mobile="stack" class="mt-6">
+        <x-slot:toolbar>
+            <x-ui.filter-bar placeholder="Cari nama atau email siswa…" class="w-full" :keep="['sort', 'direction', 'status']">
+                <x-ui.select name="class" :options="$classes" placeholder="Semua kelas" :value="request('class')" class="sm:w-48" aria-label="Kelas" />
+                <x-ui.select name="course" :options="$courses" placeholder="Semua kursus" :value="request('course')" class="sm:w-44" aria-label="Kursus" />
+                <x-ui.select name="payment" :options="$paymentStatuses" placeholder="Semua pembayaran" :value="request('payment')" class="sm:w-44" aria-label="Pembayaran" />
+            </x-ui.filter-bar>
+        </x-slot:toolbar>
+
+        <x-slot:head>
+            <x-ui.th>Siswa</x-ui.th>
+            <x-ui.th>Kelas</x-ui.th>
+            <x-ui.th sort="status">Status</x-ui.th>
+            <x-ui.th>Pembayaran</x-ui.th>
+            <x-ui.th sort="enrollment_date" numeric default-direction="desc">Tanggal daftar</x-ui.th>
+            <x-ui.th align="right"><span class="sr-only">Aksi</span></x-ui.th>
+        </x-slot:head>
+
+        @foreach ($enrollments as $enrollment)
+            <tr>
+                <td class="cell-primary" data-label="Siswa">
+                    <div class="flex items-center gap-3">
+                        <x-ui.avatar :user="$enrollment->student" size="sm" decorative />
+                        <a href="{{ route('admin.enrollments.show', $enrollment) }}" class="min-w-0 truncate font-medium text-fg hover:text-brand-text">{{ $enrollment->student?->name ?? 'Siswa terhapus' }}</a>
                     </div>
-                </div>
-                
-                <!-- Pagination -->
-                @if($enrollments->hasPages())
-                <div class="mt-6">
-                    {{ $enrollments->links() }}
-                </div>
-                @endif
+                </td>
+                <td data-label="Kelas">
+                    <span class="text-fg">{{ $enrollment->className?->name ?? 'Belum ada kelas' }}</span>
+                    <p class="cell-secondary">{{ $enrollment->className?->course?->name ?? $enrollment->course?->name ?? '—' }}</p>
+                </td>
+                <td data-label="Status"><x-ui.badge :tone="$statusTone[$enrollment->status] ?? 'neutral'" dot>{{ $enrollment->status_label }}</x-ui.badge></td>
+                <td data-label="Pembayaran"><x-ui.badge :tone="$paymentTone[$enrollment->payment_status] ?? 'neutral'">{{ $paymentStatuses[$enrollment->payment_status] ?? $enrollment->payment_status }}</x-ui.badge></td>
+                <td class="num" data-label="Tanggal daftar">{{ AdminClock::format($enrollment->enrollment_date) }}</td>
+                <td class="cell-actions">
+                    <div class="inline-flex items-center gap-1">
+                        @can('update', $enrollment)
+                            @if ($enrollment->status === 'pending')
+                                <form method="POST" action="{{ route('admin.enrollments.toggle-status', $enrollment) }}">
+                                    @csrf
+                                    <x-ui.button type="submit" size="sm" variant="soft" icon="check">Setujui</x-ui.button>
+                                </form>
+                            @endif
+                            <x-ui.button variant="ghost" size="sm" icon="pencil-square" :href="route('admin.enrollments.edit', $enrollment)" :label="'Ubah pendaftaran '.($enrollment->student?->name ?? '')" />
+                        @endcan
+                    </div>
+                </td>
+            </tr>
+        @endforeach
+
+        <x-slot:empty>
+            @if (request()->hasAny(['search', 'class', 'course', 'payment', 'status']))
+                <x-ui.empty-state icon="magnifying-glass" title="Tidak ada pendaftaran yang cocok." description="Coba kata kunci lain atau hapus filter.">
+                    <x-slot:actions><x-ui.button variant="secondary" size="sm" :href="route('admin.enrollments.index')">Hapus filter</x-ui.button></x-slot:actions>
+                </x-ui.empty-state>
             @else
-                <div class="text-center py-12">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253z"></path>
-                    </svg>
-                    <h3 class="mt-2 text-lg font-medium text-gray-900">No enrollments found</h3>
-                    <p class="mt-1 text-sm text-gray-500">Get started by creating a new enrollment.</p>
-                    <div class="mt-6">
-                        <a href="{{ route('admin.enrollments.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/>
-                            </svg>
-                            Add Enrollment
-                        </a>
-                    </div>
-                </div>
+                <x-ui.empty-state icon="clipboard-document-check" title="Belum ada pendaftaran." description="Daftarkan siswa ke kelas yang masih punya kursi." />
             @endif
-        </div>
-    </div>
-</div>
-@endsection
+        </x-slot:empty>
+
+        <x-slot:footer>{{ $enrollments->links() }}</x-slot:footer>
+    </x-ui.table>
+</x-app-layout>

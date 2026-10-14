@@ -1,31 +1,52 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Class Curriculum') }}
-        </h2>
-    </x-slot>
+<x-app-layout :title="'Kurikulum · '.$class->name">
+    <x-ui.page-header :title="$class->name" :eyebrow="$class->curriculum?->title ?? 'Kurikulum'"
+        :subtitle="$class->course?->name.($class->teachers->isNotEmpty() ? ' · bersama '.$class->teachers->pluck('name')->join(', ') : '')"
+        :breadcrumbs="['Kurikulum' => route('student.curriculum.index'), $class->name => null]">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="chart-bar" :href="route('student.progress.class', $class)">Progres</x-ui.button>
+            <x-ui.button icon="folder-open" :href="route('student.materials.by-class', $class)">Materi</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Class curriculum feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show detailed curriculum information for your class.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('student.curriculum.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Curriculum
-                            </a>
+    @if (! $summary->hasCurriculum())
+        <x-ui.empty-state size="page" icon="queue-list" title="Kurikulum kelas ini belum ditetapkan."
+            description="Pengajar atau admin akan segera melengkapinya. Sementara itu, tanyakan materi lewat chat kelas." />
+    @else
+        <div class="grid gap-gutter lg:grid-cols-3">
+            <div class="lg:col-span-2">
+                @include('student.curriculum.partials.timeline', [
+                    'materialUrl' => fn ($material) => route('student.materials.show', $material),
+                ])
+            </div>
+
+            <aside class="space-y-6">
+                <x-ui.card title="Progresmu" variant="highlight">
+                    <div class="flex items-center gap-5">
+                        <x-ui.progress-ring :value="$summary->percent()" :size="88" marker label="Progres kurikulum">
+                            <span class="font-num text-lg text-fg">{{ (int) round($summary->percent()) }}%</span>
+                        </x-ui.progress-ring>
+                        <div class="space-y-1 text-sm">
+                            <p class="text-fg"><span class="font-num font-semibold">{{ $summary->completed() }}</span> dari {{ $summary->total() }} pertemuan selesai</p>
+                            <p class="text-fg-subtle">{{ count($unlockedIds) }} materi sudah terbuka</p>
                         </div>
                     </div>
-                </div>
-            </div>
+                </x-ui.card>
+
+                @if (filled($class->curriculum?->description) || $class->curriculum?->objectives_list)
+                    <x-ui.card title="Tentang kurikulum">
+                        @if (filled($class->curriculum->description))
+                            <p class="text-sm text-fg-muted">{{ $class->curriculum->description }}</p>
+                        @endif
+                        @if ($class->curriculum->objectives_list)
+                            <ul class="mt-3 space-y-1.5 text-sm text-fg">
+                                @foreach ($class->curriculum->objectives_list as $item)
+                                    <li class="flex gap-2"><x-ui.icon name="check" size="16" class="mt-0.5 shrink-0 text-success" /> <span>{{ $item }}</span></li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </x-ui.card>
+                @endif
+            </aside>
         </div>
-    </div>
+    @endif
 </x-app-layout>

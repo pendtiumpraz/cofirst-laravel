@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Personal details of a user (one row per user; user_id is unique).
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $user_id
  * @property string $full_name
- * @property \Illuminate\Support\Carbon|null $birth_date
+ * @property Carbon|null $birth_date
  * @property-read int|null $age
  */
 class Profile extends Model
@@ -73,7 +74,7 @@ class Profile extends Model
     }
 
     /** Alias getter: date_of_birth => birth_date. */
-    public function getDateOfBirthAttribute(): ?\Illuminate\Support\Carbon
+    public function getDateOfBirthAttribute(): ?Carbon
     {
         return $this->birth_date;
     }

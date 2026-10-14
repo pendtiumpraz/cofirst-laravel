@@ -1,30 +1,104 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Student Handovers') }}
-        </h2>
-    </x-slot>
+@php
+    use App\Models\TeacherHandover;
+    use App\Services\Teacher\TeachingSchedule;
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Student handover feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will allow you to manage student handovers.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('teacher.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Dashboard
-                            </a>
-                        </div>
+    $statusTone = [
+        TeacherHandover::STATUS_PENDING => 'warning',
+        TeacherHandover::STATUS_APPROVED => 'info',
+        TeacherHandover::STATUS_COMPLETED => 'success',
+        TeacherHandover::STATUS_REJECTED => 'danger',
+        TeacherHandover::STATUS_CANCELLED => 'neutral',
+    ];
+    $tabs = [
+        'masuk' => ['label' => 'Masuk', 'count' => $counts['masuk'], 'href' => route('teacher.handovers.index', ['tab' => 'masuk'])],
+        'dikirim' => ['label' => 'Dikirim', 'count' => $counts['dikirim'], 'href' => route('teacher.handovers.index', ['tab' => 'dikirim'])],
+        'riwayat' => ['label' => 'Riwayat', 'count' => $counts['riwayat'], 'href' => route('teacher.handovers.index', ['tab' => 'riwayat'])],
+    ];
+    $empty = [
+        'masuk' => ['Tidak ada permintaan masuk.', 'Permintaan dari pengajar lain untuk menggantikan kelasnya akan tampil di sini.'],
+        'dikirim' => ['Belum ada permintaan yang Anda kirim.', 'Ajukan serah terima bila Anda berhalangan mengajar atau kelas perlu dipindahkan.'],
+        'riwayat' => ['Riwayat masih kosong.', 'Permintaan yang selesai, ditolak atau dibatalkan tersimpan di sini.'],
+    ];
+@endphp
+
+<x-app-layout title="Serah Terima Kelas">
+    <x-ui.page-header title="Serah terima kelas"
+        subtitle="Minta pengajar lain menggantikan Anda untuk sementara, atau pindahkan kelas secara permanen.">
+        <x-slot:actions>
+            <x-ui.button icon="plus" :href="route('teacher.handovers.create')">Ajukan serah terima</x-ui.button>
+        </x-slot:actions>
+        <x-ui.tabs :tabs="$tabs" :active="$tab" label="Jenis permintaan" />
+    </x-ui.page-header>
+
+    @if ($pendingIncoming > 0 && $tab !== 'masuk')
+        <x-ui.alert tone="info" class="mb-6" :title="$pendingIncoming.' permintaan menunggu jawaban Anda'">
+            <x-slot:actions>
+                <x-ui.button size="sm" variant="secondary" :href="route('teacher.handovers.index', ['tab' => 'masuk'])" arrow>Lihat permintaan masuk</x-ui.button>
+            </x-slot:actions>
+        </x-ui.alert>
+    @endif
+
+    <x-ui.table caption="Daftar serah terima" mobile="stack">
+        <x-slot:head>
+            <x-ui.th>Kelas</x-ui.th>
+            <x-ui.th>{{ $tab === 'masuk' ? 'Dari' : ($tab === 'dikirim' ? 'Kepada' : 'Pengajar') }}</x-ui.th>
+            <x-ui.th>Jenis & periode</x-ui.th>
+            <x-ui.th>Status</x-ui.th>
+            <x-ui.th align="right"><span class="sr-only">Aksi</span></x-ui.th>
+        </x-slot:head>
+
+        @foreach ($handovers as $handover)
+            @php
+                $incoming = (int) $handover->to_teacher_id === (int) $teacher->id;
+                $other = $incoming ? $handover->fromTeacher : $handover->toTeacher;
+                $needsAnswer = $workflow->canRespond($handover, $teacher);
+            @endphp
+            <tr @if ($needsAnswer) aria-selected="true" @endif>
+                <td class="cell-primary" data-label="Kelas">
+                    <a href="{{ route('teacher.handovers.show', $handover) }}" class="hover:text-brand-text hover:underline">{{ $handover->className?->name ?? 'Kelas diarsipkan' }}</a>
+                    <span class="cell-secondary block">{{ $handover->className?->course?->name }}</span>
+                </td>
+                <td data-label="{{ $incoming ? 'Dari' : 'Kepada' }}">
+                    <div class="flex items-center gap-2">
+                        <x-ui.avatar :user="$other" :name="$other?->name ?? 'Pengajar'" size="xs" decorative />
+                        <span>
+                            @if ($tab === 'riwayat')<span class="text-fg-subtle">{{ $incoming ? 'Dari' : 'Kepada' }}</span>@endif
+                            {{ $other?->name ?? 'Pengajar' }}
+                        </span>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</x-app-layout> 
+                </td>
+                <td data-label="Jenis & periode">
+                    <span class="text-fg">{{ TeacherHandover::types()[$handover->type] ?? $handover->type }}</span>
+                    <span class="cell-secondary block">
+                        {{ TeachingSchedule::format($handover->effective_from, 'j M Y') }}@if ($handover->effective_until) – {{ TeachingSchedule::format($handover->effective_until, 'j M Y') }}@endif
+                    </span>
+                </td>
+                <td data-label="Status">
+                    <x-ui.badge :tone="$statusTone[$handover->status] ?? 'neutral'" dot>
+                        {{ $needsAnswer ? 'Menunggu jawaban Anda' : $handover->status_label }}
+                    </x-ui.badge>
+                    @if ($workflow->isOverdue($handover))
+                        <span class="cell-secondary block">Periode sudah berakhir</span>
+                    @endif
+                </td>
+                <td class="cell-actions">
+                    <x-ui.button :variant="$needsAnswer ? 'primary' : 'ghost'" size="xs" :href="route('teacher.handovers.show', $handover)">
+                        {{ $needsAnswer ? 'Tinjau' : 'Lihat' }}
+                    </x-ui.button>
+                </td>
+            </tr>
+        @endforeach
+
+        <x-slot:empty>
+            <x-ui.empty-state icon="arrows-right-left" :title="$empty[$tab][0]" :description="$empty[$tab][1]">
+                @if ($tab !== 'masuk')
+                    <x-slot:actions><x-ui.button size="sm" variant="secondary" icon="plus" :href="route('teacher.handovers.create')">Ajukan serah terima</x-ui.button></x-slot:actions>
+                @endif
+            </x-ui.empty-state>
+        </x-slot:empty>
+
+        @if ($handovers->hasPages())
+            <x-slot:footer>{{ $handovers->links() }}</x-slot:footer>
+        @endif
+    </x-ui.table>
+</x-app-layout>

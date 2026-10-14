@@ -1,30 +1,103 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('My Students') }}
-        </h2>
-    </x-slot>
+@php
+    use App\Services\Teacher\TeachingSchedule;
+    use Illuminate\Support\Carbon;
+@endphp
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Students management feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show all students in your classes.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('teacher.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Dashboard
-                            </a>
+<x-app-layout title="Siswa Saya">
+    <x-ui.page-header title="Siswa saya"
+        subtitle="Siswa aktif di kelas yang Anda ajar. Kontak pribadi siswa tidak ditampilkan untuk melindungi data mereka.">
+        <x-slot:badge><x-ui.badge>{{ $students->total() }}</x-ui.badge></x-slot:badge>
+    </x-ui.page-header>
+
+    <x-ui.table caption="Daftar siswa saya" mobile="stack">
+        <x-slot:toolbar>
+            <x-ui.filter-bar placeholder="Cari nama siswa…" class="w-full">
+                <x-ui.select name="class" :value="$classFilter" placeholder="Semua kelas" aria-label="Kelas" class="sm:w-56"
+                    :options="$classes->pluck('name', 'id')" />
+            </x-ui.filter-bar>
+        </x-slot:toolbar>
+
+        <x-slot:head>
+            <x-ui.th>Siswa</x-ui.th>
+            <x-ui.th>Kelas</x-ui.th>
+            <x-ui.th>Kehadiran</x-ui.th>
+            <x-ui.th>Berita acara terakhir</x-ui.th>
+            <x-ui.th numeric>Poin</x-ui.th>
+            <x-ui.th align="right"><span class="sr-only">Aksi</span></x-ui.th>
+        </x-slot:head>
+
+        @foreach ($students as $student)
+            @php
+                $rate = $rates->get($student->id);
+                $percent = $rate && $rate->total > 0 ? round($rate->attended / $rate->total * 100) : null;
+                $last = $lastReports->get($student->id);
+                $firstClass = $student->enrollments->first()?->className;
+            @endphp
+            <tr>
+                <td class="cell-primary" data-label="Siswa">
+                    <div class="flex min-w-[11rem] items-center gap-3">
+                        <x-ui.avatar :user="$student" size="sm" decorative />
+                        <div class="min-w-0">
+                            <p class="font-medium text-fg">{{ $student->name }}</p>
+                            @if ($student->points)
+                                <p class="cell-secondary">Level {{ $student->points->level }}</p>
+                            @endif
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</x-app-layout> 
+                </td>
+                <td data-label="Kelas">
+                    <div class="flex flex-wrap gap-1.5">
+                        @foreach ($student->enrollments as $enrollment)
+                            @if ($enrollment->className)
+                                <a href="{{ route('teacher.class-detail', $enrollment->className) }}#siswa" class="badge badge-neutral hover:border-line-strong">
+                                    {{ $enrollment->className->name }}
+                                </a>
+                            @endif
+                        @endforeach
+                    </div>
+                </td>
+                <td data-label="Kehadiran">
+                    @if ($percent === null)
+                        <span class="text-fg-subtle">Belum ada data</span>
+                    @else
+                        <span class="inline-flex items-center gap-2 whitespace-nowrap">
+                            <x-ui.badge :tone="$percent >= 85 ? 'success' : ($percent >= 75 ? 'warning' : 'danger')">{{ $percent }}%</x-ui.badge>
+                            <span class="text-xs text-fg-subtle">{{ $rate->attended }}/{{ $rate->total }} pertemuan</span>
+                        </span>
+                    @endif
+                </td>
+                <td data-label="Berita acara terakhir">
+                    {{ $last ? TeachingSchedule::format(Carbon::parse($last), 'j M Y') : 'Belum ada' }}
+                </td>
+                <td class="num" data-label="Poin">{{ number_format((int) ($student->points?->points ?? 0), 0, ',', '.') }}</td>
+                <td class="cell-actions">
+                    <div class="inline-flex items-center justify-end gap-1 whitespace-nowrap">
+                        @if (Route::has('teacher.student-progress.show'))
+                            <x-ui.button variant="ghost" size="xs" icon="chart-bar" :href="route('teacher.student-progress.show', $student)">Progres</x-ui.button>
+                        @endif
+                        @if ($firstClass && Route::has('class-reports.create'))
+                            <x-ui.button variant="ghost" size="xs" icon="document-text"
+                                :href="route('class-reports.create', ['class_id' => $firstClass->id, 'student_id' => $student->id])">Berita acara</x-ui.button>
+                        @endif
+                    </div>
+                </td>
+            </tr>
+        @endforeach
+
+        <x-slot:empty>
+            @if ($search !== '' || $classFilter)
+                <x-ui.empty-state icon="magnifying-glass" title="Tidak ada siswa yang cocok."
+                    description="Coba kata kunci lain atau pilih semua kelas.">
+                    <x-slot:actions><x-ui.button variant="secondary" size="sm" :href="route('teacher.students.index')">Hapus filter</x-ui.button></x-slot:actions>
+                </x-ui.empty-state>
+            @else
+                <x-ui.empty-state icon="user-group" title="Belum ada siswa aktif."
+                    description="Siswa tampil di sini setelah terdaftar di kelas yang Anda ajar." />
+            @endif
+        </x-slot:empty>
+
+        @if ($students->hasPages())
+            <x-slot:footer>{{ $students->links() }}</x-slot:footer>
+        @endif
+    </x-ui.table>
+</x-app-layout>

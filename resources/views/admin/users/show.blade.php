@@ -1,176 +1,124 @@
-@extends('layouts.app')
+@php
+    use App\Services\Admin\AdminClock;
+    use App\Support\Admin\AccessControl;
 
-@section('title', 'User Details')
+    $isStudent = $user->hasRole('student');
+    $isParent = $user->hasRole('parent');
+    $isTeacher = $user->hasRole('teacher');
 
-@section('content')
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div class="p-6">
-            <!-- Header -->
-            <div class="flex justify-between items-start mb-6">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">User Details</h1>
-                    <p class="text-gray-600">View user information</p>
-                </div>
-                <div class="flex space-x-3">
-                    <a href="{{ route('admin.users.edit', $user) }}" 
-                       class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        Edit User
-                    </a>
-                    <a href="{{ route('admin.users.index') }}" 
-                       class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-                        Back to Users
-                    </a>
-                </div>
-            </div>
+    $tabs = ['ringkasan' => ['label' => 'Ringkasan', 'icon' => 'user']];
+    if ($isStudent || $isTeacher) {
+        $tabs['belajar'] = ['label' => $isTeacher && ! $isStudent ? 'Kelas diajar' : 'Pembelajaran', 'icon' => 'academic-cap',
+            'count' => $isTeacher && ! $isStudent ? $taughtClasses->count() : $enrollments->count()];
+    }
+    if ($isStudent || $isParent) {
+        $tabs['keluarga'] = ['label' => 'Keluarga', 'icon' => 'home', 'count' => $isParent ? $user->children->count() : $user->parents->count()];
+        $tabs['pembayaran'] = ['label' => 'Pembayaran', 'icon' => 'banknotes'];
+    }
+    $tabs['privasi'] = ['label' => 'Privasi', 'icon' => 'finger-print'];
+    $activeTab = isset($tabs['keluarga']) && $errors->hasAny(['related_id', 'guardian_verified', 'relationship']) ? 'keluarga' : 'ringkasan';
+@endphp
 
-            <!-- User Info -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div class="space-y-4">
-                    <div class="flex items-center space-x-4">
-                        <x-user-avatar :user="$user" size="lg" gradient="blue" />
-                        <div>
-                            <h4 class="text-xl font-semibold text-gray-900">{{ $user->name }}</h4>
-                            <p class="text-gray-600">{{ $user->email }}</p>
-                        </div>
-                    </div>
-
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-500">Status</label>
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full 
-                                {{ $user->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                {{ $user->is_active ? 'Active' : 'Inactive' }}
-                            </span>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-500">Role</label>
-                            <div class="flex flex-wrap gap-2 mt-1">
-                                @foreach($user->roles as $role)
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                        {{ ucfirst($role->name) }}
-                                    </span>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-500">Member Since</label>
-                            <p class="text-gray-900">{{ $user->created_at->format('F d, Y') }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Parent-Student Relationships -->
-            @if($user->hasRole('parent') && $user->children->count() > 0)
-                <div class="border-t border-gray-200 pt-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Children</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        @foreach($user->children as $child)
-                            <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                                <div class="flex items-center space-x-3">
-                                    <x-user-avatar :user="$child" size="sm" gradient="green" />
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">{{ $child->name }}</h4>
-                                        <p class="text-xs text-gray-500">{{ $child->email }}</p>
-                                        <div class="flex items-center mt-1">
-                                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                                                Student
-                                            </span>
-                                            <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full 
-                                                {{ $child->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                                {{ $child->is_active ? 'Active' : 'Inactive' }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="mt-3">
-                                    <a href="{{ route('admin.users.show', $child) }}" 
-                                       class="text-xs text-blue-600 hover:text-blue-800 transition-colors">
-                                        View Details →
-                                    </a>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
+<x-app-layout :title="$user->name">
+    <x-ui.page-header :breadcrumbs="['Admin' => route('admin.dashboard'), 'Pengguna' => route('admin.users.index'), $user->name => null]">
+        <x-slot:title>
+            <span class="inline-flex items-center gap-4">
+                <x-ui.avatar :user="$user" size="lg" decorative />
+                <span>{{ $user->name }}</span>
+            </span>
+        </x-slot:title>
+        <x-slot:badge>
+            @if ($user->trashed())
+                <x-ui.badge tone="neutral" dot>Diarsipkan</x-ui.badge>
+            @elseif ($user->is_active)
+                <x-ui.badge tone="success" dot>Aktif</x-ui.badge>
+            @else
+                <x-ui.badge tone="warning" dot>Nonaktif</x-ui.badge>
             @endif
-
-            @if($user->hasRole('student') && $user->parents->count() > 0)
-                <div class="border-t border-gray-200 pt-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Parents</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        @foreach($user->parents as $parent)
-                            <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                                <div class="flex items-center space-x-3">
-                                    <x-user-avatar :user="$parent" size="sm" gradient="purple" />
-                                    <div>
-                                        <h4 class="text-sm font-medium text-gray-900">{{ $parent->name }}</h4>
-                                        <p class="text-xs text-gray-500">{{ $parent->email }}</p>
-                                        <div class="flex items-center mt-1">
-                                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                                                Parent
-                                            </span>
-                                            <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full 
-                                                {{ $parent->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                                {{ $parent->is_active ? 'Active' : 'Inactive' }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="mt-3">
-                                    <a href="{{ route('admin.users.show', $parent) }}" 
-                                       class="text-xs text-blue-600 hover:text-blue-800 transition-colors">
-                                        View Details →
-                                    </a>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
+        </x-slot:badge>
+        <x-slot:meta>
+            <span>{{ $user->email }}</span>
+            <span>Bergabung {{ AdminClock::format($user->created_at) }}</span>
+            @foreach ($user->roles as $role)
+                <x-ui.badge outline :tone="AccessControl::roleTone($role->name)">{{ AccessControl::roleLabel($role->name) }}</x-ui.badge>
+            @endforeach
+            @if ($user->profile?->isChild())
+                <x-ui.badge tone="info" icon="shield-check">Anak · {{ $user->profile->age }} th</x-ui.badge>
             @endif
-
-            <!-- Show message if no relationships exist -->
-            @if(($user->hasRole('parent') && $user->children->count() == 0) || ($user->hasRole('student') && $user->parents->count() == 0))
-                <div class="border-t border-gray-200 pt-6">
-                    <div class="text-center py-8">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-gray-100">
-                            <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">
-                            @if($user->hasRole('parent'))
-                                No children linked
-                            @elseif($user->hasRole('student'))
-                                No parents linked
-                            @else
-                                No family relationships
-                            @endif
-                        </h3>
-                        <p class="mt-1 text-sm text-gray-500">
-                            @if($user->hasRole('parent'))
-                                This parent account has no linked children.
-                            @elseif($user->hasRole('student'))
-                                This student account has no linked parents.
-                            @else
-                                This user has no family relationships.
-                            @endif
-                        </p>
-                        @if($user->hasRole('parent') || $user->hasRole('student'))
-                            <div class="mt-6">
-                                <a href="{{ route('admin.users.edit', $user) }}" 
-                                   class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                    Edit Relationships
-                                </a>
-                            </div>
+        </x-slot:meta>
+        <x-slot:actions>
+            @if ($user->trashed())
+                @can('restore', $user)
+                    <form method="POST" action="{{ route('admin.users.restore', $user) }}">
+                        @csrf
+                        <x-ui.button type="submit" icon="arrow-uturn-left">Pulihkan akun</x-ui.button>
+                    </form>
+                @endcan
+            @else
+                @can('update', $user)
+                    <x-ui.button variant="secondary" icon="pencil-square" :href="route('admin.users.edit', $user)">Ubah</x-ui.button>
+                @endcan
+                <x-ui.dropdown label="Tindakan" icon="ellipsis-horizontal" align="right" width="64">
+                    @can('sendPasswordLink', $user)
+                        <x-ui.dropdown-item icon="key" method="post" :href="route('admin.users.password-link', $user)">Kirim tautan atur ulang sandi</x-ui.dropdown-item>
+                    @endcan
+                    @can('toggleStatus', $user)
+                        <x-ui.dropdown-item :icon="$user->is_active ? 'no-symbol' : 'check-circle'" method="post" :href="route('admin.users.toggle-status', $user)">
+                            {{ $user->is_active ? 'Nonaktifkan akun' : 'Aktifkan akun' }}
+                        </x-ui.dropdown-item>
+                    @endcan
+                    @can('create', App\Models\Enrollment::class)
+                        @if ($isStudent)
+                            <x-ui.dropdown-item icon="clipboard-document-check" :href="route('admin.enrollments.create', ['student' => $user->id])">Daftarkan ke kelas</x-ui.dropdown-item>
                         @endif
-                    </div>
-                </div>
+                    @endcan
+                    @can('delete', $user)
+                        <div class="dropdown-divider"></div>
+                        <x-ui.dropdown-item icon="archive-box" danger x-on:click="$dispatch('open-modal', 'arsip-user')">Arsipkan akun</x-ui.dropdown-item>
+                    @endcan
+                </x-ui.dropdown>
             @endif
-        </div>
-    </div>
-</div>
-@endsection 
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    @if ($user->trashed())
+        <x-ui.alert tone="warning" icon="archive-box" class="mt-6" title="Akun ini diarsipkan">
+            Diarsipkan {{ AdminClock::format($user->deleted_at, 'j F Y') }}. Pemilik akun tidak dapat masuk. Data keuangan tetap disimpan sesuai kewajiban retensi.
+        </x-ui.alert>
+    @endif
+
+    <x-ui.tabs class="mt-8" group="pengguna" :active="$activeTab" :tabs="$tabs" label="Bagian detail pengguna">
+        <x-ui.tab-panel name="ringkasan">
+            @include('admin.users.partials.show-summary')
+        </x-ui.tab-panel>
+
+        @isset($tabs['belajar'])
+            <x-ui.tab-panel name="belajar">
+                @include('admin.users.partials.show-learning')
+            </x-ui.tab-panel>
+        @endisset
+
+        @isset($tabs['keluarga'])
+            <x-ui.tab-panel name="keluarga">
+                @include('admin.users.partials.show-family')
+            </x-ui.tab-panel>
+            <x-ui.tab-panel name="pembayaran">
+                @include('admin.users.partials.show-payments')
+            </x-ui.tab-panel>
+        @endisset
+
+        <x-ui.tab-panel name="privasi">
+            @include('admin.users.partials.show-privacy')
+        </x-ui.tab-panel>
+    </x-ui.tabs>
+
+    @can('delete', $user)
+        @unless ($user->trashed())
+            <x-ui.confirm-delete :action="route('admin.users.destroy', $user)" name="arsip-user" title="Arsipkan akun ini?"
+                label="Arsipkan" confirm-text="Ya, arsipkan" icon="archive-box" confirm-phrase="ARSIPKAN"
+                :message="'Akun '.$user->name.' dinonaktifkan, sesinya diakhiri dan disembunyikan dari daftar. Riwayat pembayaran, laporan dan sertifikat tetap tersimpan; akun dapat dipulihkan.'">
+                <x-slot:trigger><span class="hidden"></span></x-slot:trigger>
+            </x-ui.confirm-delete>
+        @endunless
+    @endcan
+</x-app-layout>

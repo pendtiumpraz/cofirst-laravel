@@ -3,91 +3,64 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\Curriculum;
-use App\Models\Syllabus;
-use App\Models\Material;
-use App\Models\Enrollment;
 use App\Models\ClassName;
+use App\Services\Academic\AcademicScope;
+use App\Services\Academic\MaterialAccessService;
+use App\Services\Academic\ProgressService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
+/**
+ * Siswa › Kurikulum: what each class teaches, meeting by meeting, with the
+ * student's own progress and the materials that are already open.
+ */
 class CurriculumController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(['role:student']);
+    public function __construct(
+        private readonly AcademicScope $scope,
+        private readonly ProgressService $progress,
+        private readonly MaterialAccessService $access,
+    ) {
     }
 
-    /**
-     * Display student's enrolled classes with curriculum info
-     */
-    public function index()
+    /** One card per class the student follows. */
+    public function index(Request $request): View
     {
-        $user = Auth::user();
-        
-        // Get student's active enrollments with class and curriculum info
-        $enrollments = Enrollment::where('student_id', $user->id)
-            ->where('status', 'active')
-            ->with([
-                'className.course',
-                'className.curriculum.syllabuses.materials',
-                'className.teachers'
-            ])
+        $student = $request->user();
+        $enrollments = $this->scope->studentEnrollments($student);
+
+        $classes = ClassName::query()
+            ->whereIn('id', $enrollments->keys())
+            ->with(['course:id,name', 'curriculum:id,title,type', 'teachers:id,name'])
+            ->orderByRaw("case when status = 'active' then 0 else 1 end")
+            ->orderBy('name')
             ->get();
 
-        return view('student.curriculum.index', compact('enrollments'));
+        return view('student.curriculum.index', [
+            'classes' => $classes,
+            'enrollments' => $enrollments,
+            'summaries' => $this->progress->summariesFor($student, $classes),
+        ]);
     }
 
-    /**
-     * Show curriculum details for a specific class
-     */
-    public function show($classId)
+    /** Meeting timeline of one class. */
+    public function show(Request $request, ClassName $class): View
     {
-        $user = Auth::user();
-        
-        // Verify student is enrolled in this class
-        $enrollment = Enrollment::where('student_id', $user->id)
-            ->where('class_id', $classId)
-            ->where('status', 'active')
-            ->first();
-            
-        if (!$enrollment) {
-            abort(403, 'You are not enrolled in this class.');
-        }
-        
-        $class = ClassName::with([
-            'course',
-            'curriculum.syllabuses' => function($query) {
-                $query->where('status', 'active')->orderBy('meeting_number');
-            },
-            'curriculum.syllabuses.materials' => function($query) {
-                $query->where('status', 'active')->orderBy('order');
-            },
-            'teachers'
-        ])->findOrFail($classId);
-        
-        // Get student's material progress (you might need to create a progress tracking system)
-        $studentProgress = $this->getStudentProgress($user->id, $class->curriculum->id);
-        
-        return view('student.curriculum.show', compact('class', 'studentProgress'));
-    }
-    
-    /**
-     * Get student's progress for materials in a curriculum
-     * This is a placeholder - you might want to implement a proper progress tracking system
-     */
-    private function getStudentProgress($studentId, $curriculumId)
-    {
-        // For now, return empty array
-        // In a real implementation, you would track which materials have been:
-        // - viewed/studied
-        // - completed
-        // - in progress
-        
-        return [
-            'completed' => [], // material IDs that are completed
-            'in_progress' => [], // material IDs that are in progress
-            'not_started' => [] // material IDs that haven't been started
-        ];
+        $student = $request->user();
+        $enrollment = $this->scope->studentEnrollment($student, $class);
+
+        abort_unless($enrollment, 403, 'Anda tidak terdaftar di kelas ini.');
+
+        $class->load(['course:id,name', 'curriculum:id,title,type,description,duration_weeks,objectives', 'teachers:id,name']);
+        $summary = $this->progress->summary($student, $class, true);
+        $materialIds = $summary->meetings->flatMap(fn ($m) => $m['syllabus']->activeMaterials->pluck('id'));
+
+        return view('student.curriculum.show', [
+            'class' => $class,
+            'enrollment' => $enrollment,
+            'summary' => $summary,
+            'accessStats' => $this->access->statsFor($student->id, $materialIds),
+            'unlockedIds' => $this->progress->unlockedMaterialIds($summary),
+        ]);
     }
 }

@@ -20,6 +20,7 @@ Route::middleware(['role:student'])->prefix('student')->name('student.')->group(
     Route::get('courses', [StudentController::class, 'courses'])->name('courses.index');
     Route::get('schedules', [Student\ScheduleController::class, 'index'])->name('schedules.index');
     Route::get('reports', [Student\ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/meetings/{classReport}', [Student\ReportController::class, 'meeting'])->name('reports.meeting');
     Route::get('reports/{report}', [Student\ReportController::class, 'show'])->name('reports.show');
     Route::get('payments', [StudentController::class, 'payments'])->name('payments');
 

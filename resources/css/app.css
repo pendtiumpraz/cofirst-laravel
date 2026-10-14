@@ -1,3 +1,38 @@
+/*
+|--------------------------------------------------------------------------
+| Coding First — application stylesheet
+|--------------------------------------------------------------------------
+|
+| 1. Self-hosted fonts (UU PDP: no third-party font CDNs). Browsers only
+|    download a @font-face when text actually uses it, so the inactive
+|    theme's fonts cost nothing.
+| 2. Token files for Version A (default) and Version B.
+| 3. Tailwind layers + design-system component classes.
+|
+| Every @import must stay above the @tailwind directives (postcss-import).
+*/
+
+/* Version A: Newsreader (wght cut for the app; landing-a.css loads opsz). */
+@import '@fontsource-variable/newsreader/wght.css';
+@import '@fontsource-variable/newsreader/wght-italic.css';
+@import '@fontsource-variable/plus-jakarta-sans/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
+/* Version B: Geist + Geist Mono. */
+@import '@fontsource-variable/geist/wght.css';
+@import '@fontsource-variable/geist-mono/wght.css';
+
+@import './themes/a.css';
+@import './themes/b.css';
+
+@import './base.css';
+@import './components/buttons.css';
+@import './components/forms.css';
+@import './components/surfaces.css';
+@import './components/data.css';
+@import './components/overlays.css';
+@import './components/prose.css';
+@import './utilities.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

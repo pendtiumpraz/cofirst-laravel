@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 /**
  * A user's point balance, level and activity streak (one row per user;
@@ -158,7 +158,7 @@ class UserPoint extends Model
     protected function checkLevelUp()
     {
         $newLevel = 1;
-        
+
         foreach (self::LEVEL_POINTS as $level => $requiredPoints) {
             if ($this->total_earned >= $requiredPoints) {
                 $newLevel = $level;
@@ -166,10 +166,10 @@ class UserPoint extends Model
                 break;
             }
         }
-        
+
         if ($newLevel > $this->level) {
             $this->level = $newLevel;
-            
+
             // Trigger level up event/notification
             // TODO: Add notification for level up
         }
@@ -185,8 +185,8 @@ class UserPoint extends Model
         if ($this->last_activity_date && $this->last_activity_date->isSameDay($today)) {
             return;
         }
-        
-        if (!$this->last_activity_date) {
+
+        if (! $this->last_activity_date) {
             // First activity
             $this->current_streak = 1;
             $this->longest_streak = 1;
@@ -196,11 +196,11 @@ class UserPoint extends Model
             if ($this->current_streak > $this->longest_streak) {
                 $this->longest_streak = $this->current_streak;
             }
-        } elseif (!$this->last_activity_date->isToday()) {
+        } elseif (! $this->last_activity_date->isToday()) {
             // Streak broken
             $this->current_streak = 1;
         }
-        
+
         $this->last_activity_date = $today;
     }
 
@@ -216,11 +216,11 @@ class UserPoint extends Model
             'reason' => $reason,
             'description' => $description,
         ]);
-        
+
         if ($relatedModel) {
             $transaction->related()->associate($relatedModel);
         }
-        
+
         $transaction->save();
     }
 
@@ -230,11 +230,11 @@ class UserPoint extends Model
     public function getPointsForNextLevelAttribute()
     {
         $nextLevel = $this->level + 1;
-        
+
         if (isset(self::LEVEL_POINTS[$nextLevel])) {
             return self::LEVEL_POINTS[$nextLevel] - $this->total_earned;
         }
-        
+
         return 0; // Max level reached
     }
 
@@ -245,15 +245,15 @@ class UserPoint extends Model
     {
         $currentLevelPoints = self::LEVEL_POINTS[$this->level];
         $nextLevel = $this->level + 1;
-        
-        if (!isset(self::LEVEL_POINTS[$nextLevel])) {
+
+        if (! isset(self::LEVEL_POINTS[$nextLevel])) {
             return 100; // Max level
         }
-        
+
         $nextLevelPoints = self::LEVEL_POINTS[$nextLevel];
         $pointsInCurrentLevel = $this->total_earned - $currentLevelPoints;
         $pointsNeededForLevel = $nextLevelPoints - $currentLevelPoints;
-        
+
         return min(100, round(($pointsInCurrentLevel / $pointsNeededForLevel) * 100));
     }
 }

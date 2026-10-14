@@ -2,367 +2,368 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Admin\StoreUserRequest;
+use App\Http\Requests\Admin\UpdateUserRequest;
+use App\Models\Enrollment;
+use App\Models\FinancialTransaction;
 use App\Models\User;
-use Spatie\Permission\Models\Role;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
+use App\Services\Admin\AdminAudit;
+use App\Services\Admin\UserAccountService;
+use App\Support\Admin\AccessControl;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+use Spatie\Permission\Models\Role;
 
+/**
+ * Admin › Pengguna: accounts, roles, profile, family links and lifecycle.
+ *
+ * Authorization lives in App\Policies\UserPolicy (superadmin-only management of
+ * superadmin/admin accounts, no self-deactivation, last superadmin protected).
+ */
 class UserController extends Controller
 {
-    /**
-     * Display a listing of users.
-     */
-    public function index(Request $request)
+    private const SORTS = ['name', 'email', 'created_at'];
+
+    public function __construct(private readonly UserAccountService $accounts)
     {
-        $query = User::with('roles');
-        
-        // Handle search
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('name', 'like', "%{$searchTerm}%")
-                  ->orWhere('email', 'like', "%{$searchTerm}%")
-                  ->orWhereHas('roles', function ($roleQuery) use ($searchTerm) {
-                      $roleQuery->where('name', 'like', "%{$searchTerm}%");
-                  });
-            });
-        }
-        
-        // Handle role filter
-        if ($request->filled('role')) {
-            $query->whereHas('roles', function ($roleQuery) use ($request) {
-                $roleQuery->where('name', $request->role);
-            });
-        }
-        
-        // Handle status filter
-        if ($request->filled('status')) {
-            $isActive = $request->status === 'active';
-            $query->where('is_active', $isActive);
-        }
-        
-        $users = $query->paginate(20)->appends($request->only(['search', 'role', 'status']));
-        
-        // Get available roles for filter dropdown
-        $availableRoles = Role::all()->pluck('name', 'name');
-        
-        // Calculate overall statistics (not limited to current page)
-        $stats = [
-            'total_users' => User::count(),
-            'active_users' => User::where('is_active', true)->count(),
-            'teachers' => User::role('teacher')->count(),
-            'students' => User::role('student')->count(),
-        ];
-        
-        return view('admin.users.index', compact('users', 'availableRoles', 'stats'));
     }
 
     /**
-     * Show the form for creating a new user.
+     * List users with search, role/status filters and sorting.
      */
-    public function create()
+    public function index(Request $request): View
     {
-        $roles = Role::all();
-        
-        // Get students who don't have parents yet for parent-student relationship
-        $availableStudents = User::role('student')
-            ->whereDoesntHave('parents')
-            ->orderBy('name')
-            ->get();
-            
-        return view('admin.users.create', compact('roles', 'availableStudents'));
-    }
+        $this->authorize('viewAny', User::class);
 
-    /**
-     * Store a newly created user.
-     */
-    public function store(Request $request)
-    {
-        $validationRules = [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'role' => 'required|exists:roles,name',
-            'is_active' => 'boolean',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
-        ];
+        $status = $request->query('status');
+        $sorted = in_array($request->query('sort'), self::SORTS, true);
+        $sort = $sorted ? $request->query('sort') : 'created_at';
+        $direction = $sorted ? ($request->query('direction') === 'desc' ? 'desc' : 'asc') : 'desc';
 
-        // Add validation for student_ids if role is parent
-        if ($request->role === 'parent') {
-            $validationRules['student_ids'] = 'required|array|min:1';
-            $validationRules['student_ids.*'] = 'exists:users,id';
-        }
-
-        $request->validate($validationRules);
-
-        DB::beginTransaction();
-        
-        try {
-            $userData = [
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'is_active' => $request->boolean('is_active', true),
-            ];
-
-            // Handle photo upload
-            if ($request->hasFile('photo')) {
-                // Validate photo first
-                $photo = $request->file('photo');
-                
-                if (!$photo->isValid()) {
-                    throw new \Exception('Invalid photo file uploaded.');
-                }
-                
-                // Delete old photo if exists
-                if ($user->profile_photo_path) {
-                    Storage::disk('public')->delete($user->profile_photo_path);
-                }
-
-                // Ensure profile-photos directory exists
-                $directory = 'profile-photos';
-                if (!Storage::disk('public')->exists($directory)) {
-                    Storage::disk('public')->makeDirectory($directory);
-                }
-                
-                $filename = 'profile-photos/' . $user->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
-                
-                // Store the file
-                $path = $photo->storeAs('profile-photos', basename($filename), 'public');
-                
-                if (!$path) {
-                    throw new \Exception('Failed to store photo file.');
-                }
-                
-                $userData['profile_photo_path'] = $path;
-            }
-
-            $user = User::create($userData);
-            $user->assignRole($request->role);
-
-            // Handle parent-student relationship if role is parent
-            if ($request->role === 'parent' && $request->has('student_ids')) {
-                foreach ($request->student_ids as $studentId) {
-                    // Verify student doesn't already have this parent
-                    $existingRelation = DB::table('parent_student')
-                        ->where('parent_id', $user->id)
-                        ->where('student_id', $studentId)
-                        ->exists();
-                    
-                    if (!$existingRelation) {
-                        DB::table('parent_student')->insert([
-                            'parent_id' => $user->id,
-                            'student_id' => $studentId,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
-                    }
-                }
-            }
-
-            DB::commit();
-            
-            $message = 'User created successfully.';
-            if ($request->role === 'parent' && $request->has('student_ids')) {
-                $studentCount = count($request->student_ids);
-                $message = "Parent created successfully and linked to {$studentCount} student(s).";
-            }
-            
-            return redirect()->route('admin.users.index')->with('success', $message);
-            
-        } catch (\Exception $e) {
-            DB::rollback();
-            return back()->with('error', 'Failed to create user. Please try again.')->withInput();
-        }
-    }
-
-    /**
-     * Display the specified user.
-     */
-    public function show(User $user)
-    {
-        $user->load('roles', 'profile');
-        
-        // Load children if user is a parent
-        if ($user->hasRole('parent')) {
-            $user->load('children');
-        }
-        
-        // Load parents if user is a student
-        if ($user->hasRole('student')) {
-            $user->load('parents');
-        }
-        
-        return view('admin.users.show', compact('user'));
-    }
-
-    /**
-     * Show the form for editing the user.
-     */
-    public function edit(User $user)
-    {
-        $roles = Role::all();
-        
-        // Get students who don't have parents yet, plus current children if user is parent
-        $availableStudents = User::role('student')
-            ->where(function($query) use ($user) {
-                $query->whereDoesntHave('parents');
-                
-                // Include current children if user is parent
-                if ($user->hasRole('parent')) {
-                    $query->orWhereHas('parents', function($parentQuery) use ($user) {
-                        $parentQuery->where('parent_id', $user->id);
-                    });
-                }
+        $users = User::query()
+            ->with(['roles:id,name', 'profile:id,user_id,birth_date'])
+            ->when($status === 'archived', fn ($q) => $q->onlyTrashed())
+            ->when($status === 'active', fn ($q) => $q->where('is_active', true))
+            ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $term = '%'.str_replace(['%', '_'], ['\%', '\_'], trim((string) $request->query('search'))).'%';
+                $q->where(fn ($w) => $w->where('name', 'like', $term)->orWhere('email', 'like', $term));
             })
+            ->when($request->filled('role'), fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('name', $request->query('role'))))
+            ->orderBy($sort, $direction)
+            ->orderBy('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        AdminAudit::log('user.list_viewed', null, [
+            'filters' => array_keys(array_filter($request->only(['search', 'role', 'status']))),
+            'rows' => $users->count(),
+        ]);
+
+        return view('admin.users.index', [
+            'users' => $users,
+            'stats' => $this->stats(),
+            'roleOptions' => Role::orderBy('name')->pluck('name')->mapWithKeys(fn ($name) => [$name => AccessControl::roleLabel($name)])->all(),
+        ]);
+    }
+
+    /**
+     * JSON search used by the parent/child and roster pickers (names only).
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $this->authorize('viewAny', User::class);
+
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:80'],
+            'role' => ['nullable', 'in:student,parent,teacher'],
+            'exclude_class' => ['nullable', 'integer'],
+        ]);
+
+        $term = trim((string) ($validated['q'] ?? ''));
+        $results = User::query()
+            ->select(['id', 'name', 'email'])
+            ->where('is_active', true)
+            ->when($validated['role'] ?? null, fn ($q, $role) => $q->whereHas('roles', fn ($r) => $r->where('name', $role)))
+            ->when($term !== '', function ($q) use ($term) {
+                $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $term).'%';
+                $q->where(fn ($w) => $w->where('name', 'like', $like)->orWhere('email', 'like', $like));
+            })
+            ->when($validated['exclude_class'] ?? null, fn ($q, $classId) => $q->whereDoesntHave('enrollments', fn ($e) => $e
+                ->where('class_id', $classId)->whereIn('status', Enrollment::SEAT_STATUSES)))
             ->orderBy('name')
+            ->limit(20)
+            ->get()
+            // Reason: data minimisation — the picker needs a name and a masked hint only.
+            ->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'hint' => $this->maskEmail($u->email)]);
+
+        return response()->json(['data' => $results]);
+    }
+
+    /**
+     * Create form.
+     */
+    public function create(): View
+    {
+        $this->authorize('create', User::class);
+
+        return view('admin.users.create', [
+            'roleOptions' => $this->roleOptions(request()->user()),
+        ]);
+    }
+
+    /**
+     * Store a new account.
+     */
+    public function store(StoreUserRequest $request): RedirectResponse
+    {
+        $user = $this->accounts->create($request->accountData(), $request->file('photo'));
+
+        $message = $request->boolean('send_invite')
+            ? "Akun {$user->name} dibuat. Tautan untuk mengatur kata sandi dikirim ke emailnya."
+            : "Akun {$user->name} berhasil dibuat.";
+
+        return redirect()->route('admin.users.show', $user)->with('success', $message);
+    }
+
+    /**
+     * Account detail with tabs (ringkasan, pembelajaran, keluarga, pembayaran, privasi).
+     */
+    public function show(User $user): View
+    {
+        $this->authorize('view', $user);
+
+        $user->load(['roles:id,name', 'profile', 'children.roles:id,name', 'parents']);
+
+        $enrollments = $user->hasRole('student')
+            ? $user->enrollments()->with(['className:id,name,course_id,status', 'className.course:id,name'])->latest('enrollment_date')->get()
+            : collect();
+
+        $taughtClasses = $user->hasRole('teacher')
+            ? $user->teachingClasses()->with('course:id,name')->withCount(['enrollments as seats_taken' => fn ($q) => $q->whereIn('status', Enrollment::SEAT_STATUSES)])->orderByDesc('class_names.start_date')->get()
+            : collect();
+
+        $studentIds = $user->hasRole('parent') ? $user->children->pluck('id')->all() : [$user->id];
+        $transactions = FinancialTransaction::query()
+            ->whereIn('student_id', $studentIds)
+            ->with('student:id,name')
+            ->latest('transaction_date')
+            ->limit(8)
             ->get();
-            
-        // Get current children IDs if user is parent
-        $currentChildrenIds = $user->hasRole('parent') ? $user->children->pluck('id')->toArray() : [];
-        
-        return view('admin.users.edit', compact('user', 'roles', 'availableStudents', 'currentChildrenIds'));
+        $outstanding = (int) FinancialTransaction::query()->whereIn('student_id', $studentIds)->payments()->pending()->sum('amount');
+
+        AdminAudit::log('user.viewed', $user);
+
+        return view('admin.users.show', compact('user', 'enrollments', 'taughtClasses', 'transactions', 'outstanding'));
     }
 
     /**
-     * Update the specified user.
+     * Edit form.
      */
-    public function update(Request $request, User $user)
+    public function edit(User $user): View
     {
-        $validationRules = [
-            'name' => 'required|string|max:255',
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'password' => 'nullable|string|min:8|confirmed',
-            'role' => 'required|exists:roles,name',
-            'is_active' => 'boolean',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120' // 5MB max
+        $this->authorize('update', $user);
+
+        $user->load(['roles:id,name', 'profile', 'children:id,name,email', 'parents:id,name,email']);
+        $actor = request()->user();
+
+        return view('admin.users.edit', [
+            'user' => $user,
+            'roleOptions' => $this->roleOptions($actor),
+            'canChangeRoles' => $actor->can('changeRoles', $user),
+            'isSelf' => $actor->is($user),
+        ]);
+    }
+
+    /**
+     * Update an account.
+     */
+    public function update(UpdateUserRequest $request, User $user): RedirectResponse
+    {
+        $result = $this->accounts->update($user, $request->accountData(), $request->file('photo'), $request->boolean('remove_photo'));
+
+        $message = "Perubahan akun {$user->name} disimpan.";
+        if ($result['unlinked'] > 0) {
+            $message .= " {$result['unlinked']} tautan keluarga dilepas karena perannya berubah.";
+        }
+
+        return redirect()->route('admin.users.show', $user)->with('success', $message);
+    }
+
+    /**
+     * Archive (soft delete) an account.
+     */
+    public function destroy(User $user): RedirectResponse
+    {
+        $this->authorize('delete', $user);
+
+        $this->accounts->archive($user);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', "Akun {$user->name} diarsipkan. Riwayat pembayaran, laporan dan sertifikat tetap tersimpan.");
+    }
+
+    /**
+     * Restore an archived account (it stays inactive).
+     */
+    public function restore(User $user): RedirectResponse
+    {
+        $this->authorize('restore', $user);
+
+        $this->accounts->restore($user);
+
+        return redirect()->route('admin.users.show', $user)
+            ->with('success', "Akun {$user->name} dipulihkan dan masih nonaktif. Aktifkan bila sudah siap dipakai.");
+    }
+
+    /**
+     * Activate / deactivate an account (deactivation ends its sessions).
+     */
+    public function toggleStatus(User $user): RedirectResponse
+    {
+        $this->authorize('toggleStatus', $user);
+
+        $this->accounts->setActive($user, ! $user->is_active);
+
+        return back()->with('success', $user->is_active
+            ? "Akun {$user->name} diaktifkan."
+            : "Akun {$user->name} dinonaktifkan dan semua sesinya diakhiri.");
+    }
+
+    /**
+     * Send a password set/reset link to the account's email.
+     */
+    public function sendPasswordLink(User $user): RedirectResponse
+    {
+        $this->authorize('sendPasswordLink', $user);
+
+        return $this->accounts->sendPasswordLink($user)
+            ? back()->with('success', 'Tautan atur ulang kata sandi telah dikirim ke email pengguna.')
+            : back()->with('error', 'Tautan belum dapat dikirim. Coba lagi beberapa menit lagi.');
+    }
+
+    /**
+     * Link a parent and a student from either account's page.
+     */
+    public function attachFamily(Request $request, User $user): RedirectResponse
+    {
+        $this->authorize('update', $user);
+
+        $request->validate([
+            'related_id' => ['required', 'integer', 'exists:users,id'],
+            'relationship' => ['nullable', 'in:ayah,ibu,wali'],
+            'guardian_verified' => ['accepted'],
+        ], [
+            'guardian_verified.accepted' => 'Konfirmasi bahwa hubungan orang tua/wali sudah diverifikasi.',
+        ], ['related_id' => 'akun', 'relationship' => 'hubungan']);
+
+        $related = User::findOrFail($request->integer('related_id'));
+        [$parent, $student] = $this->familyPair($user, $related);
+
+        if (! $parent) {
+            return redirect()->to(route('admin.users.show', $user).'#keluarga')
+                ->withErrors(['related_id' => 'Tautan hanya bisa dibuat antara akun orang tua dan akun siswa.']);
+        }
+
+        $linked = $this->accounts->linkFamily($parent, $student, [
+            'relationship' => $request->input('relationship'),
+            'verification' => 'admin_confirmed',
+        ]);
+
+        return redirect()->to(route('admin.users.show', $user).'#keluarga')->with($linked ? 'success' : 'info', $linked
+            ? "{$parent->name} kini tertaut sebagai orang tua/wali {$student->name}."
+            : 'Kedua akun sudah tertaut sebelumnya.');
+    }
+
+    /**
+     * Remove a parent–student link.
+     */
+    public function detachFamily(User $user, User $related): RedirectResponse
+    {
+        $this->authorize('update', $user);
+
+        [$parent, $student] = $this->familyPair($user, $related);
+        if ($parent) {
+            $this->accounts->unlinkFamily($parent, $student);
+        }
+
+        return redirect()->to(route('admin.users.show', $user).'#keluarga')->with('success', 'Tautan keluarga dilepas.');
+    }
+
+    /**
+     * Work out which of the two accounts is the parent and which the student.
+     *
+     * @return array{0: User|null, 1: User|null}
+     */
+    private function familyPair(User $a, User $b): array
+    {
+        if ($a->hasRole('parent') && $b->hasRole('student') && ! $a->is($b)) {
+            return [$a, $b];
+        }
+        if ($a->hasRole('student') && $b->hasRole('parent') && ! $a->is($b)) {
+            return [$b, $a];
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * Role checkboxes the actor may use: name => [label, description].
+     *
+     * @return array<string, array{label: string, description: string}>
+     */
+    private function roleOptions(User $actor): array
+    {
+        $names = Role::where('guard_name', 'web')->orderBy('id')->pluck('name')->all();
+
+        return collect(AccessControl::assignableRoles($actor, $names))
+            ->mapWithKeys(fn ($name) => [$name => [
+                'label' => AccessControl::roleLabel($name),
+                'description' => AccessControl::ROLE_DESCRIPTIONS[$name] ?? 'Peran kustom.',
+            ]])->all();
+    }
+
+    /**
+     * Headline counts for the list page (one grouped query for roles).
+     *
+     * @return array<string, int>
+     */
+    private function stats(): array
+    {
+        $byRole = DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->join('users', 'users.id', '=', 'model_has_roles.model_id')
+            ->where('model_has_roles.model_type', User::class)
+            ->whereNull('users.deleted_at')
+            ->groupBy('roles.name')
+            ->selectRaw('roles.name as role, count(*) as total')
+            ->pluck('total', 'role');
+
+        return [
+            'total' => User::count(),
+            'active' => User::where('is_active', true)->count(),
+            'students' => (int) ($byRole['student'] ?? 0),
+            'teachers' => (int) ($byRole['teacher'] ?? 0),
+            'parents' => (int) ($byRole['parent'] ?? 0),
+            'archived' => User::onlyTrashed()->count(),
         ];
-
-        // Add validation for student_ids if role is parent
-        if ($request->role === 'parent') {
-            $validationRules['student_ids'] = 'nullable|array';
-            $validationRules['student_ids.*'] = 'exists:users,id';
-        }
-
-        $request->validate($validationRules);
-
-        DB::beginTransaction();
-        
-        try {
-            $userData = [
-                'name' => $request->name,
-                'email' => $request->email,
-                'is_active' => $request->boolean('is_active', true),
-            ];
-
-            // Handle photo upload
-            if ($request->hasFile('photo')) {
-                // Validate photo first
-                $photo = $request->file('photo');
-                
-                if (!$photo->isValid()) {
-                    throw new \Exception('Invalid photo file uploaded.');
-                }
-                
-                // Delete old photo if exists
-                if ($user->profile_photo_path) {
-                    Storage::disk('public')->delete($user->profile_photo_path);
-                }
-
-                // Ensure profile-photos directory exists
-                $directory = 'profile-photos';
-                if (!Storage::disk('public')->exists($directory)) {
-                    Storage::disk('public')->makeDirectory($directory);
-                }
-                
-                $filename = 'profile-photos/' . $user->id . '-' . time() . '.' . $photo->getClientOriginalExtension();
-                
-                // Store the file
-                $path = $photo->storeAs('profile-photos', basename($filename), 'public');
-                
-                if (!$path) {
-                    throw new \Exception('Failed to store photo file.');
-                }
-                
-                $userData['profile_photo_path'] = $path;
-            }
-
-            $user->update($userData);
-
-            if ($request->filled('password')) {
-                $user->update(['password' => Hash::make($request->password)]);
-            }
-
-            $user->syncRoles([$request->role]);
-
-            // Handle parent-student relationship updates
-            if ($request->role === 'parent') {
-                // Remove existing relationships for this parent
-                DB::table('parent_student')->where('parent_id', $user->id)->delete();
-                
-                // Add new relationships
-                if ($request->has('student_ids') && !empty($request->student_ids)) {
-                    foreach ($request->student_ids as $studentId) {
-                        DB::table('parent_student')->insert([
-                            'parent_id' => $user->id,
-                            'student_id' => $studentId,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
-                    }
-                }
-            }
-
-            DB::commit();
-            
-            $message = 'User updated successfully.';
-            if ($request->role === 'parent') {
-                $studentCount = $request->has('student_ids') ? count($request->student_ids) : 0;
-                $message = "Parent updated successfully and linked to {$studentCount} student(s).";
-            }
-            
-            return redirect()->route('admin.users.index')->with('success', $message);
-            
-        } catch (\Exception $e) {
-            DB::rollback();
-            
-            // Log the actual error for debugging
-            \Log::error('Failed to update user', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->except(['password', 'password_confirmation'])
-            ]);
-            
-            return back()->with('error', 'Failed to update user. Error: ' . $e->getMessage())->withInput();
-        }
     }
 
     /**
-     * Remove the specified user.
+     * Mask an email for pickers: "andi.pratama@x.id" → "an••••@x.id".
      */
-    public function destroy(User $user)
+    private function maskEmail(?string $email): string
     {
-        // Prevent deleting current user
-        if ($user->id === auth()->id()) {
-            return redirect()->route('admin.users.index')->with('error', 'You cannot delete yourself.');
+        if (! $email || ! str_contains($email, '@')) {
+            return '';
         }
 
-        $user->delete();
-        return redirect()->route('admin.users.index')->with('success', 'User deleted successfully.');
-    }
+        [$local, $domain] = explode('@', $email, 2);
 
-    /**
-     * Toggle user status.
-     */
-    public function toggleStatus(User $user)
-    {
-        $user->update(['is_active' => !$user->is_active]);
-        
-        $status = $user->is_active ? 'activated' : 'deactivated';
-        return redirect()->route('admin.users.index')->with('success', "User {$status} successfully.");
+        return Str::substr($local, 0, 2).'••••@'.$domain;
     }
 }

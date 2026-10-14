@@ -1,138 +1,159 @@
-@extends('layouts.app')
+@php
+    use App\Services\Admin\AdminClock;
+    use Illuminate\Support\Facades\Route;
 
-@section('title', 'Course Details')
+    $levels = App\Http\Requests\Admin\CourseRequest::LEVELS;
+    $statusTone = ['active' => 'success', 'planned' => 'info', 'completed' => 'neutral', 'cancelled' => 'danger'];
+    $benefits = collect(preg_split('/\r\n|\r|\n/', (string) $course->benefits))->map(fn ($b) => trim($b, " \t-•"))->filter()->values();
+@endphp
 
-@section('content')
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div class="p-6">
-            <!-- Header -->
-            <div class="flex justify-between items-start mb-6">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">Course Details</h1>
-                    <p class="text-gray-600">View course information</p>
-                </div>
-                <div class="flex space-x-3">
-                    <a href="{{ route('admin.courses.edit', $course) }}" 
-                       class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        Edit Course
-                    </a>
-                    <a href="{{ route('admin.courses.index') }}" 
-                       class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-                        Back to Courses
-                    </a>
-                </div>
+<x-app-layout :title="$course->name">
+    <x-ui.page-header :title="$course->name" :breadcrumbs="['Admin' => route('admin.dashboard'), 'Kursus' => route('admin.courses.index'), $course->name => null]">
+        <x-slot:badge>
+            @if ($course->trashed())
+                <x-ui.badge tone="neutral" dot>Diarsipkan</x-ui.badge>
+            @elseif ($course->is_active)
+                <x-ui.badge tone="success" dot>Aktif</x-ui.badge>
+            @else
+                <x-ui.badge tone="warning" dot>Nonaktif</x-ui.badge>
+            @endif
+        </x-slot:badge>
+        <x-slot:meta>
+            <span>/{{ $course->slug }}</span>
+            <span>{{ $levels[$course->level] ?? $course->level }}</span>
+            <span>{{ $course->duration_weeks }} minggu{{ $course->duration_hours ? ' · '.$course->duration_hours.' jam' : '' }}</span>
+            <span>{{ $course->formatted_price }}</span>
+        </x-slot:meta>
+        <x-slot:actions>
+            @if ($course->trashed())
+                @can('delete', $course)
+                    <form method="POST" action="{{ route('admin.courses.restore', $course) }}">
+                        @csrf
+                        <x-ui.button type="submit" icon="arrow-uturn-left">Pulihkan</x-ui.button>
+                    </form>
+                @endcan
+            @else
+                @can('create', App\Models\ClassName::class)
+                    <x-ui.button variant="secondary" icon="plus" :href="route('admin.classes.create', ['course' => $course->id])">Buat kelas</x-ui.button>
+                @endcan
+                @can('update', $course)
+                    <x-ui.button icon="pencil-square" :href="route('admin.courses.edit', $course)">Ubah</x-ui.button>
+                @endcan
+            @endif
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <x-ui.metric-strip class="mt-6" label="Statistik kursus" :stats="[
+        ['label' => 'Total pendaftaran', 'value' => number_format($stats['enrollments'], 0, ',', '.'), 'icon' => 'clipboard-document-check'],
+        ['label' => 'Siswa aktif', 'value' => number_format($stats['active_students'], 0, ',', '.'), 'icon' => 'academic-cap'],
+        ['label' => 'Kelas berjalan/direncanakan', 'value' => (string) $stats['running_classes'], 'icon' => 'rectangle-group'],
+        ['label' => 'Pendapatan bersih', 'value' => AdminClock::rupiahCompact($stats['revenue']), 'hint' => AdminClock::rupiah($stats['revenue']), 'icon' => 'banknotes'],
+    ]" />
+
+    <x-ui.tabs class="mt-8" group="kursus" active="ringkasan" label="Bagian detail kursus" :tabs="[
+        'ringkasan' => ['label' => 'Ringkasan', 'icon' => 'document-text'],
+        'kelas' => ['label' => 'Kelas', 'icon' => 'rectangle-group', 'count' => $classes->count()],
+        'kurikulum' => ['label' => 'Kurikulum', 'icon' => 'queue-list', 'count' => $curriculums->count()],
+    ]">
+        <x-ui.tab-panel name="ringkasan">
+            <div class="grid grid-cols-1 gap-gutter lg:grid-cols-3">
+                <x-ui.card title="Deskripsi" class="lg:col-span-2">
+                    <p class="max-w-measure whitespace-pre-line text-fg-muted">{{ $course->description }}</p>
+                    @if ($benefits->isNotEmpty())
+                        <h3 class="eyebrow mb-3 mt-6">Manfaat</h3>
+                        <ul class="space-y-2" role="list">
+                            @foreach ($benefits as $benefit)
+                                <li class="flex gap-2 text-sm text-fg">
+                                    <x-ui.icon name="check-circle" size="16" class="mt-0.5 text-success" />
+                                    <span>{{ $benefit }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </x-ui.card>
+                <x-ui.card title="Sampul">
+                    @if ($course->thumbnail)
+                        <img src="{{ asset('storage/'.$course->thumbnail) }}" alt="Sampul {{ $course->name }}" class="aspect-video w-full rounded-md border border-line object-cover">
+                    @else
+                        <x-ui.empty-state icon="photo" title="Belum ada gambar sampul." />
+                    @endif
+                    <dl class="mt-5 space-y-3 text-sm">
+                        <div class="flex justify-between gap-3"><dt class="text-fg-muted">Dibuat</dt><dd class="text-fg">{{ AdminClock::format($course->created_at) }}</dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-fg-muted">Diperbarui</dt><dd class="text-fg">{{ AdminClock::format($course->updated_at) }}</dd></div>
+                    </dl>
+                </x-ui.card>
             </div>
+        </x-ui.tab-panel>
 
-            <!-- Course Info -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="space-y-4">
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Course Information</h3>
-                        
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500">Course Name</label>
-                                <p class="text-gray-900 font-medium">{{ $course->name }}</p>
-                            </div>
+        <x-ui.tab-panel name="kelas">
+            <x-ui.table caption="Kelas kursus ini" mobile="stack">
+                <x-slot:head>
+                    <x-ui.th>Kelas</x-ui.th>
+                    <x-ui.th>Pengajar</x-ui.th>
+                    <x-ui.th>Status</x-ui.th>
+                    <x-ui.th numeric>Siswa</x-ui.th>
+                    <x-ui.th numeric>Periode</x-ui.th>
+                </x-slot:head>
+                @foreach ($classes as $class)
+                    <tr>
+                        <td class="cell-primary" data-label="Kelas">
+                            <a href="{{ route('admin.classes.show', $class) }}" class="font-medium text-fg hover:text-brand-text">{{ $class->name }}</a>
+                            <p class="cell-secondary">{{ $class->type_label }}</p>
+                        </td>
+                        <td data-label="Pengajar">{{ $class->teachers->pluck('name')->implode(', ') ?: '—' }}</td>
+                        <td data-label="Status"><x-ui.badge :tone="$statusTone[$class->status] ?? 'neutral'" dot>{{ $class->status_label }}</x-ui.badge></td>
+                        <td class="num" data-label="Siswa">{{ $class->seatsTaken() }}/{{ $class->max_students }}</td>
+                        <td class="num" data-label="Periode">{{ AdminClock::format($class->start_date, 'j M') }} – {{ AdminClock::format($class->end_date, 'j M Y') }}</td>
+                    </tr>
+                @endforeach
+                <x-slot:empty>
+                    <x-ui.empty-state icon="rectangle-group" title="Belum ada kelas untuk kursus ini.">
+                        @can('create', App\Models\ClassName::class)
+                            <x-slot:actions><x-ui.button size="sm" icon="plus" :href="route('admin.classes.create', ['course' => $course->id])">Buat kelas</x-ui.button></x-slot:actions>
+                        @endcan
+                    </x-ui.empty-state>
+                </x-slot:empty>
+            </x-ui.table>
+        </x-ui.tab-panel>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500">Description</label>
-                                <p class="text-gray-900">{{ $course->description }}</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500">Level</label>
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full 
-                                    @if($course->level === 'beginner') bg-green-100 text-green-800
-                                    @elseif($course->level === 'intermediate') bg-yellow-100 text-yellow-800
-                                    @else bg-red-100 text-red-800 @endif">
-                                    {{ ucfirst($course->level) }}
-                                </span>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500">Duration</label>
-                                <p class="text-gray-900">{{ $course->duration_hours }} hours</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500">Price</label>
-                                <p class="text-gray-900 font-semibold text-lg">{{ $course->formatted_price }}</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500">Status</label>
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full 
-                                    {{ $course->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                    {{ $course->is_active ? 'Active' : 'Inactive' }}
-                                </span>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500">Created</label>
-                                <p class="text-gray-900">{{ $course->created_at->format('F d, Y \a\t H:i') }}</p>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-500">Last Updated</label>
-                                <p class="text-gray-900">{{ $course->updated_at->format('F d, Y \a\t H:i') }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Statistics -->
-                <div class="space-y-4">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Course Statistics</h3>
-                    
-                    <div class="grid grid-cols-1 gap-4">
-                        <div class="bg-blue-50 rounded-lg p-4">
-                            <div class="flex items-center">
-                                <div class="bg-blue-100 rounded-lg p-2">
-                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path>
-                                    </svg>
+        <x-ui.tab-panel name="kurikulum">
+            <x-ui.card padding="none" title="Kurikulum">
+                @if (Route::has('admin.curriculums.create'))
+                    <x-slot:actions><x-ui.button variant="link" size="sm" arrow :href="route('admin.curriculums.create')">Tambah kurikulum</x-ui.button></x-slot:actions>
+                @endif
+                @if ($curriculums->isEmpty())
+                    <x-ui.empty-state icon="queue-list" title="Belum ada kurikulum." description="Kelas tetap bisa dibuat tanpa kurikulum dan ditautkan nanti." />
+                @else
+                    <ul class="divide-y divide-line" role="list">
+                        @foreach ($curriculums as $curriculum)
+                            <li class="flex items-center justify-between gap-3 px-card py-3">
+                                <div class="min-w-0">
+                                    @if (Route::has('admin.curriculums.show'))
+                                        <a href="{{ route('admin.curriculums.show', $curriculum) }}" class="font-medium text-fg hover:text-brand-text">{{ $curriculum->title }}</a>
+                                    @else
+                                        <span class="font-medium text-fg">{{ $curriculum->title }}</span>
+                                    @endif
+                                    @if ($curriculum->duration_weeks)
+                                        <p class="text-xs text-fg-subtle">{{ $curriculum->duration_weeks }} minggu</p>
+                                    @endif
                                 </div>
-                                <div class="ml-3">
-                                    <p class="text-sm font-medium text-gray-600">Total Enrollments</p>
-                                    <p class="text-lg font-semibold text-gray-900">0</p>
-                                </div>
-                            </div>
-                        </div>
+                                <x-ui.badge :tone="$curriculum->status === 'active' ? 'success' : 'neutral'">{{ $curriculum->status === 'active' ? 'Aktif' : ucfirst((string) $curriculum->status) }}</x-ui.badge>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </x-ui.card>
+        </x-ui.tab-panel>
+    </x-ui.tabs>
 
-                        <div class="bg-green-50 rounded-lg p-4">
-                            <div class="flex items-center">
-                                <div class="bg-green-100 rounded-lg p-2">
-                                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                    </svg>
-                                </div>
-                                <div class="ml-3">
-                                    <p class="text-sm font-medium text-gray-600">Active Classes</p>
-                                    <p class="text-lg font-semibold text-gray-900">0</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-purple-50 rounded-lg p-4">
-                            <div class="flex items-center">
-                                <div class="bg-purple-100 rounded-lg p-2">
-                                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                </div>
-                                <div class="ml-3">
-                                    <p class="text-sm font-medium text-gray-600">Total Revenue</p>
-                                    <p class="text-lg font-semibold text-gray-900">Rp 0</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endsection 
+    @can('delete', $course)
+        @unless ($course->trashed())
+            <x-ui.card variant="callout" class="mt-10" title="Arsipkan kursus" style="--callout-c: var(--cf-danger)"
+                subtitle="Menyembunyikan kursus dari katalog. Riwayat kelas, kurikulum dan pembayaran tetap tersimpan.">
+                <x-ui.confirm-delete :action="route('admin.courses.destroy', $course)" variant="danger" icon="archive-box" label="Arsipkan kursus"
+                    title="Arsipkan kursus ini?" confirm-text="Ya, arsipkan" confirm-phrase="ARSIPKAN"
+                    message="Kursus dengan kelas yang masih direncanakan atau berlangsung tidak dapat diarsipkan." />
+            </x-ui.card>
+        @endunless
+    @endcan
+</x-app-layout>

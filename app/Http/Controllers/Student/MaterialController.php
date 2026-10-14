@@ -3,236 +3,133 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attendance;
+use App\Models\ClassName;
 use App\Models\Material;
 use App\Models\MaterialAccess;
-use App\Models\ClassProgress;
-use App\Models\Enrollment;
+use App\Services\Academic\AcademicScope;
+use App\Services\Academic\MaterialAccessService;
+use App\Services\Academic\MaterialFileService;
+use App\Services\Academic\ProgressService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Siswa › Materi: the materials of the student's classes. A material opens when its
+ * meeting is unlocked (setting academic.material_unlock_mode); opening it is recorded
+ * with data minimisation (MaterialAccessService).
+ */
 class MaterialController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(['role:student']);
+    public function __construct(
+        private readonly AcademicScope $scope,
+        private readonly ProgressService $progress,
+        private readonly MaterialAccessService $access,
+        private readonly MaterialFileService $files,
+    ) {
     }
 
-    /**
-     * Display materials for student's enrolled classes
-     */
-    public function index()
+    /** Overview: one card per class with its open materials. */
+    public function index(Request $request): View
     {
-        $student = Auth::user();
-        
-        // Get student's active enrollments with class progress
-        $enrollments = Enrollment::where('student_id', $student->id)
-                                ->where('status', 'active')
-                                ->with([
-                                    'class.curriculum.syllabuses' => function($query) {
-                                        $query->where('status', 'active')->orderBy('meeting_number');
-                                    },
-                                    'class.curriculum.syllabuses.materials' => function($query) {
-                                        $query->where('status', 'active')->orderBy('order');
-                                    }
-                                ])
-                                ->get();
-        
-        // Get progress for each enrollment
-        $progressData = [];
-        foreach ($enrollments as $enrollment) {
-            $classId = $enrollment->class_id;
-            $totalMeetings = $enrollment->class->curriculum->syllabuses->count();
-            $completedMeetings = ClassProgress::where('student_id', $student->id)
-                                            ->where('class_id', $classId)
-                                            ->where('status', 'completed')
-                                            ->count();
-            
-            $progressData[$classId] = [
-                'total' => $totalMeetings,
-                'completed' => $completedMeetings,
-                'percentage' => $totalMeetings > 0 ? round(($completedMeetings / $totalMeetings) * 100, 2) : 0
-            ];
-        }
-        
-        return view('student.materials.index', compact('enrollments', 'progressData'));
+        $student = $request->user();
+
+        $classes = ClassName::query()
+            ->whereIn('id', $this->scope->studentEnrollments($student)->keys())
+            ->with(['course:id,name', 'curriculum:id,title', 'teachers:id,name'])
+            ->orderBy('name')
+            ->get();
+
+        $summaries = $this->progress->summariesFor($student, $classes, true);
+
+        $recent = MaterialAccess::query()
+            ->where('student_id', $student->id)
+            ->whereHas('material')
+            ->with('material:id,title,type,syllabus_id')
+            ->latest('accessed_at')
+            ->limit(5)
+            ->get();
+
+        return view('student.materials.index', [
+            'classes' => $classes,
+            'summaries' => $summaries,
+            'unlocked' => $summaries->map(fn ($summary) => $this->progress->unlockedMaterialIds($summary)),
+            'recent' => $recent,
+        ]);
     }
 
-    /**
-     * Display materials for a specific class
-     */
-    public function byClass($classId)
+    /** Materials of one class grouped by meeting (locked ones greyed out). */
+    public function byClass(Request $request, ClassName $class): View
     {
-        $student = Auth::user();
-        
-        // Check if student is enrolled in this class
-        $enrollment = Enrollment::where('student_id', $student->id)
-                               ->where('class_id', $classId)
-                               ->where('status', 'active')
-                               ->with('class.curriculum.syllabuses.materials')
-                               ->first();
-        
-        if (!$enrollment) {
-            abort(403, 'Anda tidak terdaftar di kelas ini.');
-        }
-        
-        $class = $enrollment->class;
-        
-        // Get completed meetings for this student
-        $completedMeetings = ClassProgress::where('student_id', $student->id)
-                                         ->where('class_id', $classId)
-                                         ->where('status', 'completed')
-                                         ->pluck('meeting_number')
-                                         ->toArray();
-        
-        // Get available materials (only for completed meetings)
-        $availableMaterials = collect();
-        foreach ($class->curriculum->syllabuses as $syllabus) {
-            if (in_array($syllabus->meeting_number, $completedMeetings)) {
-                $materials = $syllabus->materials->where('status', 'active');
-                foreach ($materials as $material) {
-                    $availableMaterials->push($material);
-                }
-            }
-        }
-        
-        // Get material access history
-        $accessHistory = MaterialAccess::where('student_id', $student->id)
-                                      ->whereIn('material_id', $availableMaterials->pluck('id'))
-                                      ->with('material')
-                                      ->latest('accessed_at')
-                                      ->get();
-        
-        return view('student.materials.by-class', compact(
-            'class', 'availableMaterials', 'completedMeetings', 'accessHistory'
-        ));
+        $student = $request->user();
+        abort_unless($this->scope->studentEnrollment($student, $class), 403, 'Anda tidak terdaftar di kelas ini.');
+
+        $class->load(['course:id,name', 'curriculum:id,title']);
+        $summary = $this->progress->summary($student, $class, true);
+        $materialIds = $summary->meetings->flatMap(fn ($m) => $m['syllabus']->activeMaterials->pluck('id'));
+
+        return view('student.materials.by-class', [
+            'class' => $class,
+            'summary' => $summary,
+            'unlockedIds' => $this->progress->unlockedMaterialIds($summary),
+            'accessStats' => $this->access->statsFor($student->id, $materialIds),
+        ]);
     }
 
-    /**
-     * Display a specific material
-     */
-    public function show(Material $material)
+    /** Material viewer (records the visit). */
+    public function show(Request $request, Material $material): View
     {
-        $student = Auth::user();
-        
-        // Check if student has access to this material
-        $hasAccess = $this->checkMaterialAccess($student->id, $material);
-        
-        if (!$hasAccess) {
-            abort(403, 'Anda belum dapat mengakses materi ini. Materi hanya tersedia setelah pertemuan selesai.');
-        }
-        
-        // Record material access
-        MaterialAccess::recordAccess($student->id, $material->id);
-        
-        $material->load('syllabus.curriculum.course');
-        
-        // Get access statistics
-        $totalAccessTime = MaterialAccess::getTotalAccessTime($student->id, $material->id);
-        $accessCount = MaterialAccess::getAccessCount($student->id, $material->id);
-        $lastAccess = MaterialAccess::getLastAccessTime($student->id, $material->id);
-        
-        return view('student.materials.show', compact(
-            'material', 'totalAccessTime', 'accessCount', 'lastAccess'
-        ));
+        $this->authorize('view', $material);
+
+        $student = $request->user();
+        $this->access->record($student, $material);
+
+        $material->load('syllabus.curriculum:id,title');
+        $classId = $this->scope->studentClassIdsForCurriculum($student, (int) $material->syllabus->curriculum_id)->first();
+
+        return view('student.materials.show', [
+            'material' => $material,
+            'class' => $classId ? ClassName::find($classId, ['id', 'name']) : null,
+            'stats' => $this->access->statsFor($student->id, [$material->id])->get($material->id),
+            'hasFile' => $this->files->exists($material),
+            'canInline' => $this->files->canInline($material),
+            'fileSize' => $this->files->size($material),
+        ]);
     }
 
-    /**
-     * Download material file
-     */
-    public function download(Material $material)
+    /** Download (or ?inline=1 view) the file (records the visit). */
+    public function download(Request $request, Material $material): StreamedResponse
     {
-        $student = Auth::user();
-        
-        // Check if student has access to this material
-        $hasAccess = $this->checkMaterialAccess($student->id, $material);
-        
-        if (!$hasAccess) {
-            abort(403, 'Anda belum dapat mengakses materi ini.');
+        $this->authorize('download', $material);
+
+        if (! $request->boolean('inline')) {
+            $this->access->record($request->user(), $material);
         }
-        
-        if (!$material->file_path || !Storage::disk('public')->exists($material->file_path)) {
-            abort(404, 'File tidak ditemukan.');
-        }
-        
-        // Record material access
-        MaterialAccess::recordAccess($student->id, $material->id);
-        
-        return Storage::disk('public')->download($material->file_path, $material->title);
+
+        return $this->files->response($material, $request->boolean('inline'));
     }
 
-    /**
-     * Get student progress for a specific class
-     */
-    public function progress($classId)
+    /** Progress in one class: meetings, status and attendance summary. */
+    public function progress(Request $request, ClassName $class): View
     {
-        $student = Auth::user();
-        
-        // Check if student is enrolled in this class
-        $enrollment = Enrollment::where('student_id', $student->id)
-                               ->where('class_id', $classId)
-                               ->where('status', 'active')
-                               ->with('class.curriculum.syllabuses')
-                               ->first();
-        
-        if (!$enrollment) {
-            abort(403, 'Anda tidak terdaftar di kelas ini.');
-        }
-        
-        $class = $enrollment->class;
-        
-        // Get all progress for this student in this class
-        $progress = ClassProgress::where('student_id', $student->id)
-                                ->where('class_id', $classId)
-                                ->with(['syllabus', 'material'])
-                                ->orderBy('meeting_number')
-                                ->get();
-        
-        // Calculate progress statistics
-        $totalMeetings = $class->curriculum->syllabuses->count();
-        $completedMeetings = $progress->where('status', 'completed')->count();
-        $inProgressMeetings = $progress->where('status', 'in_progress')->count();
-        $progressPercentage = $totalMeetings > 0 ? round(($completedMeetings / $totalMeetings) * 100, 2) : 0;
-        
-        return view('student.materials.progress', compact(
-            'class', 'progress', 'totalMeetings', 'completedMeetings', 
-            'inProgressMeetings', 'progressPercentage'
-        ));
-    }
+        $student = $request->user();
+        abort_unless($this->scope->studentEnrollment($student, $class), 403, 'Anda tidak terdaftar di kelas ini.');
 
-    /**
-     * Check if student has access to a material
-     */
-    private function checkMaterialAccess($studentId, Material $material)
-    {
-        // Get student's enrollments in classes that use this curriculum
-        $enrollments = Enrollment::where('student_id', $studentId)
-                                ->where('status', 'active')
-                                ->whereHas('class', function($query) use ($material) {
-                                    $query->where('curriculum_id', $material->syllabus->curriculum_id);
-                                })
-                                ->get();
-        
-        if ($enrollments->isEmpty()) {
-            return false;
-        }
-        
-        // Check if any of the meetings for this material have been completed
-        foreach ($enrollments as $enrollment) {
-            $completedMeetings = ClassProgress::where('student_id', $studentId)
-                                            ->where('class_id', $enrollment->class_id)
-                                            ->where('status', 'completed')
-                                            ->pluck('meeting_number')
-                                            ->toArray();
-            
-            // Check if material is available for any completed meeting
-            for ($meeting = $material->meeting_start; $meeting <= $material->meeting_end; $meeting++) {
-                if (in_array($meeting, $completedMeetings)) {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
+        $class->load(['course:id,name', 'curriculum:id,title', 'teachers:id,name']);
+
+        $attendance = Attendance::query()
+            ->where('student_id', $student->id)
+            ->where('class_id', $class->id)
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return view('student.progress.class', [
+            'class' => $class,
+            'summary' => $this->progress->summary($student, $class),
+            'attendance' => $attendance,
+            'statuses' => ProgressService::statuses(),
+        ]);
     }
 }

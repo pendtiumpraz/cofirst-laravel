@@ -1,30 +1,51 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Teaching Materials') }}
-        </h2>
-    </x-slot>
+<x-app-layout title="Materi">
+    <x-ui.page-header title="Materi"
+        subtitle="Materi dari kurikulum kelas Anda, berurutan per pertemuan." />
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Teaching materials feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show all teaching materials available for your classes.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('teacher.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Dashboard
-                            </a>
-                        </div>
+    <x-ui.table caption="Daftar materi" mobile="stack">
+        <x-slot:toolbar>
+            <x-ui.filter-bar placeholder="Cari judul materi…">
+                <x-ui.select name="curriculum_id" :options="$curriculumOptions" placeholder="Semua kurikulum" :value="request('curriculum_id')" class="sm:w-56" aria-label="Filter kurikulum" />
+                <x-ui.select name="type" :options="$types" placeholder="Semua jenis" :value="request('type')" class="sm:w-40" aria-label="Filter jenis" />
+            </x-ui.filter-bar>
+        </x-slot:toolbar>
+
+        <x-slot:head>
+            <x-ui.th>Materi</x-ui.th>
+            <x-ui.th>Pertemuan</x-ui.th>
+            <x-ui.th>Jenis</x-ui.th>
+            <x-ui.th><span class="sr-only">Aksi</span></x-ui.th>
+        </x-slot:head>
+
+        @foreach ($materials as $material)
+            <tr>
+                <td class="cell-primary" data-label="Materi">
+                    <a href="{{ route('teacher.materials.show', $material) }}" class="font-medium text-fg hover:text-brand-text">{{ $material->title }}</a>
+                    <p class="cell-secondary">{{ $material->syllabus?->curriculum?->title }}</p>
+                </td>
+                <td data-label="Pertemuan">
+                    {{ $material->meeting_range }}
+                    <p class="cell-secondary">{{ $material->syllabus?->title }}</p>
+                </td>
+                <td data-label="Jenis">@include('admin.materials.partials.type-badge', ['type' => $material->type])</td>
+                <td class="cell-actions">
+                    <div class="flex justify-end gap-1">
+                        @if ($material->file_path)
+                            <x-ui.button variant="ghost" size="sm" icon="arrow-down-tray" label="Unduh {{ $material->title }}" :href="route('teacher.materials.download', $material)" />
+                        @endif
+                        <x-ui.button variant="ghost" size="sm" icon="eye" label="Buka {{ $material->title }}" :href="route('teacher.materials.show', $material)" />
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                </td>
+            </tr>
+        @endforeach
+
+        <x-slot:empty>
+            <x-ui.empty-state icon="folder-open" title="Tidak ada materi yang cocok."
+                description="Ubah filter, atau tunggu admin menambahkan materi untuk kurikulum kelas Anda." />
+        </x-slot:empty>
+
+        @if ($materials->hasPages())
+            <x-slot:footer>{{ $materials->links() }}</x-slot:footer>
+        @endif
+    </x-ui.table>
 </x-app-layout>

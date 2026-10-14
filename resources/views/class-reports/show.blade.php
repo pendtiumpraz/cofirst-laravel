@@ -1,174 +1,53 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Detail Berita Acara Kelas') }}
-        </h2>
-    </x-slot>
+@php($f = \App\Services\Academic\Format::class)
+<x-app-layout title="Berita acara">
+    <x-ui.page-header :title="$report->student?->name ?? 'Siswa dihapus'"
+        :eyebrow="'Berita acara · Pertemuan '.$report->meeting_number"
+        :subtitle="$f::date($report->report_date, 'l, d F Y').' · '.$f::time($report->start_time).'–'.$f::time($report->end_time)"
+        :breadcrumbs="['Berita acara' => route('class-reports.index'), 'Pertemuan '.$report->meeting_number => null]">
+        <x-slot:badge>
+            @if ($isEditable)
+                <x-ui.badge tone="info" icon="pencil">Bisa diubah s.d. {{ $f::dateTime($editableUntil, 'd M, H.i') }}</x-ui.badge>
+            @else
+                <x-ui.badge icon="lock-closed">Terkunci</x-ui.badge>
+            @endif
+        </x-slot:badge>
+        <x-slot:actions>
+            @can('delete', $report)
+                <x-ui.confirm-delete :action="route('class-reports.destroy', $report)" title="Hapus berita acara ini?"
+                    message="Progres pertemuan siswa ini akan dikembalikan bila tidak ada berita acara lain untuk pertemuan yang sama." />
+            @endcan
+            @can('update', $report)
+                <x-ui.button icon="pencil-square" :href="route('class-reports.edit', $report)">Ubah</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <!-- Header Info -->
-                    <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Informasi Umum</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <span class="font-medium text-gray-700">Tanggal Dibuat:</span>
-                                <p class="text-gray-900">{{ $classReport->created_at->format('d/m/Y H:i') }}</p>
-                            </div>
-                            <div>
-                                <span class="font-medium text-gray-700">Nama Guru:</span>
-                                <p class="text-gray-900">{{ $classReport->teacher->name }}</p>
-                            </div>
-                            <div>
-                                <span class="font-medium text-gray-700">Tanggal Pelaksanaan:</span>
-                                <p class="text-gray-900">{{ $classReport->report_date->format('d/m/Y') }}</p>
-                            </div>
-                            <div>
-                                <span class="font-medium text-gray-700">Waktu Kelas:</span>
-                                <p class="text-gray-900">{{ $classReport->start_time->format('H:i') }} - {{ $classReport->end_time->format('H:i') }}</p>
-                            </div>
-                            <div>
-                                <span class="font-medium text-gray-700">Nama Siswa:</span>
-                                <p class="text-gray-900">{{ $classReport->student->name }}</p>
-                            </div>
-                            <div>
-                                <span class="font-medium text-gray-700">Kelas yang Diikuti:</span>
-                                <p class="text-gray-900">{{ $classReport->class->name }} - {{ $classReport->class->course->name }}</p>
-                            </div>
-                        </div>
-                    </div>
+    <div class="grid gap-gutter lg:grid-cols-3">
+        <div class="lg:col-span-2">
+            @include('class-reports.partials.report-body', ['showInternal' => true, 'showMedia' => true])
+        </div>
 
-                    <!-- Class Details -->
-                    <div class="mb-6 p-4 bg-blue-50 rounded-lg">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Detail Kelas</h3>
-                        <div class="grid grid-cols-3 gap-4">
-                            <div>
-                                <span class="font-medium text-gray-700">Pertemuan ke-:</span>
-                                <p class="text-gray-900">{{ $classReport->meeting_number }}</p>
-                            </div>
-                            <div>
-                                <span class="font-medium text-gray-700">Kurikulum:</span>
-                                <p class="text-gray-900">{{ $classReport->curriculum->name ?? '-' }}</p>
-                            </div>
-                            <div>
-                                <span class="font-medium text-gray-700">Silabus:</span>
-                                <p class="text-gray-900">{{ $classReport->syllabus->title ?? '-' }}</p>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <span class="font-medium text-gray-700">Materi:</span>
-                            <p class="text-gray-900">{{ $classReport->material->title ?? '-' }}</p>
-                        </div>
-                    </div>
+        <div class="space-y-6">
+            <x-ui.card title="Rincian" variant="inset">
+                <dl class="space-y-3 text-sm">
+                    <div class="flex justify-between gap-3"><dt class="text-fg-muted">Kelas</dt><dd class="text-right text-fg">{{ $report->className?->name ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-fg-muted">Kursus</dt><dd class="text-right text-fg">{{ $report->className?->course?->name ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-fg-muted">Kurikulum</dt><dd class="text-right text-fg">{{ $report->curriculum?->title ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-fg-muted">Pengajar</dt><dd class="text-right text-fg">{{ $report->teacher?->name ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-fg-muted">Dibuat</dt><dd class="text-right text-fg">{{ $f::dateTime($report->created_at) }}</dd></div>
+                </dl>
+            </x-ui.card>
 
-                    <!-- Learning Concept -->
-                    <div class="mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-2">Materi / Konsep Pembelajaran</h3>
-                        <div class="p-4 bg-gray-50 rounded-lg">
-                            <p class="text-gray-900 whitespace-pre-wrap">{{ $classReport->learning_concept }}</p>
-                        </div>
-                    </div>
-
-                    <!-- Bloom's Taxonomy -->
-                    <div class="mb-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Taksonomi Bloom</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            @if($classReport->remember_understanding)
-                                <div class="p-3 bg-yellow-50 rounded-lg">
-                                    <h4 class="font-medium text-yellow-800 mb-2">Remember (Mengingat)</h4>
-                                    <p class="text-gray-900 text-sm whitespace-pre-wrap">{{ $classReport->remember_understanding }}</p>
-                                </div>
-                            @endif
-                            @if($classReport->understand_comprehension)
-                                <div class="p-3 bg-green-50 rounded-lg">
-                                    <h4 class="font-medium text-green-800 mb-2">Understand (Memahami)</h4>
-                                    <p class="text-gray-900 text-sm whitespace-pre-wrap">{{ $classReport->understand_comprehension }}</p>
-                                </div>
-                            @endif
-                            @if($classReport->apply_application)
-                                <div class="p-3 bg-blue-50 rounded-lg">
-                                    <h4 class="font-medium text-blue-800 mb-2">Apply (Menerapkan)</h4>
-                                    <p class="text-gray-900 text-sm whitespace-pre-wrap">{{ $classReport->apply_application }}</p>
-                                </div>
-                            @endif
-                            @if($classReport->analyze_analysis)
-                                <div class="p-3 bg-purple-50 rounded-lg">
-                                    <h4 class="font-medium text-purple-800 mb-2">Analyze (Menganalisis)</h4>
-                                    <p class="text-gray-900 text-sm whitespace-pre-wrap">{{ $classReport->analyze_analysis }}</p>
-                                </div>
-                            @endif
-                            @if($classReport->evaluate_evaluation)
-                                <div class="p-3 bg-red-50 rounded-lg">
-                                    <h4 class="font-medium text-red-800 mb-2">Evaluate (Mengevaluasi)</h4>
-                                    <p class="text-gray-900 text-sm whitespace-pre-wrap">{{ $classReport->evaluate_evaluation }}</p>
-                                </div>
-                            @endif
-                            @if($classReport->create_creation)
-                                <div class="p-3 bg-indigo-50 rounded-lg">
-                                    <h4 class="font-medium text-indigo-800 mb-2">Create (Mencipta)</h4>
-                                    <p class="text-gray-900 text-sm whitespace-pre-wrap">{{ $classReport->create_creation }}</p>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-
-                    <!-- Notes and Follow Up -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        @if($classReport->notes_recommendations)
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900 mb-2">Catatan dan Rekomendasi</h3>
-                                <div class="p-4 bg-gray-50 rounded-lg">
-                                    <p class="text-gray-900 whitespace-pre-wrap">{{ $classReport->notes_recommendations }}</p>
-                                </div>
-                            </div>
-                        @endif
-                        @if($classReport->follow_up_notes)
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900 mb-2">Rencana Tindak Lanjut</h3>
-                                <div class="p-4 bg-gray-50 rounded-lg">
-                                    <p class="text-gray-900 whitespace-pre-wrap">{{ $classReport->follow_up_notes }}</p>
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-
-                    <!-- Learning Media -->
-                    @if($classReport->learning_media_link)
-                        <div class="mb-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-2">Foto Bukti Belajar</h3>
-                            <div class="p-4 bg-gray-50 rounded-lg">
-                                <a href="{{ $classReport->learning_media_link }}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">
-                                    {{ $classReport->learning_media_link }}
-                                </a>
-                            </div>
-                        </div>
-                    @endif
-
-                    <!-- Action Buttons -->
-                    <div class="flex justify-between items-center pt-6 border-t">
-                        <a href="{{ route('class-reports.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                            Kembali ke Daftar
+            @if ($siblings->isNotEmpty())
+                <x-ui.card title="Siswa lain di pertemuan ini" padding="none">
+                    @foreach ($siblings as $sibling)
+                        <a href="{{ route('class-reports.show', $sibling->id) }}" class="flex min-h-[44px] items-center justify-between gap-3 border-t border-line px-card py-3 hover:bg-surface-2">
+                            <span class="truncate text-fg">{{ $sibling->student?->name ?? 'Siswa dihapus' }}</span>
+                            <x-ui.icon name="chevron-right" class="shrink-0 text-fg-subtle" />
                         </a>
-                        
-                        <div class="space-x-2">
-                            @if(Auth::user()->hasRole('admin') || Auth::user()->hasRole('superadmin') || $classReport->teacher_id === Auth::id())
-                                <a href="{{ route('class-reports.edit', $classReport) }}" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-                                    Edit
-                                </a>
-                                <form action="{{ route('class-reports.destroy', $classReport) }}" method="POST" class="inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus berita acara ini?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                                        Hapus
-                                    </button>
-                                </form>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    @endforeach
+                </x-ui.card>
+            @endif
         </div>
     </div>
 </x-app-layout>

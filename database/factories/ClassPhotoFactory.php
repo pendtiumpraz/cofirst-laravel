@@ -23,6 +23,9 @@ class ClassPhotoFactory extends Factory
     {
         return [
             'class_id' => ClassName::factory()->active(),
+            'title' => ucfirst($this->faker->words(3, true)),
+            'description' => $this->faker->sentence(),
+            'date_taken' => now()->subWeek()->toDateString(),
             'photo_path' => null,
             'caption' => $this->faker->sentence(),
             'uploaded_by' => User::factory()->teacher(),

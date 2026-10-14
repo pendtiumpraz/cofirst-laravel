@@ -1,167 +1,93 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    
-    <title>Registration Successful - {{ config('app.name', 'CoFirst') }}</title>
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
-    <link rel="manifest" href="{{ asset('site.webmanifest') }}">
-    <meta name="theme-color" content="#3B82F6">
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
-    
-    <!-- Scripts -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    
-    <style>
-        .bg-gradient-coding {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-        }
-        @media print {
-            body {
-                background: white !important;
-            }
-            .no-print {
-                display: none !important;
-            }
-            .glass-effect {
-                background: white !important;
-                border: 1px solid #e5e7eb !important;
-            }
-            .text-white, .text-blue-100 {
-                color: #1f2937 !important;
-            }
-        }
-    </style>
-</head>
-<body class="font-sans antialiased bg-gradient-coding min-h-screen flex items-center justify-center p-4">
-    <div class="w-full max-w-2xl">
-        <!-- Logo and Title -->
-        <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-lg mb-4">
-                <svg class="w-8 h-8 text-green-600" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                </svg>
-            </div>
-            <h1 class="text-3xl font-bold text-white mb-2">Registration Successful!</h1>
-            <p class="text-blue-100">{{ session('message') }}</p>
-        </div>
+{{--
+    After registering a child: the account waits for parent/guardian consent.
+    Variables: $registration (flash: state, first_name, guardian_email (masked), email, sent, class, expires) or null,
+    $dpoEmail.
+--}}
+@php
+    $data = is_array($registration ?? null) ? $registration : null;
+@endphp
 
-        <!-- Account Information -->
-        <div class="glass-effect rounded-2xl p-8 shadow-2xl">
-            <h3 class="text-xl font-semibold text-white mb-6">Your Account Information</h3>
-            
-            <div class="space-y-4">
-                <!-- Student Account -->
-                <div class="bg-white/20 border border-white/30 rounded-lg p-4">
-                    <h4 class="font-medium text-white mb-3">Student Account</h4>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-blue-100">Email:</span>
-                            <strong class="text-white">{{ session('student_email') }}</strong>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-blue-100">Role:</span>
-                            <span class="text-white">Student</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-blue-100">Course:</span>
-                            <span class="text-white">{{ session('course_name') }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-blue-100">Class:</span>
-                            <span class="text-white">{{ session('class_name') }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-blue-100">Start Date:</span>
-                            <span class="text-white">{{ session('class_start_date') }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-blue-100">Teacher:</span>
-                            <span class="text-white">{{ session('teacher_name') }}</span>
-                        </div>
-                    </div>
+<x-guest-layout title="Menunggu persetujuan orang tua" heading="{{ $data ? 'Satu langkah lagi, '.$data['first_name'].'!' : 'Menunggu persetujuan orang tua/wali' }}"
+    subheading="Akunmu sudah dibuat, tetapi baru bisa dipakai setelah orang tua atau walimu menyetujui.">
+
+    @if (session('status'))
+        <x-ui.alert tone="success" class="mb-6">{{ session('status') }}</x-ui.alert>
+    @endif
+
+    @if ($data)
+        <ol class="space-y-5" role="list">
+            <li class="flex gap-4">
+                <span class="grid size-8 shrink-0 place-items-center rounded-full bg-success-soft text-success" aria-hidden="true">
+                    <x-ui.icon name="m-check" class="size-4" />
+                </span>
+                <div>
+                    <p class="text-sm font-semibold text-fg">Akun dibuat</p>
+                    <p class="mt-0.5 text-sm text-fg-muted">
+                        Email masuk: <span class="font-mono text-fg">{{ $data['email'] }}</span>
+                        @if (! empty($data['class']))
+                            <br>Kursi di kelas <span class="font-medium text-fg">{{ $data['class'] }}</span> kami tahan untukmu.
+                        @endif
+                    </p>
                 </div>
-
-                <!-- Parent Account -->
-                <div class="bg-white/20 border border-white/30 rounded-lg p-4">
-                    <h4 class="font-medium text-white mb-3">Parent Account</h4>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-blue-100">Email:</span>
-                            <strong class="text-white">{{ session('parent_email') }}</strong>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-blue-100">Role:</span>
-                            <span class="text-white">Parent</span>
-                        </div>
-                    </div>
+            </li>
+            <li class="flex gap-4">
+                <span class="grid size-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand-soft-fg" aria-hidden="true">
+                    <x-ui.icon name="m-envelope" class="size-4" />
+                </span>
+                <div>
+                    <p class="text-sm font-semibold text-fg">
+                        {{ $data['sent'] ? 'Email terkirim ke orang tua/wali' : 'Email ke orang tua/wali belum terkirim' }}
+                    </p>
+                    <p class="mt-0.5 text-sm text-fg-muted">
+                        @if ($data['sent'])
+                            Kami mengirim tautan persetujuan ke <span class="font-mono text-fg">{{ $data['guardian_email'] }}</span>.
+                            Tautan berlaku sampai {{ $data['expires'] }}.
+                        @else
+                            Terjadi kendala saat mengirim email ke <span class="font-mono text-fg">{{ $data['guardian_email'] }}</span>. Gunakan tombol kirim ulang di bawah.
+                        @endif
+                    </p>
                 </div>
-            </div>
-
-            <!-- Important Notice -->
-            <div class="mt-6 bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-yellow-200" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <div class="ml-3 flex-1">
-                        <h3 class="text-sm font-medium text-white">Next Steps</h3>
-                        <div class="mt-2 text-sm text-yellow-100">
-                            <ol class="list-decimal list-inside space-y-1">
-                                <li>You are now enrolled in the selected class</li>
-                                <li>Please make payment according to the course fee</li>
-                                <li>Contact admin with proof of payment</li>
-                                <li>Admin will activate your accounts after payment verification</li>
-                                <li>You will be notified when your accounts are activated</li>
-                            </ol>
-                        </div>
-                    </div>
+            </li>
+            <li class="flex gap-4">
+                <span class="grid size-8 shrink-0 place-items-center rounded-full border border-line-strong text-fg-subtle" aria-hidden="true">
+                    <span class="text-xs font-semibold">3</span>
+                </span>
+                <div>
+                    <p class="text-sm font-semibold text-fg">Orang tua/wali menyetujui</p>
+                    <p class="mt-0.5 text-sm text-fg-muted">Setelah disetujui, kamu bisa langsung masuk. Kami juga mengirim email konfirmasi kepadamu.</p>
                 </div>
-            </div>
+            </li>
+        </ol>
+    @else
+        <p class="text-sm leading-relaxed text-fg-muted">
+            Bila kamu baru saja mendaftar, minta orang tua/walimu memeriksa email dari kami (juga folder spam) dan membuka tautan persetujuan. Tautan berlaku 7 hari.
+        </p>
+    @endif
 
-            <!-- Actions -->
-            <div class="mt-8 flex items-center justify-center space-x-4 no-print">
-                <a href="{{ route('landing') }}" 
-                    class="px-4 py-2 glass-effect text-white font-medium rounded-lg hover:bg-white/30 transition-all">
-                    Back to Home
-                </a>
-                <button onclick="window.print()" 
-                    class="px-4 py-2 bg-white text-blue-600 font-medium rounded-lg hover:bg-blue-50 transition-all">
-                    Print This Page
-                </button>
-            </div>
-        </div>
+    <x-ui.card variant="inset" class="mt-8" padding="sm">
+        <p class="text-sm font-semibold text-fg">Email belum sampai?</p>
+        <p class="mt-1 text-[0.8125rem] text-fg-muted">Kirim ulang tautan ke email orang tua/wali yang kamu isi saat mendaftar. Tautan lama otomatis tidak berlaku.</p>
+        <form method="POST" action="{{ route('privacy.parental-consent.resend') }}" class="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end"
+            x-data="{ sending: false }" x-on:submit="sending = true">
+            @csrf
+            <x-ui.field label="Email akunmu" for="resend_email" class="min-w-0" error="email">
+                <x-ui.input name="email" id="resend_email" type="email" inputmode="email" autocomplete="email" :value="$data['email'] ?? old('email')" required />
+            </x-ui.field>
+            <x-ui.button type="submit" variant="secondary" icon="arrow-path" loading-when="sending" loading-text="Mengirim…">Kirim ulang</x-ui.button>
+        </form>
+    </x-ui.card>
 
-        <!-- Footer -->
-        <div class="text-center mt-8 no-print">
-            <p class="text-blue-100 text-sm">
-                © {{ date('Y') }} Coding First. All rights reserved.
-            </p>
-        </div>
-    </div>
+    <p class="mt-6 text-[0.8125rem] leading-relaxed text-fg-subtle">
+        Bila orang tua/wali menolak atau tidak menanggapi dalam 7 hari, data pendaftaranmu kami hapus sesuai UU PDP.
+        @if ($dpoEmail)
+            Pertanyaan? Hubungi <a href="mailto:{{ $dpoEmail }}" class="link">{{ $dpoEmail }}</a>.
+        @endif
+    </p>
 
-    <!-- Background Animation -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none no-print">
-        <div class="absolute -top-40 -right-40 w-80 h-80 bg-white/5 rounded-full animate-pulse"></div>
-        <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-white/5 rounded-full animate-pulse" style="animation-delay: 2s;"></div>
-        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-white/3 rounded-full animate-pulse" style="animation-delay: 4s;"></div>
-    </div>
-</body>
-</html>
+    <p class="mt-8 text-center text-sm">
+        <a href="{{ route('login') }}" class="link inline-flex min-h-11 items-center gap-1.5 font-medium">
+            <x-ui.icon name="m-arrow-left" class="size-4" />
+            Ke halaman masuk
+        </a>
+    </p>
+</x-guest-layout>

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ConfirmPasswordRequest;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -12,7 +12,7 @@ use Illuminate\View\View;
 class ConfirmablePasswordController extends Controller
 {
     /**
-     * Show the confirm password view.
+     * Show the confirm password view (guards sensitive pages via the password.confirm middleware).
      */
     public function show(): View
     {
@@ -20,16 +20,16 @@ class ConfirmablePasswordController extends Controller
     }
 
     /**
-     * Confirm the user's password.
+     * Confirm the user's password and remember the confirmation for this session.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(ConfirmPasswordRequest $request): RedirectResponse
     {
         if (! Auth::guard('web')->validate([
             'email' => $request->user()->email,
-            'password' => $request->password,
+            'password' => $request->validated('password'),
         ])) {
             throw ValidationException::withMessages([
-                'password' => __('auth.password'),
+                'password' => trans('auth.password'),
             ]);
         }
 

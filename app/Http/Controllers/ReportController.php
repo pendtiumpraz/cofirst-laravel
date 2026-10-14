@@ -2,244 +2,209 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Academic\ProgressReportRequest;
+use App\Models\ClassName;
 use App\Models\Report;
 use App\Models\User;
-use App\Models\ClassName;
-use Illuminate\Support\Facades\Auth;
+use App\Services\Academic\AcademicPrivacy;
+use App\Services\Academic\AcademicReportHub;
+use App\Services\Academic\AcademicScope;
+use App\Services\Academic\ProgressReportService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Laporan perkembangan (periodic progress reports about one student).
+ *
+ * Teachers write and manage their own reports for students of their classes. The
+ * admin hub (progress reports, meeting-report compliance, learning progress, CSV
+ * export) is delegated to App\Services\Academic\AcademicReportHub.
+ */
 class ReportController extends Controller
 {
-    /**
-     * Display a listing of reports for admin.
-     */
-    public function adminIndex()
-    {
-        $reports = Report::with(['student', 'teacher', 'className.course'])
-            ->latest()
-            ->paginate(10);
-            
-        return view('admin.reports.index', compact('reports'));
+    public function __construct(
+        private readonly ProgressReportService $reports,
+        private readonly AcademicScope $scope,
+    ) {
     }
 
-    /**
-     * Display a listing of reports for teacher.
-     */
-    public function index()
+    /** Admin › Laporan akademik (hub with three tabs). */
+    public function adminIndex(Request $request): View
     {
-        $user = Auth::user();
-        $reports = Report::where('teacher_id', $user->id)
-            ->with(['student', 'class.course'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
-            
-        return view('teacher.reports.index', compact('reports'));
+        return app(AcademicReportHub::class)->index($request);
     }
 
-    /**
-     * Show the form for creating a new report.
-     */
-    public function create()
+    /** Admin: one progress report. */
+    public function adminShow(Report $report): View
     {
-        $user = Auth::user();
-        
-        // Get classes taught by this teacher
-        $classes = ClassName::whereHas('teachers', function($query) use ($user) {
-                $query->where('users.id', $user->id);
-            })
-            ->where('is_active', true)
-            ->with('course')
-            ->get();
-            
-        // Get students from teacher's classes
-        $students = User::whereHas('enrollments.class.teachers', function($query) use ($user) {
-            $query->where('users.id', $user->id)->where('status', 'active');
-        })->get();
+        $report->load(['student:id,name', 'teacher:id,name', 'className:id,name,course_id', 'className.course:id,name']);
 
-        \Log::info('Teacher Report Create: Data for view', [
-            'teacher_id' => $user->id,
-            'classes_count' => $classes->count(),
-            'students_count' => $students->count(),
+        AcademicPrivacy::audit('academic.report.viewed', $report, ['student_id' => $report->student_id]);
+
+        return view('admin.reports.show', compact('report'));
+    }
+
+    /** Admin: CSV export of the filtered progress reports. */
+    public function adminExport(Request $request): StreamedResponse
+    {
+        return app(AcademicReportHub::class)->export($request);
+    }
+
+    /** Teacher: own reports with filters. */
+    public function index(Request $request): View
+    {
+        $teacher = $request->user();
+
+        $reports = $this->reports->applyFilters(
+            Report::query()->where('reports.teacher_id', $teacher->id),
+            $request
+        )
+            ->with(['student:id,name', 'className:id,name'])
+            ->orderByDesc('report_date')->orderByDesc('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('teacher.reports.index', [
+            'reports' => $reports,
+            'classOptions' => $this->classOptions($teacher),
+            'types' => Report::types(),
         ]);
-        
-        return view('teacher.reports.create', compact('classes', 'students'));
     }
 
-    /**
-     * Store a newly created report in storage.
-     */
-    public function store(Request $request)
+    /** Teacher: new report form (prefill ?class_id & ?student_id). */
+    public function create(Request $request): View
     {
-        $request->validate([
-            'student_id' => 'required|exists:users,id',
-            'class_id' => 'required|exists:class_names,id',
-            'report_type' => 'required|in:weekly,monthly,final,incident',
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'score' => 'nullable|numeric|min:0|max:100'
+        $options = $this->reports->formOptions($request->user());
+        $studentId = $request->integer('student_id') ?: null;
+        // Reason: links from a student's page only know the student; preselect their class.
+        $classId = $request->integer('class_id')
+            ?: ($studentId ? ($options->first(fn ($o) => collect($o['students'])->contains('id', $studentId))['id'] ?? null) : null);
+
+        return view('teacher.reports.create', [
+            'report' => new Report([
+                'class_id' => $classId,
+                'student_id' => $studentId,
+                'type' => Report::TYPE_MONTHLY,
+                'report_date' => today(),
+                'progress_percentage' => 0,
+            ]),
+            'options' => $options,
+            'types' => Report::types(),
         ]);
-
-        $user = Auth::user();
-        
-        // Verify teacher is assigned to this class
-        $class = ClassName::findOrFail($request->class_id);
-        if (!$class->teachers->contains($user->id)) {
-            abort(403, 'Unauthorized to create report for this class.');
-        }
-
-        Report::create([
-            'student_id' => $request->student_id,
-            'teacher_id' => $user->id,
-            'class_id' => $request->class_id,
-            'report_type' => $request->report_type,
-            'title' => $request->title,
-            'content' => $request->content,
-            'score' => $request->score,
-            'report_date' => now(),
-        ]);
-
-        return redirect()->route('teacher.reports.index')->with('success', 'Report created successfully.');
     }
 
-    /**
-     * Display the specified report.
-     */
-    public function show(Report $report)
+    /** Teacher: save a new report. */
+    public function store(ProgressReportRequest $request): RedirectResponse
     {
-        $user = Auth::user();
-        
-        // Check authorization
-        if ($user->hasRole('teacher') && $report->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized access to this report.');
-        }
-        
-        $report->load(['student', 'teacher', 'class.course']);
-        
-        return view('teacher.reports.show', compact('report'));
+        $report = new Report($request->safe()->except('report_type'));
+        $report->teacher_id = $request->user()->id;
+        $report->save();
+
+        return redirect()->route('teacher.reports.show', $report)->with('success', 'Laporan perkembangan disimpan.');
     }
 
-    /**
-     * Show the form for editing the specified report.
-     */
-    public function edit(Report $report)
+    /** Teacher: one report. */
+    public function show(Request $request, Report $report): View
     {
-        $user = Auth::user();
-        
-        // Verify teacher owns this report
-        if ($report->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized to edit this report.');
-        }
-        
-        $classes = ClassName::whereHas('teachers', function($query) use ($user) {
-                $query->where('users.id', $user->id);
-            })
-            ->where('is_active', true)
-            ->with('course')
-            ->get();
-            
-        $students = User::whereHas('enrollments.class.teachers', function($query) use ($user) {
-            $query->where('users.id', $user->id)->where('status', 'active');
-        })->get();
+        abort_unless($this->reports->canView($request->user(), $report), 403, 'Anda tidak dapat melihat laporan ini.');
 
-        \Log::info('Teacher Report Edit: Data for view', [
-            'report_id' => $report->id,
-            'teacher_id' => $user->id,
-            'classes_count' => $classes->count(),
-            'students_count' => $students->count(),
+        $report->load(['student:id,name', 'teacher:id,name', 'className:id,name,course_id', 'className.course:id,name']);
+
+        return view('teacher.reports.show', [
+            'report' => $report,
+            'canManage' => $this->reports->canManage($request->user(), $report),
         ]);
-        
-        return view('teacher.reports.edit', compact('report', 'classes', 'students'));
     }
 
-    /**
-     * Update the specified report in storage.
-     */
-    public function update(Request $request, Report $report)
+    /** Teacher: edit form (author only). */
+    public function edit(Request $request, Report $report): View
     {
-        $request->validate([
-            'student_id' => 'required|exists:users,id',
-            'class_id' => 'required|exists:class_names,id',
-            'report_type' => 'required|in:weekly,monthly,final,incident',
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-            'score' => 'nullable|numeric|min:0|max:100'
-        ]);
+        abort_unless($this->reports->canManage($request->user(), $report), 403, 'Hanya penulis laporan yang dapat mengubahnya.');
 
-        $user = Auth::user();
-        
-        // Verify teacher owns this report
-        if ($report->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized to update this report.');
-        }
+        $report->load(['student:id,name', 'className:id,name']);
 
-        $report->update([
-            'student_id' => $request->student_id,
-            'class_id' => $request->class_id,
-            'report_type' => $request->report_type,
-            'title' => $request->title,
-            'content' => $request->content,
-            'score' => $request->score,
-        ]);
-
-        return redirect()->route('teacher.reports.index')->with('success', 'Report updated successfully.');
+        return view('teacher.reports.edit', ['report' => $report, 'types' => Report::types()]);
     }
 
-    /**
-     * Remove the specified report from storage.
-     */
-    public function destroy(Report $report)
+    /** Teacher: save changes (class and student cannot change). */
+    public function update(ProgressReportRequest $request, Report $report): RedirectResponse
     {
-        $user = Auth::user();
-        
-        // Verify teacher owns this report
-        if ($report->teacher_id !== $user->id) {
-            abort(403, 'Unauthorized to delete this report.');
-        }
+        abort_unless($this->reports->canManage($request->user(), $report), 403, 'Hanya penulis laporan yang dapat mengubahnya.');
+
+        $report->update($request->safe()->except(['report_type', 'class_id', 'student_id']));
+
+        return redirect()->route('teacher.reports.show', $report)->with('success', 'Laporan perkembangan diperbarui.');
+    }
+
+    /** Teacher: delete (author only). */
+    public function destroy(Request $request, Report $report): RedirectResponse
+    {
+        abort_unless($this->reports->canManage($request->user(), $report), 403, 'Hanya penulis laporan yang dapat menghapusnya.');
 
         $report->delete();
-        return redirect()->route('teacher.reports.index')->with('success', 'Report deleted successfully.');
+        AcademicPrivacy::audit('academic.report.deleted', $report, ['student_id' => $report->student_id]);
+
+        return redirect()->route('teacher.reports.index')->with('success', 'Laporan perkembangan dihapus.');
+    }
+
+    /** Teacher: latest report per student of one class. */
+    public function byClass(Request $request, ClassName $class): View
+    {
+        abort_unless($this->scope->teacherTeaches($request->user(), $class), 403, 'Anda tidak mengajar kelas ini.');
+
+        $class->load('course:id,name');
+        $students = User::query()
+            ->whereIn('id', $class->activeEnrollments()->select('student_id'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $latest = Report::query()
+            ->where('class_id', $class->id)
+            ->whereIn('student_id', $students->pluck('id'))
+            ->orderByDesc('report_date')->orderByDesc('id')
+            ->get(['id', 'student_id', 'title', 'type', 'progress_percentage', 'report_date'])
+            ->groupBy('student_id');
+
+        return view('teacher.reports.by-class', compact('class', 'students', 'latest'));
+    }
+
+    /** Teacher: report timeline of one student of the teacher's classes. */
+    public function byStudent(Request $request, User $student): View
+    {
+        $classIds = $this->scope->teacherClassIds($request->user());
+
+        abort_unless(
+            $student->enrollments()->whereIn('class_id', $classIds)->exists(),
+            403,
+            'Siswa ini tidak ada di kelas Anda.'
+        );
+
+        $reports = Report::query()->forStudent($student)
+            ->whereIn('class_id', $classIds)
+            ->with(['className:id,name', 'teacher:id,name'])
+            ->orderByDesc('report_date')->orderByDesc('id')
+            ->paginate(10);
+
+        return view('teacher.reports.by-student', [
+            'student' => $student->only(['id', 'name']),
+            'reports' => $reports,
+        ]);
     }
 
     /**
-     * Display reports by class.
+     * The teacher's classes for the filter select.
+     *
+     * Returns:
+     *     array<int, string>
      */
-    public function byClass(ClassName $class)
+    private function classOptions(User $teacher): array
     {
-        $user = Auth::user();
-        
-        // Verify teacher is assigned to this class
-        if (!$class->teachers->contains($user->id)) {
-            abort(403, 'Unauthorized access to class reports.');
-        }
-        
-        $reports = Report::where('class_id', $class->id)
-            ->with(['student', 'teacher'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-            
-        return view('teacher.reports.by-class', compact('class', 'reports'));
-    }
-
-    /**
-     * Display reports by student.
-     */
-    public function byStudent(User $student)
-    {
-        $user = Auth::user();
-        
-        // Verify teacher has access to this student
-        if (!$student->enrollments()->whereHas('class.teachers', function($query) use ($user) {
-            $query->where('users.id', $user->id);
-        })->exists()) {
-            abort(403, 'Unauthorized access to student reports.');
-        }
-        
-        $reports = Report::where('student_id', $student->id)
-            ->where('teacher_id', $user->id)
-            ->with(['class.course'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-            
-        return view('teacher.reports.by-student', compact('student', 'reports'));
+        return ClassName::query()
+            ->whereIn('id', $this->scope->teacherClassIds($teacher))
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
     }
 }

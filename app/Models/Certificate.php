@@ -152,8 +152,8 @@ class Certificate extends Model
      */
     public function getFileUrlAttribute()
     {
-        return $this->file_path 
-            ? asset('storage/' . $this->file_path)
+        return $this->file_path
+            ? asset('storage/'.$this->file_path)
             : null;
     }
 
@@ -162,8 +162,8 @@ class Certificate extends Model
      */
     public function getQrCodeUrlAttribute()
     {
-        return $this->qr_code 
-            ? asset('storage/' . $this->qr_code)
+        return $this->qr_code
+            ? asset('storage/'.$this->qr_code)
             : null;
     }
 
@@ -180,9 +180,10 @@ class Certificate extends Model
      */
     public function isExpired()
     {
-        if (!$this->expiry_date) {
+        if (! $this->expiry_date) {
             return false;
         }
+
         return $this->expiry_date->isPast();
     }
 

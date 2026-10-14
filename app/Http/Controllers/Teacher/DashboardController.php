@@ -3,92 +3,117 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
-use App\Models\Schedule;
-use App\Models\ClassName;
-use App\Models\User;
-use App\Models\Report;
+use App\Models\ClassReport;
+use App\Models\TeacherHandover;
+use App\Services\Teacher\TeachingSchedule;
+use App\Services\Teacher\TeachingSession;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
+use Illuminate\View\View;
 
+/**
+ * Teacher home: today's sessions, this week's timeline, students that need
+ * attention, berita acara still to write and incoming handover requests.
+ */
 class DashboardController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-        $this->middleware('role:teacher');
-    }
+    /**
+     * Args:
+     *     schedule (TeachingSchedule): Timetable read model.
+     */
+    public function __construct(private readonly TeachingSchedule $schedule) {}
 
     /**
-     * Display the teacher dashboard.
+     * Show the teacher dashboard.
+     *
+     * Args:
+     *     request (Request): Current request (the authenticated teacher).
+     *
+     * Returns:
+     *     View: teacher.dashboard
      */
-    public function index()
+    public function index(Request $request): View
     {
-        $teacher = Auth::user();
-        
-        // Get teacher's classes through teacher assignments
-        $teacherClasses = ClassName::whereHas('schedules.teacherAssignment', function($query) use ($teacher) {
-            $query->where('teacher_id', $teacher->id);
-        })->with(['course', 'schedules' => function($query) use ($teacher) {
-            $query->whereHas('teacherAssignment', function($q) use ($teacher) {
-                $q->where('teacher_id', $teacher->id);
-            });
-        }])->get();
-        
-        // Get today's schedules (based on day of week since schedules are weekly)
-        $todayDayOfWeek = Carbon::today()->dayOfWeek;
-        if ($todayDayOfWeek == 0) $todayDayOfWeek = 7; // Convert Sunday from 0 to 7
-        
-        $todaySchedules = Schedule::where('day_of_week', $todayDayOfWeek)
-            ->whereHas('teacherAssignment', function($query) use ($teacher) {
-                $query->where('teacher_id', $teacher->id);
-            })
-            ->with(['className.course', 'enrollment.student'])
-            ->orderBy('start_time')
-            ->get();
-        
-        // Get all weekly schedules for this teacher
-        $upcomingSchedules = Schedule::whereHas('teacherAssignment', function($query) use ($teacher) {
-                $query->where('teacher_id', $teacher->id);
-            })
-            ->with(['className.course', 'enrollment.student'])
-            ->orderBy('day_of_week')
-            ->orderBy('start_time')
-            ->get();
-        
-        // Get total students taught by this teacher
-        $totalStudents = User::role('student')
-            ->whereHas('enrollments.className.schedules.teacherAssignment', function($query) use ($teacher) {
-                $query->where('teacher_id', $teacher->id);
-            })
-            ->distinct()
-            ->count();
-        
-        // Get recent reports created by this teacher
-        $recentReports = Report::where('teacher_id', $teacher->id)
-            ->with(['student', 'className'])
+        $teacher = $request->user();
+        $now = TeachingSchedule::now();
+        $today = $now->startOfDay();
+        $weekStart = $today->startOfWeek();
+
+        $classes = $this->schedule->activeClasses($teacher);
+        $slots = $this->schedule->slots($classes);
+        $week = $this->schedule->withRecordStatus(
+            $this->schedule->sessionsBetween($slots, $weekStart, $weekStart->addDays(6))
+        );
+        $todaySessions = $week->filter(fn (TeachingSession $s) => $s->isOn($today))->values();
+        $pending = $this->schedule->pendingSessions($slots, 7);
+
+        $nextSession = $todaySessions->first(fn (TeachingSession $s) => ! $s->hasEnded($now));
+        $studentCount = $classes->sum('active_students_count');
+        $weeklyMinutes = $week->sum(fn (TeachingSession $s) => $s->minutes());
+
+        $stats = [
+            [
+                'label' => 'Sesi hari ini',
+                'value' => (string) $todaySessions->count(),
+                'hint' => $nextSession ? 'berikutnya '.$nextSession->start : ($todaySessions->isEmpty() ? 'tidak ada jadwal' : 'semua sesi selesai'),
+                'icon' => 'calendar-days',
+                'tone' => 'primary',
+                'href' => route('teacher.attendance.today'),
+            ],
+            [
+                'label' => 'Siswa aktif',
+                'value' => (string) $studentCount,
+                'hint' => 'di '.$classes->count().' kelas',
+                'icon' => 'user-group',
+                'tone' => 'info',
+                'href' => route('teacher.students.index'),
+            ],
+            [
+                'label' => 'Laporan tertunda',
+                'value' => (string) $pending->count(),
+                'hint' => $pending->isEmpty() ? 'semua sudah dicatat' : 'sesi 7 hari terakhir',
+                'icon' => 'clipboard-document-list',
+                'tone' => $pending->isEmpty() ? 'success' : 'warning',
+            ],
+            [
+                'label' => 'Jam mengajar',
+                'value' => $weeklyMinutes > 0 ? rtrim(rtrim(number_format($weeklyMinutes / 60, 1, ',', '.'), '0'), ',') : '0',
+                'unit' => 'jam',
+                'hint' => 'minggu ini',
+                'icon' => 'clock',
+                'tone' => 'neutral',
+                'href' => route('teacher.schedules.index'),
+            ],
+        ];
+
+        $incomingHandovers = TeacherHandover::query()
+            ->pending()
+            ->where('to_teacher_id', $teacher->id)
+            ->with(['className:id,name', 'fromTeacher:id,name'])
             ->latest()
+            ->get();
+
+        $recentReports = ClassReport::query()
+            ->byTeacher($teacher)
+            ->with(['className:id,name', 'student:id,name'])
+            ->latest('report_date')
+            ->latest('id')
             ->take(5)
             ->get();
-        
-        // Statistics
-        $stats = [
-            'total_classes' => $teacherClasses->count(),
-            'total_students' => $totalStudents,
-            'today_schedules' => $todaySchedules->count(),
-            'total_reports' => Report::where('teacher_id', $teacher->id)->count(),
-        ];
-        
-        // Use upcomingSchedules as schedules for the calendar component
-        $schedules = $upcomingSchedules;
-        
-        return view('teacher.dashboard', compact(
-            'teacherClasses',
-            'todaySchedules', 
-            'upcomingSchedules',
-            'schedules',
-            'recentReports',
-            'stats'
-        ));
+
+        return view('teacher.dashboard', [
+            'teacher' => $teacher,
+            'now' => $now,
+            'today' => $today,
+            'weekStart' => $weekStart,
+            'stats' => $stats,
+            'classes' => $classes,
+            'todaySessions' => $todaySessions,
+            'week' => $week->groupBy(fn (TeachingSession $s) => $s->date->toDateString()),
+            'pending' => $pending->take(5),
+            'pendingCount' => $pending->count(),
+            'attention' => $this->schedule->studentsNeedingAttention($classes, 5),
+            'incomingHandovers' => $incomingHandovers,
+            'recentReports' => $recentReports,
+        ]);
     }
 }

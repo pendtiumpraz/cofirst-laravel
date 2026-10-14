@@ -1,30 +1,29 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Curriculum Materials') }}
-        </h2>
-    </x-slot>
+<x-app-layout :title="'Materi · '.$curriculum->title">
+    <x-ui.page-header title="Materi kurikulum" :subtitle="$curriculum->title"
+        :breadcrumbs="['Kurikulum' => route('teacher.curriculums.index'), $curriculum->title => route('teacher.curriculums.show', $curriculum), 'Materi' => null]">
+        <x-ui.tabs label="Filter jenis materi" :active="$type ?? 'semua'" :tabs="collect(['semua' => 'Semua'] + $types)->map(fn ($label, $key) => ['label' => $label, 'href' => route('teacher.curriculums.materials', $key === 'semua' ? $curriculum : [$curriculum, 'type' => $key])])->all()" />
+    </x-ui.page-header>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Curriculum materials feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show all learning materials for this curriculum.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('teacher.curriculums.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Curriculums
-                            </a>
-                        </div>
-                    </div>
-                </div>
+    @forelse ($syllabuses as $syllabus)
+        <section class="mb-8" aria-labelledby="pertemuan-{{ $syllabus->id }}">
+            <div class="mb-3 flex items-baseline gap-3">
+                <span class="eyebrow">Pertemuan {{ $syllabus->meeting_number }}</span>
+                <h2 id="pertemuan-{{ $syllabus->id }}" class="section-title">{{ $syllabus->title }}</h2>
             </div>
-        </div>
-    </div>
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                @foreach ($syllabus->activeMaterials as $material)
+                    <x-ui.card :href="route('teacher.materials.show', $material)" :title="$material->title" padding="sm" level="3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            @include('admin.materials.partials.type-badge', ['type' => $material->type])
+                            @if ($material->file_path)<x-ui.badge icon="paper-clip">Berkas</x-ui.badge>@endif
+                            @if ($material->external_url)<x-ui.badge icon="link">Tautan</x-ui.badge>@endif
+                        </div>
+                    </x-ui.card>
+                @endforeach
+            </div>
+        </section>
+    @empty
+        <x-ui.empty-state size="page" icon="folder-open" title="Tidak ada materi untuk filter ini."
+            description="Pilih jenis lain, atau minta admin menambahkan materi." />
+    @endforelse
 </x-app-layout>

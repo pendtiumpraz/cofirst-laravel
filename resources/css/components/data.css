@@ -1,0 +1,307 @@
+/*
+|--------------------------------------------------------------------------
+| Data display — .table-cf ('ledger'), pagination, stat, metric strip
+|--------------------------------------------------------------------------
+*/
+
+@layer components {
+    /* ── Table wrapper ── */
+    .table-wrap {
+        @apply relative overflow-hidden rounded-lg border border-line bg-surface;
+    }
+
+    .table-toolbar {
+        @apply flex flex-wrap items-center gap-2 border-b border-line px-4 py-3;
+    }
+
+    .table-scroll {
+        @apply w-full overflow-x-auto;
+        -webkit-overflow-scrolling: touch;
+        /* Edge fade that only shows while there is more to scroll. */
+        background:
+            linear-gradient(to right, rgb(var(--cf-surface)) 30%, rgb(var(--cf-surface) / 0)) left center / 2.5rem 100% no-repeat local,
+            linear-gradient(to left, rgb(var(--cf-surface)) 30%, rgb(var(--cf-surface) / 0)) right center / 2.5rem 100% no-repeat local,
+            radial-gradient(farthest-side at 0 50%, rgb(var(--cf-fg) / 0.12), transparent) left center / 0.75rem 100% no-repeat scroll,
+            radial-gradient(farthest-side at 100% 50%, rgb(var(--cf-fg) / 0.12), transparent) right center / 0.75rem 100% no-repeat scroll;
+    }
+
+    .table-footer {
+        @apply flex flex-col gap-3 border-t border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between;
+    }
+
+    /* ── Table ('ledger': no zebra, hairline rows) ── */
+    .table-cf {
+        @apply w-full border-collapse text-left text-sm text-fg;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .table-cf > thead > tr > th,
+    .table-cf > thead > tr > td {
+        @apply whitespace-nowrap border-b border-line-strong bg-surface-2 px-4 py-0 align-middle;
+        height: var(--cf-th-h);
+        font-size: var(--cf-th-size);
+        font-weight: var(--cf-th-weight);
+        letter-spacing: var(--cf-th-tracking);
+        text-transform: var(--cf-th-case);
+        color: rgb(var(--cf-th-fg));
+    }
+
+    .table-cf.table-sticky > thead > tr > th {
+        @apply sticky top-0 z-10;
+    }
+
+    .table-cf > tbody > tr > td,
+    .table-cf > tbody > tr > th {
+        @apply border-b border-line px-4 py-2 align-middle;
+        height: var(--cf-row-h);
+    }
+
+    .table-cf > tbody > tr:last-child > td,
+    .table-cf > tbody > tr:last-child > th {
+        @apply border-b-0;
+    }
+
+    .table-cf > tbody > tr {
+        transition: background-color var(--cf-dur-1) linear;
+    }
+
+    .table-cf > tbody > tr:hover {
+        @apply bg-surface-2/60;
+    }
+
+    .table-cf > tbody > tr[aria-selected='true'],
+    .table-cf > tbody > tr.is-selected {
+        @apply bg-brand-soft;
+    }
+
+    .table-cf > tfoot > tr > td,
+    .table-cf > tfoot > tr > th {
+        @apply border-t border-line-strong px-4 py-3 font-semibold;
+    }
+
+    .table-cf .num,
+    .table-cf th.num,
+    .table-cf td.num {
+        @apply whitespace-nowrap text-right tabular-nums;
+    }
+
+    .table-cf .cell-primary {
+        @apply font-medium text-fg;
+    }
+
+    .table-cf .cell-secondary {
+        @apply text-xs text-fg-subtle;
+    }
+
+    .table-cf .cell-actions {
+        @apply whitespace-nowrap text-right;
+    }
+
+    /* Sortable header link (compatible with ?sort=&direction= query params). */
+    .th-sort {
+        @apply -mx-1 inline-flex items-center gap-1 rounded-sm px-1 hover:text-fg;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .th-sort[aria-current='true'],
+    th[aria-sort='ascending'] .th-sort,
+    th[aria-sort='descending'] .th-sort {
+        @apply text-fg;
+    }
+
+    .th-sort > svg {
+        @apply size-3.5 shrink-0 opacity-70;
+    }
+
+    /* Sticky first column (wide finance/attendance ledgers). */
+    .table-cf.table-sticky-first > thead > tr > :first-child,
+    .table-cf.table-sticky-first > tbody > tr > :first-child {
+        @apply sticky left-0 z-[1];
+    }
+
+    .table-cf.table-sticky-first > tbody > tr > :first-child {
+        @apply bg-surface;
+    }
+
+    /* Mobile 'stack': rows become list cards (td needs data-label). */
+    @media (max-width: 767px) {
+        .table-cf[data-mobile='stack'] > thead {
+            @apply sr-only;
+        }
+
+        .table-cf[data-mobile='stack'],
+        .table-cf[data-mobile='stack'] > tbody,
+        .table-cf[data-mobile='stack'] > tbody > tr {
+            @apply block w-full;
+        }
+
+        .table-cf[data-mobile='stack'] > tbody > tr {
+            @apply border-b border-line px-4 py-3;
+        }
+
+        .table-cf[data-mobile='stack'] > tbody > tr:last-child {
+            @apply border-b-0;
+        }
+
+        .table-cf[data-mobile='stack'] > tbody > tr > td,
+        .table-cf[data-mobile='stack'] > tbody > tr > th {
+            @apply flex h-auto items-start justify-between gap-4 border-0 px-0 py-1 text-right;
+        }
+
+        .table-cf[data-mobile='stack'] > tbody > tr > td[data-label]::before {
+            content: attr(data-label);
+            @apply shrink-0 text-left text-xs font-medium text-fg-subtle;
+        }
+
+        .table-cf[data-mobile='stack'] > tbody > tr > td:not([data-label]),
+        .table-cf[data-mobile='stack'] > tbody > tr > td.cell-primary {
+            @apply justify-start text-left;
+        }
+
+        .table-cf[data-mobile='stack'] > tbody > tr > td.cell-actions {
+            @apply justify-end pt-2;
+        }
+    }
+
+    /* ── Pagination ── */
+    .pagination-cf {
+        @apply flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between;
+    }
+
+    .pagination-summary {
+        @apply text-[0.8125rem] text-fg-subtle;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .pagination-summary strong {
+        @apply font-semibold text-fg;
+    }
+
+    .pagination-pages {
+        @apply flex flex-wrap items-center gap-1;
+    }
+
+    .page-link {
+        @apply inline-flex h-9 min-w-9 items-center justify-center gap-1 rounded-md border border-line bg-surface px-2.5 text-sm font-medium text-fg-muted no-underline;
+        font-variant-numeric: tabular-nums;
+        transition: background-color var(--cf-dur-1) linear, color var(--cf-dur-1) linear;
+    }
+
+    a.page-link:hover {
+        @apply border-line-strong bg-surface-2 text-fg;
+    }
+
+    .page-link[aria-current='page'] {
+        @apply border-brand/40 bg-brand-soft font-semibold text-brand-soft-fg;
+    }
+
+    .page-link[aria-disabled='true'] {
+        @apply cursor-not-allowed opacity-50;
+    }
+
+    .page-gap {
+        @apply inline-flex h-9 min-w-6 items-center justify-center text-sm text-fg-subtle;
+    }
+
+    .page-link > svg {
+        @apply size-4;
+    }
+
+    /* ── Stat (KPI cell) ── */
+    .stat {
+        @apply relative flex min-w-0 flex-col gap-1.5 rounded-lg border border-line bg-surface text-fg;
+        padding: var(--cf-card-p);
+    }
+
+    a.stat {
+        @apply no-underline;
+        transition: background-color var(--cf-dur-1) linear;
+    }
+
+    a.stat:hover {
+        @apply bg-surface-2;
+    }
+
+    .stat-label {
+        @apply flex items-center gap-1.5;
+        font-family: var(--cf-stat-label-font);
+        font-size: var(--cf-stat-label-size);
+        font-weight: var(--cf-stat-label-weight);
+        letter-spacing: var(--cf-stat-label-tracking);
+        text-transform: var(--cf-stat-label-case);
+        color: rgb(var(--cf-stat-label-fg));
+    }
+
+    .stat-label > svg {
+        @apply size-4 shrink-0;
+    }
+
+    .stat-value {
+        @apply flex flex-wrap items-baseline gap-x-1 text-kpi text-fg;
+        font-family: var(--cf-font-num);
+        font-weight: var(--cf-kpi-weight);
+        font-variant-numeric: lining-nums tabular-nums;
+        letter-spacing: -0.02em;
+    }
+
+    .stat-unit {
+        @apply font-sans text-sm font-normal tracking-normal text-fg-subtle;
+    }
+
+    .stat-foot {
+        @apply flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-fg-subtle;
+    }
+
+    .stat-delta {
+        @apply inline-flex items-center gap-0.5 font-semibold tabular-nums;
+    }
+
+    .stat-delta > svg {
+        @apply size-3.5;
+    }
+
+    .stat-delta-success { @apply text-success; }
+    .stat-delta-danger { @apply text-danger; }
+    .stat-delta-neutral { @apply text-fg-muted; }
+
+    .stat-icon-success { @apply text-success; }
+    .stat-icon-warning { @apply text-warning; }
+    .stat-icon-danger { @apply text-danger; }
+    .stat-icon-info { @apply text-info; }
+    .stat-icon-primary { @apply text-brand-text; }
+    .stat-icon-accent { @apply text-accent-text; }
+
+    /* ── Metric strip: one hairline strip (default) or separate cards ── */
+    .metric-strip {
+        @apply grid grid-cols-2 overflow-hidden rounded-lg border border-line bg-surface;
+    }
+
+    .metric-strip[data-cols='1'] { @apply grid-cols-1; }
+    .metric-strip[data-cols='2'] { @apply grid-cols-2; }
+    .metric-strip[data-cols='3'] { @apply grid-cols-1 sm:grid-cols-3; }
+    .metric-strip[data-cols='4'] { @apply grid-cols-2 lg:grid-cols-4; }
+    .metric-strip[data-cols='5'] { @apply grid-cols-2 md:grid-cols-3 lg:grid-cols-5; }
+    .metric-strip[data-cols='6'] { @apply grid-cols-2 md:grid-cols-3 xl:grid-cols-6; }
+
+    /* Strip: cells lose their own frame; hairlines are drawn as left/top
+       shadows that the container clips at its outer edge. */
+    .metric-strip > .stat,
+    .metric-strip > * {
+        @apply rounded-none border-0;
+        box-shadow:
+            -1px 0 0 0 rgb(var(--cf-border)),
+            0 -1px 0 0 rgb(var(--cf-border));
+    }
+
+    html[data-stat='cards'] .metric-strip {
+        @apply overflow-visible rounded-none border-0 bg-transparent;
+        gap: var(--cf-gap);
+    }
+
+    html[data-stat='cards'] .metric-strip > .stat,
+    html[data-stat='cards'] .metric-strip > * {
+        @apply rounded-lg border border-line bg-surface;
+        box-shadow: none;
+    }
+}

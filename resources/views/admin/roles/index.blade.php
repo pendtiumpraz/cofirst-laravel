@@ -1,72 +1,45 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Roles') }}
-        </h2>
-    </x-slot>
+@php use App\Support\Admin\AccessControl; @endphp
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-medium text-gray-900">Manage Roles</h3>
-                        <a href="{{ route('admin.roles.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500 active:bg-blue-700 focus:outline-none focus:border-blue-700 focus:ring ring-blue-300 disabled:opacity-25 transition ease-in-out duration-150">
-                            Create New Role
-                        </a>
-                    </div>
+<x-app-layout title="Peran">
+    <x-ui.page-header title="Peran" subtitle="Peran menentukan dasbor dan menu; izin menentukan tindakan yang boleh dilakukan."
+        :breadcrumbs="['Admin' => route('admin.dashboard'), 'Peran' => null]">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="lock-closed" :href="route('admin.permissions.index')">Izin akses</x-ui.button>
+            <x-ui.button icon="plus" :href="route('admin.roles.create')">Peran baru</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-                    @if (session('success'))
-                        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-                            <span class="block sm:inline">{{ session('success') }}</span>
+    <x-ui.alert tone="info" icon="information-circle" class="mt-6">
+        Enam peran bawaan dipakai oleh menu dan pembatasan akses aplikasi, sehingga namanya tidak dapat diubah atau dihapus.
+        Superadmin selalu memiliki semua izin.
+    </x-ui.alert>
+
+    <ul class="mt-6 grid grid-cols-1 gap-gutter sm:grid-cols-2 xl:grid-cols-3" role="list">
+        @foreach ($roles as $role)
+            @php $system = AccessControl::isSystemRole($role->name); @endphp
+            <li>
+                <x-ui.card :href="route('admin.roles.show', $role)" :title="AccessControl::roleLabel($role->name)" class="h-full">
+                    <x-slot:actions>
+                        @if ($system)
+                            <x-ui.badge tone="neutral" icon="lock-closed">Bawaan</x-ui.badge>
+                        @else
+                            <x-ui.badge tone="accent">Kustom</x-ui.badge>
+                        @endif
+                    </x-slot:actions>
+                    <p class="font-mono text-xs text-fg-subtle">{{ $role->name }}</p>
+                    <p class="mt-2 text-sm text-fg-muted">{{ AccessControl::ROLE_DESCRIPTIONS[$role->name] ?? 'Peran kustom.' }}</p>
+                    <dl class="mt-4 flex gap-6 text-sm">
+                        <div>
+                            <dt class="text-fg-subtle">Pengguna</dt>
+                            <dd class="num font-semibold text-fg">{{ number_format($role->users_count, 0, ',', '.') }}</dd>
                         </div>
-                    @endif
-
-                    @if (session('error'))
-                        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                            <span class="block sm:inline">{{ session('error') }}</span>
+                        <div>
+                            <dt class="text-fg-subtle">Izin</dt>
+                            <dd class="num font-semibold text-fg">{{ $role->name === 'superadmin' ? 'Semua' : $role->permissions_count.'/'.$permissionTotal }}</dd>
                         </div>
-                    @endif
-
-                    <div class="table-wrapper overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissions</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach ($roles as $role)
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $role->name }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            @foreach ($role->permissions as $permission)
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                    {{ $permission->name }}
-                                                </span>
-                                            @endforeach
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <a href="{{ route('admin.roles.edit', $role->id) }}" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</a>
-                                            <form action="{{ route('admin.roles.destroy', $role->id) }}" method="POST" class="inline-block">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="text-red-600 hover:text-red-900" onclick="return confirm('Are you sure you want to delete this role?')">Delete</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="mt-4">
-                        {{ $roles->links() }}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                    </dl>
+                </x-ui.card>
+            </li>
+        @endforeach
+    </ul>
 </x-app-layout>

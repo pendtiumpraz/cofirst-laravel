@@ -1,0 +1,262 @@
+/*
+|--------------------------------------------------------------------------
+| Base layer — document defaults, focus, selection, motion, legacy forms
+|--------------------------------------------------------------------------
+*/
+
+/* Touch devices always keep 44px hit areas (both themes, both densities). */
+@media (pointer: coarse) {
+    :root,
+    [data-theme] {
+        --cf-control-h: 44px !important;
+        --cf-nav-item-h: 44px !important;
+    }
+}
+
+@layer base {
+    html {
+        font-family: var(--cf-font-sans);
+        color-scheme: light;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    html.dark {
+        color-scheme: dark;
+    }
+
+    /* 'Ukuran teks' user setting (html[data-text]). */
+    html[data-text='sm'] {
+        font-size: 93.75%;
+    }
+
+    html[data-text='lg'] {
+        font-size: 112.5%;
+    }
+
+    body {
+        @apply bg-canvas text-fg antialiased;
+        font-size: var(--cf-ui-text);
+        line-height: 1.55;
+        font-optical-sizing: auto;
+        text-rendering: optimizeLegibility;
+    }
+
+    h1,
+    h2,
+    h3 {
+        font-family: var(--cf-font-display);
+        font-weight: var(--cf-title-weight);
+        letter-spacing: var(--cf-display-tracking);
+        text-wrap: balance;
+    }
+
+    /* <em> in headlines: italic in A, brand-coloured roman in B. */
+    :is(h1, h2, h3, .cf-display, .page-title) em {
+        font-style: var(--cf-em-style);
+        color: var(--cf-em-color);
+    }
+
+    p {
+        text-wrap: pretty;
+    }
+
+    a {
+        text-underline-offset: 4px;
+    }
+
+    code,
+    kbd,
+    samp,
+    pre {
+        font-family: var(--cf-font-mono);
+        /* Reason: JetBrains Mono ligatures turn -> and => into arrows, which misleads in code. */
+        font-variant-ligatures: none;
+    }
+
+    hr {
+        border-color: rgb(var(--cf-border));
+    }
+
+    ::selection {
+        background-color: rgb(var(--cf-selection) / var(--cf-selection-alpha));
+    }
+
+    /* Visible focus ring on every interactive element; never removed. */
+    :focus-visible {
+        outline: 2px solid rgb(var(--cf-ring));
+        outline-offset: 2px;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    /* Heroicons outline follow the theme's stroke weight (A 1.5, B 1.75). */
+    svg[data-slot='icon'][stroke-width],
+    .cf-icon[stroke-width] {
+        stroke-width: var(--cf-icon-stroke);
+    }
+
+    /* Photos are dimmed slightly in dark A (never SVG marks or opted-out images). */
+    img:not([src$='.svg'], .no-dim),
+    video {
+        filter: var(--cf-photo-filter);
+    }
+
+    /* ── Native/legacy form controls follow the tokens (incl. dark mode) ── */
+    [type='text'],
+    input:where(:not([type])),
+    [type='email'],
+    [type='url'],
+    [type='password'],
+    [type='number'],
+    [type='date'],
+    [type='datetime-local'],
+    [type='month'],
+    [type='search'],
+    [type='tel'],
+    [type='time'],
+    [type='week'],
+    [multiple],
+    textarea,
+    select {
+        background-color: rgb(var(--cf-surface));
+        border-color: rgb(var(--cf-border-input));
+        color: rgb(var(--cf-fg));
+        border-radius: var(--cf-radius-md);
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        color: rgb(var(--cf-fg-subtle));
+        opacity: 1;
+    }
+
+    [type='text']:focus,
+    input:where(:not([type])):focus,
+    [type='email']:focus,
+    [type='url']:focus,
+    [type='password']:focus,
+    [type='number']:focus,
+    [type='date']:focus,
+    [type='datetime-local']:focus,
+    [type='month']:focus,
+    [type='search']:focus,
+    [type='tel']:focus,
+    [type='time']:focus,
+    [type='week']:focus,
+    [multiple]:focus,
+    textarea:focus,
+    select:focus {
+        --tw-ring-color: rgb(var(--cf-ring) / 0.2);
+        border-color: rgb(var(--cf-brand));
+    }
+
+    [type='checkbox'],
+    [type='radio'] {
+        color: rgb(var(--cf-brand));
+        border-color: rgb(var(--cf-border-input));
+        background-color: rgb(var(--cf-surface));
+    }
+
+    [type='checkbox']:focus,
+    [type='radio']:focus {
+        --tw-ring-color: rgb(var(--cf-ring));
+        --tw-ring-offset-color: rgb(var(--cf-surface));
+    }
+
+    /* Dark mode: the brand fill is light, so the check mark turns ink. */
+    .dark [type='checkbox']:checked {
+        background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='%230B2130' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+    }
+
+    .dark [type='radio']:checked {
+        background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='%230B2130' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");
+    }
+
+    .dark [type='checkbox']:indeterminate {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 16 16'%3e%3cpath stroke='%230B2130' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4 8h8'/%3e%3c/svg%3e");
+    }
+
+    /* Inputs are 16px on phones so iOS does not zoom on focus. */
+    @media (max-width: 767px) {
+        :where(input:not([type='checkbox'], [type='radio'], [type='range']), textarea, select) {
+            font-size: 16px;
+        }
+    }
+
+    /* Scrollbars that match the surfaces. */
+    * {
+        scrollbar-color: rgb(var(--cf-border-strong)) transparent;
+    }
+}
+
+/* ── Reduced motion: OS preference or the 'Kurangi animasi' toggle ── */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+html.reduce-motion *,
+html.reduce-motion ::before,
+html.reduce-motion ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+}
+
+/* Theme / colour-mode switches only cross-fade colours (set briefly by JS). */
+html.cf-theme-switching,
+html.cf-theme-switching *,
+html.cf-theme-switching ::before,
+html.cf-theme-switching ::after {
+    transition-property: background-color, border-color, color, fill, stroke !important;
+    transition-duration: 200ms !important;
+    transition-timing-function: linear !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    @view-transition {
+        navigation: auto;
+    }
+}
+
+/* Keyframes used directly by component classes (defined here so they exist
+   even when no animate-* utility is used in markup). */
+@keyframes cf-shimmer {
+    0% {
+        background-position: 100% 0;
+    }
+    100% {
+        background-position: -100% 0;
+    }
+}
+
+@keyframes cf-rise {
+    0% {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes cf-fade {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}

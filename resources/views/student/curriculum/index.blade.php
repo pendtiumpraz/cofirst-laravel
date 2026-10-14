@@ -1,30 +1,57 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('My Curriculum') }}
-        </h2>
-    </x-slot>
+@php($f = \App\Services\Academic\Format::class)
+<x-app-layout title="Kurikulum">
+    <x-ui.page-header title="Kurikulum saya"
+        subtitle="Apa yang kamu pelajari di setiap kelas, pertemuan demi pertemuan." />
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'My curriculum feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show the curriculum for your enrolled classes.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('student.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Dashboard
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    @if ($classes->isEmpty())
+        <x-ui.empty-state size="page" icon="academic-cap" title="Kamu belum terdaftar di kelas mana pun."
+            description="Kurikulum kelas akan muncul di sini setelah pendaftaranmu aktif.">
+            @if (Route::has('student.courses.index'))
+                <x-slot:actions>
+                    <x-ui.button variant="secondary" :href="route('student.courses.index')">Lihat kursus</x-ui.button>
+                </x-slot:actions>
+            @endif
+        </x-ui.empty-state>
+    @else
+        <div class="grid gap-gutter md:grid-cols-2">
+            @foreach ($classes as $class)
+                @php($summary = $summaries->get($class->id))
+                @php($next = $summary?->nextMeeting())
+                <x-ui.card as="article" :title="$class->name" :subtitle="$class->course?->name"
+                    :variant="$class->status === 'active' ? 'highlight' : 'default'">
+                    <x-slot:actions>
+                        @if ($enrollments->get($class->id)?->status === 'completed')
+                            <x-ui.badge tone="success">Lulus</x-ui.badge>
+                        @else
+                            <x-ui.badge>{{ $class->status_label }}</x-ui.badge>
+                        @endif
+                    </x-slot:actions>
+
+                    @if ($summary?->hasCurriculum())
+                        <p class="text-sm text-fg-muted">{{ $class->curriculum->title }}</p>
+                        <x-ui.progress class="mt-4" :value="$summary->percent()" show-value
+                            :tone="$summary->percent() >= 100 ? 'success' : 'brand'"
+                            label="{{ $summary->completed() }} dari {{ $summary->total() }} pertemuan selesai" />
+                        @if ($next)
+                            <div class="mt-4 rounded-lg bg-surface-2 p-3">
+                                <p class="eyebrow">Berikutnya · Pertemuan {{ $next->meeting_number }}</p>
+                                <p class="mt-1 font-medium text-fg">{{ $next->title }}</p>
+                            </div>
+                        @endif
+                    @else
+                        <x-ui.alert tone="neutral" icon="information-circle">Kurikulum kelas ini belum ditetapkan.</x-ui.alert>
+                    @endif
+
+                    @if ($class->teachers->isNotEmpty())
+                        <p class="mt-4 text-sm text-fg-subtle">Pengajar: {{ $class->teachers->pluck('name')->join(', ') }}</p>
+                    @endif
+
+                    <x-slot:footer>
+                        <x-ui.button variant="secondary" size="sm" icon="folder-open" :href="route('student.materials.by-class', $class)">Materi</x-ui.button>
+                        <x-ui.button size="sm" icon="queue-list" :href="route('student.curriculum.show', $class)">Lihat kurikulum</x-ui.button>
+                    </x-slot:footer>
+                </x-ui.card>
+            @endforeach
         </div>
-    </div>
+    @endif
 </x-app-layout>

@@ -1,61 +1,126 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Enrollment Details') }}
-        </h2>
-    </x-slot>
+@php
+    use App\Models\Schedule;
+    use App\Services\Admin\AdminClock;
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-2xl font-semibold text-gray-800">Enrollment for {{ $enrollment->student->name }}</h3>
-                        <a href="{{ route('admin.enrollments.index') }}" class="text-blue-600 hover:text-blue-800 transition-colors">
-                            &larr; Back to Enrollments
-                        </a>
-                    </div>
+    $statusTone = ['pending' => 'warning', 'active' => 'success', 'suspended' => 'warning', 'completed' => 'info', 'dropped' => 'neutral', 'cancelled' => 'neutral', 'inactive' => 'neutral'];
+    $paymentTone = ['unpaid' => 'danger', 'pending' => 'warning', 'paid' => 'success', 'refunded' => 'info'];
+    $txTone = ['paid' => 'success', 'pending' => 'warning', 'overdue' => 'danger', 'failed' => 'danger', 'refunded' => 'info', 'cancelled' => 'neutral'];
+    $class = $enrollment->className;
+    $slots = App\Services\Scheduling\ScheduleSlots::group($enrollment->schedules);
+@endphp
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Enrollment Information -->
-                        <div class="bg-gray-50 p-6 rounded-lg">
-                            <h4 class="text-lg font-bold text-gray-700 mb-4">Enrollment Information</h4>
-                            <dl class="space-y-4">
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Student</dt>
-                                    <dd class="mt-1 text-md text-gray-900">{{ $enrollment->student->name }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Class</dt>
-                                    <dd class="mt-1 text-md text-gray-900">{{ $enrollment->class->name }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Course</dt>
-                                    <dd class="mt-1 text-md text-gray-900">{{ $enrollment->class->course->name }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Enrollment Date</dt>
-                                    <dd class="mt-1 text-md text-gray-900">{{ $enrollment->enrollment_date->toFormattedDateString() }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Status</dt>
-                                    <dd class="mt-1">
-                                        <span class="px-3 py-1 text-sm font-semibold rounded-full {{ $enrollment->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                                            {{ ucfirst($enrollment->status) }}
-                                        </span>
-                                    </dd>
-                                </div>
-                            </dl>
-                        </div>
-                    </div>
+<x-app-layout title="Detail pendaftaran">
+    <x-ui.page-header :title="$enrollment->student?->name ?? 'Siswa'" :subtitle="($class?->name ?? 'Belum ada kelas').' · '.($class?->course?->name ?? $enrollment->course?->name ?? 'Tanpa kursus')"
+        :breadcrumbs="['Admin' => route('admin.dashboard'), 'Pendaftaran' => route('admin.enrollments.index'), 'Detail' => null]">
+        <x-slot:badge>
+            <x-ui.badge :tone="$statusTone[$enrollment->status] ?? 'neutral'" dot>{{ $enrollment->status_label }}</x-ui.badge>
+        </x-slot:badge>
+        <x-slot:meta>
+            <span>#{{ $enrollment->id }}</span>
+            <span>Terdaftar {{ AdminClock::format($enrollment->enrollment_date, 'j F Y') }}</span>
+        </x-slot:meta>
+        <x-slot:actions>
+            @can('update', $enrollment)
+                @if (in_array($enrollment->status, ['pending', 'active', 'suspended'], true))
+                    <form method="POST" action="{{ route('admin.enrollments.toggle-status', $enrollment) }}">
+                        @csrf
+                        <x-ui.button type="submit" variant="secondary" :icon="$enrollment->status === 'active' ? 'pause-circle' : 'check-circle'">
+                            {{ $enrollment->status === 'pending' ? 'Setujui' : ($enrollment->status === 'active' ? 'Tangguhkan' : 'Aktifkan kembali') }}
+                        </x-ui.button>
+                    </form>
+                @endif
+                <x-ui.button icon="pencil-square" :href="route('admin.enrollments.edit', $enrollment)">Ubah</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
 
-                    <div class="mt-6 border-t pt-6 flex justify-end">
-                         <a href="{{ route('admin.enrollments.edit', $enrollment) }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:border-indigo-700 focus:ring ring-indigo-300 disabled:opacity-25 transition ease-in-out duration-150">
-                            Edit Enrollment
-                        </a>
+    <div class="mt-8 grid grid-cols-1 gap-gutter lg:grid-cols-3">
+        <div class="flex flex-col gap-gutter lg:col-span-2">
+            <x-ui.card title="Jadwal mingguan siswa" padding="none">
+                @if ($slots->isEmpty())
+                    <x-ui.empty-state icon="calendar-days" title="Belum ada jadwal untuk siswa ini."
+                        description="Jadwal muncul setelah kelas memiliki jadwal mingguan dan pendaftaran aktif." />
+                @else
+                    <ul class="divide-y divide-line" role="list">
+                        @foreach ($slots as $slot)
+                            <li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-card py-3">
+                                <span class="w-20 font-medium text-fg">{{ $slot->dayName() }}</span>
+                                <span class="num font-mono text-sm">{{ $slot->timeRange() }}</span>
+                                <span class="min-w-0 flex-1 text-sm text-fg-muted">{{ $slot->room() ?? 'Lokasi belum ditentukan' }}</span>
+                                @unless ($slot->isActive())<x-ui.badge tone="warning">Nonaktif</x-ui.badge>@endunless
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </x-ui.card>
+
+            <x-ui.table caption="Tagihan pendaftaran ini" mobile="stack">
+                <x-slot:toolbar><h2 class="card-title">Tagihan & pembayaran</h2></x-slot:toolbar>
+                <x-slot:head>
+                    <x-ui.th>Tagihan</x-ui.th>
+                    <x-ui.th>Status</x-ui.th>
+                    <x-ui.th numeric>Jumlah</x-ui.th>
+                    <x-ui.th numeric>Jatuh tempo</x-ui.th>
+                </x-slot:head>
+                @foreach ($enrollment->transactions as $tx)
+                    <tr>
+                        <td class="cell-primary" data-label="Tagihan"><span class="font-mono text-xs">{{ $tx->invoice_number ?? '#'.$tx->id }}</span></td>
+                        <td data-label="Status"><x-ui.badge :tone="$txTone[$tx->display_status] ?? 'neutral'" dot>{{ $tx->status_label }}</x-ui.badge></td>
+                        <td class="num" data-label="Jumlah">{{ AdminClock::rupiah($tx->amount) }}</td>
+                        <td class="num" data-label="Jatuh tempo">{{ AdminClock::format($tx->due_date) }}</td>
+                    </tr>
+                @endforeach
+                <x-slot:empty>
+                    <x-ui.empty-state icon="banknotes" title="Belum ada tagihan untuk pendaftaran ini." description="Tagihan dibuat oleh tim keuangan." />
+                </x-slot:empty>
+            </x-ui.table>
+        </div>
+
+        <div class="flex flex-col gap-gutter">
+            <x-ui.card title="Ringkasan">
+                <dl class="space-y-4 text-sm">
+                    <div>
+                        <dt class="text-fg-muted">Siswa</dt>
+                        <dd class="mt-1"><a href="{{ route('admin.users.show', $enrollment->student_id) }}" class="link">{{ $enrollment->student?->name ?? '—' }}</a></dd>
                     </div>
-                </div>
-            </div>
+                    <div>
+                        <dt class="text-fg-muted">Kelas</dt>
+                        <dd class="mt-1">
+                            @if ($class)
+                                <a href="{{ route('admin.classes.show', $class) }}" class="link">{{ $class->name }}</a>
+                            @else
+                                <span class="text-fg-subtle">Belum ada kelas</span>
+                            @endif
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-fg-muted">Pengajar</dt>
+                        <dd class="mt-1 text-fg">{{ $class?->teachers->pluck('name')->implode(', ') ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-fg-muted">Pembayaran</dt>
+                        <dd class="mt-1"><x-ui.badge :tone="$paymentTone[$enrollment->payment_status] ?? 'neutral'">{{ $paymentStatuses[$enrollment->payment_status] ?? $enrollment->payment_status }}</x-ui.badge></dd>
+                    </div>
+                    <div>
+                        <dt class="text-fg-muted">Orang tua/wali</dt>
+                        <dd class="mt-1 text-fg">{{ $enrollment->student?->parents->pluck('name')->implode(', ') ?: 'Belum tertaut' }}</dd>
+                    </div>
+                </dl>
+                @if (filled($enrollment->notes))
+                    <div class="mt-5 border-t border-line pt-4">
+                        <p class="eyebrow mb-1">Catatan</p>
+                        <p class="whitespace-pre-line text-sm text-fg-muted">{{ $enrollment->notes }}</p>
+                    </div>
+                @endif
+            </x-ui.card>
+
+            @can('delete', $enrollment)
+                <x-ui.card variant="callout" title="Hapus pendaftaran" style="--callout-c: var(--cf-danger)"
+                    subtitle="Hanya untuk data salah input tanpa riwayat pembayaran atau absensi. Selain itu, ubah status menjadi Keluar atau Dibatalkan.">
+                    <x-ui.confirm-delete :action="route('admin.enrollments.destroy', $enrollment)" variant="danger" label="Hapus pendaftaran"
+                        title="Hapus pendaftaran ini?" message="Jadwal mingguan siswa di kelas ini ikut dihapus. Tindakan ini tidak dapat dibatalkan." />
+                </x-ui.card>
+            @endcan
         </div>
     </div>
 </x-app-layout>

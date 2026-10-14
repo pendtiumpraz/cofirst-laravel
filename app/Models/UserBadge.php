@@ -59,9 +59,9 @@ class UserBadge extends Pivot
      */
     public function toggleFeatured()
     {
-        $this->is_featured = !$this->is_featured;
+        $this->is_featured = ! $this->is_featured;
         $this->save();
-        
+
         return $this->is_featured;
     }
 }

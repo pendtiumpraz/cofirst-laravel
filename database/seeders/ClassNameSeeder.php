@@ -3,10 +3,18 @@
 namespace Database\Seeders;
 
 use App\Models\ClassName;
-use App\Models\Course;
 use App\Models\Curriculum;
+use Database\Seeders\Data\DemoBlueprint;
+use Database\Seeders\Data\DemoContext;
 use Illuminate\Database\Seeder;
 
+/**
+ * 18 demo classes in mixed statuses (active, planned, completed) and types.
+ *
+ * Dates are relative to today and agree with the status; each class follows the
+ * curriculum of its own course and has 1-2 teachers, assigned through
+ * ClassName::syncTeachers() so class_teacher and teacher_assignments agree.
+ */
 class ClassNameSeeder extends Seeder
 {
     /**
@@ -14,50 +22,56 @@ class ClassNameSeeder extends Seeder
      */
     public function run(): void
     {
-        $courses = Course::all();
-        $curriculums = Curriculum::all();
+        foreach (DemoBlueprint::classes() as $code => $plan) {
+            // Reason: CourseSeeder::find() also recognises a catalogue course an admin renamed.
+            $course = CourseSeeder::find($plan['course']);
 
-        if ($curriculums->isEmpty()) {
-            $this->command->info('Tidak ada kurikulum yang ditemukan, lewati ClassNameSeeder.');
-            return;
+            if ($course?->trashed()) {
+                $course = null;
+            }
+
+            if (! $course) {
+                $this->command?->warn("Kursus {$plan['course']} tidak ditemukan, kelas {$code} dilewati.");
+
+                continue;
+            }
+
+            $dates = DemoContext::meetingDates($plan);
+
+            $class = ClassName::withTrashed()->updateOrCreate(
+                ['name' => $plan['name']],
+                [
+                    'course_id' => $course->id,
+                    'curriculum_id' => Curriculum::where('course_id', $course->id)->orderBy('id')->value('id'),
+                    'description' => $this->description($plan, $course->name),
+                    'start_date' => $dates->first()->toDateString(),
+                    'end_date' => $dates->last()->toDateString(),
+                    'max_students' => $plan['max'],
+                    'status' => $plan['status'],
+                    'type' => $plan['type'],
+                    'delivery_method' => $plan['delivery'],
+                    'is_active' => true,
+                ]
+            );
+
+            if ($class->trashed()) {
+                $class->restore();
+            }
+
+            $class->syncTeachers(array_map(fn (string $key) => DemoContext::user($key)->id, $plan['teachers']));
         }
 
-        foreach ($courses as $course) {
-            // Buat kelas Group jika belum ada
-            $groupClassName = $course->name . ' - Group Class (Online)';
-            if (!ClassName::where('name', $groupClassName)->exists()) {
-                ClassName::factory()->create([
-                    'course_id' => $course->id,
-                    'name' => $groupClassName,
-                    'type' => 'group_class_3_5_kids',
-                    'delivery_method' => 'online',
-                    'curriculum_id' => $curriculums->random()->id,
-                ]);
-            }
+        DemoContext::flush();
+        $this->command?->info('Demo classes: '.count(DemoContext::classes()).' (with teachers).');
+    }
 
-            // Buat kelas Private jika belum ada
-            $privateClassName = $course->name . ' - Private Home Call (Offline)';
-            if (!ClassName::where('name', $privateClassName)->exists()) {
-                ClassName::factory()->create([
-                    'course_id' => $course->id,
-                    'name' => $privateClassName,
-                    'type' => 'private_home_call',
-                    'delivery_method' => 'offline',
-                    'curriculum_id' => $curriculums->random()->id,
-                ]);
-            }
+    /**
+     * Short Indonesian description of a class.
+     */
+    private function description(array $plan, string $courseName): string
+    {
+        $where = $plan['delivery'] === 'online' ? 'online' : 'tatap muka di '.$plan['room'];
 
-            // Buat kelas Webinar jika belum ada
-            $webinarClassName = $course->name . ' - Online Webinar';
-            if (!ClassName::where('name', $webinarClassName)->exists()) {
-                ClassName::factory()->create([
-                    'course_id' => $course->id,
-                    'name' => $webinarClassName,
-                    'type' => 'online_webinar',
-                    'delivery_method' => 'online',
-                    'curriculum_id' => $curriculums->random()->id,
-                ]);
-            }
-        }
+        return "Kelas {$courseName} ({$plan['meetings']} pertemuan), {$where}, maksimal {$plan['max']} peserta.";
     }
 }

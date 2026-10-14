@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -18,8 +19,8 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles, SoftDeletes;
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -73,8 +74,8 @@ class User extends Authenticatable
     public function teachingClasses()
     {
         return $this->belongsToMany(ClassName::class, 'class_teacher', 'teacher_id', 'class_id')
-                    ->withPivot('role')
-                    ->withTimestamps();
+            ->withPivot('role')
+            ->withTimestamps();
     }
 
     /**
@@ -456,7 +457,7 @@ class User extends Authenticatable
             // Load the relationship after creating
             $this->load('points');
         }
-        
+
         return $this->points;
     }
 
@@ -466,6 +467,7 @@ class User extends Authenticatable
     public function addPoints($amount, $reason, $description = null, $relatedModel = null)
     {
         $this->initializePoints();
+
         return $this->points->addPoints($amount, $reason, $description, $relatedModel);
     }
 

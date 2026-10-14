@@ -1,188 +1,134 @@
-@extends('layouts.app')
+@php
+    use App\Models\Schedule;
 
-@section('title', 'Schedule Management')
+    $clashCount = count($clashes);
+    $viewUrl = fn ($mode) => route('admin.schedules.index', ['view' => $mode] + request()->except(['view', 'page']));
+@endphp
 
-@section('content')
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Schedule Management</h1>
-            <p class="text-gray-600">Manage all schedules and their details</p>
-        </div>
-        <a href="{{ route('admin.schedules.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors inline-flex items-center">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Add Schedule
-        </a>
+<x-app-layout title="Jadwal">
+    <x-ui.page-header title="Jadwal" subtitle="Jadwal mingguan setiap kelas. Bentrok guru atau ruang ditandai otomatis."
+        :breadcrumbs="['Admin' => route('admin.dashboard'), 'Jadwal' => null]">
+        <x-slot:actions>
+            @can('create', App\Models\Schedule::class)
+                <x-ui.button icon="plus" :href="route('admin.schedules.create')">Tambah jadwal</x-ui.button>
+            @endcan
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <div class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <x-ui.tabs label="Tampilan jadwal" :active="$view" :tabs="[
+            'calendar' => ['label' => 'Kalender mingguan', 'icon' => 'calendar-days', 'href' => $viewUrl('calendar')],
+            'list' => ['label' => 'Daftar', 'icon' => 'list-bullet', 'count' => $slotCount, 'href' => $viewUrl('list')],
+        ]" />
     </div>
 
-    <!-- Schedules Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div class="p-6">
-            <!-- Filter by Class Status -->
-            <div class="mb-6">
-                <form method="GET" action="{{ route('admin.schedules.index') }}" class="flex items-center space-x-4">
-                    <div>
-                        <label for="class_status" class="block text-sm font-medium text-gray-700 mb-1">Filter by Class Status:</label>
-                        <select name="class_status" id="class_status" class="block w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-lg" onchange="this.form.submit()">
-                            <option value="all" {{ $classStatus === 'all' ? 'selected' : '' }}>Semua Status</option>
-                            <option value="ongoing" {{ $classStatus === 'ongoing' ? 'selected' : '' }}>Kelas Berlangsung</option>
-                            <option value="planned" {{ $classStatus === 'planned' ? 'selected' : '' }}>Kelas Direncanakan</option>
-                            <option value="completed" {{ $classStatus === 'completed' ? 'selected' : '' }}>Kelas Selesai</option>
-                            <option value="cancelled" {{ $classStatus === 'cancelled' ? 'selected' : '' }}>Kelas Dibatalkan</option>
-                        </select>
-                    </div>
-                </form>
+    <x-ui.card class="mt-4" padding="sm">
+        <x-ui.filter-bar placeholder="Cari kelas atau ruang…" :keep="['view', 'sort', 'direction']">
+            <x-ui.select name="class" :options="$classes" placeholder="Semua kelas" :value="request('class')" class="sm:w-48" aria-label="Kelas" />
+            <x-ui.select name="teacher" :options="$teachers" placeholder="Semua pengajar" :value="request('teacher')" class="sm:w-44" aria-label="Pengajar" />
+            <x-ui.select name="day" :options="Schedule::DAYS" placeholder="Semua hari" :value="request('day')" class="sm:w-36" aria-label="Hari" />
+            <x-ui.select name="class_status" :value="$classStatus" class="sm:w-52" aria-label="Status kelas" :options="[
+                'ongoing' => 'Kelas berjalan & direncanakan',
+                'all' => 'Semua kelas',
+                'completed' => 'Kelas selesai',
+                'cancelled' => 'Kelas dibatalkan',
+            ]" />
+            <x-ui.select name="state" :value="request('state')" placeholder="Aktif & nonaktif" class="sm:w-40" aria-label="Status jadwal"
+                :options="['active' => 'Jadwal aktif', 'inactive' => 'Jadwal nonaktif']" />
+        </x-ui.filter-bar>
+    </x-ui.card>
+
+    @if ($clashCount > 0)
+        <x-ui.alert tone="danger" icon="exclamation-triangle" class="mt-6" :title="$clashCount.' jadwal bentrok'">
+            Ada pengajar atau ruang yang dipakai pada jam yang sama. Buka jadwal bertanda merah lalu ubah jam, ruang atau pengajarnya.
+        </x-ui.alert>
+    @endif
+
+    @if ($view === 'calendar')
+        @if ($slotCount === 0)
+            <x-ui.empty-state class="mt-6" size="page" icon="calendar-days" title="Belum ada jadwal yang cocok."
+                description="Tambahkan jadwal mingguan untuk kelas yang sudah memiliki siswa dan pengajar.">
+                @can('create', App\Models\Schedule::class)
+                    <x-slot:actions><x-ui.button icon="plus" :href="route('admin.schedules.create')">Tambah jadwal</x-ui.button></x-slot:actions>
+                @endcan
+            </x-ui.empty-state>
+        @else
+            {{-- Phones: one day per section; desktop: 7 columns. --}}
+            <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-7 xl:gap-3">
+                @foreach ($week as $day => $column)
+                    <section aria-labelledby="hari-{{ $day }}"
+                        @class(['rounded-lg border p-3', 'border-brand bg-brand-soft/40' => $day === $todayIso, 'border-line bg-surface-2' => $day !== $todayIso])>
+                        <h2 id="hari-{{ $day }}" class="flex items-center justify-between gap-2 text-sm font-semibold text-fg">
+                            <span>{{ $column['name'] }}</span>
+                            @if ($day === $todayIso)
+                                <x-ui.badge tone="primary">Hari ini</x-ui.badge>
+                            @else
+                                <span class="num text-xs font-normal text-fg-subtle">{{ $column['slots']->count() ?: '' }}</span>
+                            @endif
+                        </h2>
+                        @if ($column['slots']->isEmpty())
+                            <p class="mt-3 text-xs text-fg-subtle">Tidak ada kelas.</p>
+                        @else
+                            <ul class="mt-3 space-y-2" role="list">
+                                @foreach ($column['slots'] as $slot)
+                                    <li>@include('admin.schedules.partials.slot-card', ['slot' => $slot])</li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </section>
+                @endforeach
             </div>
+        @endif
+    @else
+        <x-ui.table caption="Daftar jadwal mingguan" mobile="stack" class="mt-6">
+            <x-slot:head>
+                <x-ui.th>Hari & jam</x-ui.th>
+                <x-ui.th>Kelas</x-ui.th>
+                <x-ui.th>Pengajar</x-ui.th>
+                <x-ui.th>Ruang</x-ui.th>
+                <x-ui.th numeric>Siswa</x-ui.th>
+                <x-ui.th>Status</x-ui.th>
+                <x-ui.th align="right"><span class="sr-only">Aksi</span></x-ui.th>
+            </x-slot:head>
 
-            @if($schedules->count() > 0)
-                <div class="table-wrapper">
-                    <div class="shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Name</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Status</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teacher</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    @foreach($schedules as $schedule)
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <div class="h-10 w-10 flex-shrink-0 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                                                    <span class="text-sm font-medium text-white">{{ substr($schedule->className->name ?? 'N', 0, 1) }}</span>
-                                                </div>
-                                                <div class="ml-4">
-                                                    <div class="text-sm font-medium text-gray-900">{{ $schedule->className->name ?? 'N/A' }}</div>
-                                                    <div class="text-sm text-gray-500">{{ $schedule->className->course->name ?? '' }}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $schedule->className->status_badge_color ?? 'bg-gray-100 text-gray-800' }}">
-                                                {{ $schedule->className->status_label ?? 'N/A' }}
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <svg class="w-4 h-4 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 7h12v11H4V7z"/>
-                                                </svg>
-                                                <span class="text-sm text-gray-900">{{ $schedule->day_name }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <svg class="w-4 h-4 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                </svg>
-                                                <span class="text-sm text-gray-900">{{ $schedule->time_range }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <svg class="w-4 h-4 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
-                                                </svg>
-                                                <span class="text-sm text-gray-900">{{ $schedule->room ?? 'N/A' }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <svg class="w-4 h-4 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
-                                                </svg>
-                                                <span class="text-sm text-gray-900">{{ $schedule->teacherAssignment->teacher->name ?? 'N/A' }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <svg class="w-4 h-4 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
-                                                </svg>
-                                                <span class="text-sm text-gray-900">{{ $schedule->enrollment->student->name ?? 'N/A' }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                                {{ $schedule->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                                <span class="w-2 h-2 mr-1 rounded-full {{ $schedule->is_active ? 'bg-green-400' : 'bg-red-400' }}"></span>
-                                                {{ $schedule->is_active ? 'Active' : 'Inactive' }}
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <div class="flex items-center space-x-3">
-                                                <a href="{{ route('admin.schedules.show', $schedule) }}" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"/>
-                                                    </svg>
-                                                    View
-                                                </a>
-                                                @if($schedule->className->canShowInCalendar() ?? true)
-                                                <a href="{{ route('admin.schedules.edit', $schedule) }}" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
-                                                    </svg>
-                                                    Edit
-                                                </a>
-                                                @endif
-                                                <form action="{{ route('admin.schedules.destroy', $schedule) }}" method="POST" class="inline" 
-                                                      onsubmit="return confirm('Are you sure you want to delete this schedule?')">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"/>
-                                                        </svg>
-                                                        Delete
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+            @foreach ($list as $slot)
+                @php $reasons = $clashes[$slot->key] ?? []; @endphp
+                <tr>
+                    <td class="cell-primary" data-label="Hari & jam">
+                        <span class="font-medium text-fg">{{ $slot->dayName() }}</span>
+                        <p class="cell-secondary num font-mono">{{ $slot->timeRange() }}</p>
+                    </td>
+                    <td data-label="Kelas">
+                        <a href="{{ route('admin.schedules.show', $slot->id()) }}" class="font-medium text-fg hover:text-brand-text">{{ $slot->class()?->name ?? 'Kelas' }}</a>
+                        <p class="cell-secondary">{{ $slot->class()?->course?->name ?? '—' }}</p>
+                    </td>
+                    <td data-label="Pengajar">{{ $slot->teacher()?->name ?? '—' }}</td>
+                    <td data-label="Ruang">{{ $slot->room() ?? '—' }}</td>
+                    <td class="num" data-label="Siswa">{{ $slot->studentCount() }}</td>
+                    <td data-label="Status">
+                        <div class="flex flex-wrap gap-1">
+                            <x-ui.badge :tone="$slot->isActive() ? 'success' : 'warning'" dot>{{ $slot->isActive() ? 'Aktif' : 'Nonaktif' }}</x-ui.badge>
+                            @if ($reasons)
+                                <x-ui.badge tone="danger" icon="exclamation-triangle">Bentrok {{ implode(' & ', $reasons) }}</x-ui.badge>
+                            @endif
                         </div>
-                    </div>
-                </div>
-                
-                <!-- Pagination -->
-                @if($schedules->hasPages())
-                <div class="mt-6">
-                    {{ $schedules->links() }}
-                </div>
-                @endif
-            @else
-                <div class="text-center py-12">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <h3 class="mt-2 text-lg font-medium text-gray-900">No schedules found</h3>
-                    <p class="mt-1 text-sm text-gray-500">Get started by creating a new schedule.</p>
-                    <div class="mt-6">
-                        <a href="{{ route('admin.schedules.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/>
-                            </svg>
-                            Add Schedule
-                        </a>
-                    </div>
-                </div>
-            @endif
-        </div>
-    </div>
-</div>
-@endsection
+                    </td>
+                    <td class="cell-actions">
+                        <div class="inline-flex items-center gap-1">
+                            <x-ui.button variant="ghost" size="sm" icon="eye" :href="route('admin.schedules.show', $slot->id())" :label="'Detail jadwal '.($slot->class()?->name ?? '')" />
+                            @can('update', $slot->schedule())
+                                <x-ui.button variant="ghost" size="sm" icon="pencil-square" :href="route('admin.schedules.edit', $slot->id())" :label="'Ubah jadwal '.($slot->class()?->name ?? '')" />
+                            @endcan
+                        </div>
+                    </td>
+                </tr>
+            @endforeach
+
+            <x-slot:empty>
+                <x-ui.empty-state icon="calendar-days" title="Belum ada jadwal yang cocok." description="Ubah filter atau tambahkan jadwal baru." />
+            </x-slot:empty>
+
+            <x-slot:footer>{{ $list->links() }}</x-slot:footer>
+        </x-ui.table>
+    @endif
+</x-app-layout>

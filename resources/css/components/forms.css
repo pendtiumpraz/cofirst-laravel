@@ -1,0 +1,277 @@
+/*
+|--------------------------------------------------------------------------
+| Forms — .field, .label, .input, .input-group, .check, .switch, .dropzone,
+| .radio-card (used by <x-ui.field>, <x-ui.input> … and legacy inputs)
+|--------------------------------------------------------------------------
+*/
+
+@layer components {
+    .field {
+        @apply flex flex-col gap-1.5;
+    }
+
+    .label {
+        @apply block text-sm font-medium text-fg;
+    }
+
+    .label-optional {
+        @apply font-normal text-fg-subtle;
+    }
+
+    .label-required {
+        @apply text-danger;
+    }
+
+    .hint {
+        @apply text-[0.8125rem] leading-5 text-fg-subtle;
+    }
+
+    .error-text {
+        @apply flex items-start gap-1.5 text-[0.8125rem] font-medium leading-5 text-danger;
+    }
+
+    .error-text > svg {
+        @apply mt-0.5 size-4 shrink-0;
+    }
+
+    /* ── Text inputs, selects, textareas ── */
+    .input {
+        @apply block w-full rounded-md border border-line-input bg-surface px-3 text-fg shadow-none;
+        height: var(--cf-control-h);
+        font-size: var(--cf-ui-text);
+        transition:
+            border-color var(--cf-dur-1) var(--cf-ease-out),
+            box-shadow var(--cf-dur-1) var(--cf-ease-out);
+    }
+
+    .input::placeholder {
+        @apply text-fg-subtle opacity-100;
+    }
+
+    .input:hover:not(:disabled, :focus) {
+        @apply border-fg-subtle;
+    }
+
+    .input:focus,
+    .input:focus-visible {
+        @apply border-brand outline-none ring-[3px] ring-ring/20;
+    }
+
+    .input:disabled,
+    .input[readonly] {
+        @apply cursor-not-allowed bg-surface-2 text-fg-subtle;
+    }
+
+    .input[aria-invalid='true'],
+    .input.is-invalid {
+        @apply border-danger ring-[3px] ring-danger/15;
+    }
+
+    textarea.input {
+        @apply h-auto min-h-[6rem] py-2.5 leading-6;
+    }
+
+    select.input {
+        @apply pr-10;
+    }
+
+    select.input[multiple] {
+        @apply h-auto py-2 pr-3;
+    }
+
+    input[type='date'].input,
+    input[type='time'].input,
+    input[type='datetime-local'].input {
+        @apply pr-2;
+    }
+
+    .dark input.input::-webkit-calendar-picker-indicator {
+        filter: invert(0.85);
+    }
+
+    /* Inputs are 16px on phones (prevents iOS zoom). */
+    @media (max-width: 767px) {
+        .input {
+            font-size: 16px;
+        }
+    }
+
+    /* Leading icon / prefix / suffix addons. */
+    .input-group {
+        @apply relative flex w-full items-stretch;
+    }
+
+    .input-group > .input {
+        @apply min-w-0 flex-1;
+    }
+
+    .input-icon {
+        @apply pointer-events-none absolute left-3 top-1/2 size-[1.125rem] -translate-y-1/2 text-fg-subtle;
+    }
+
+    .input-group > .input-icon ~ .input {
+        @apply pl-10;
+    }
+
+    .input-addon {
+        @apply inline-flex shrink-0 items-center border border-line-input bg-surface-2 px-3 font-mono text-[0.8125rem] text-fg-muted;
+    }
+
+    .input-addon:first-child {
+        @apply -mr-px rounded-l-md;
+    }
+
+    .input-addon:last-child {
+        @apply -ml-px rounded-r-md;
+    }
+
+    .input-group > .input-addon:first-child ~ .input {
+        @apply rounded-l-none;
+    }
+
+    .input-group > .input:not(:last-child) {
+        @apply rounded-r-none;
+    }
+
+    .input-group > .input:focus {
+        @apply z-10;
+    }
+
+    /* ── Checkbox & radio ── */
+    .check {
+        @apply flex items-start gap-3 text-sm text-fg;
+    }
+
+    .check-input {
+        @apply mt-0.5 size-5 shrink-0 cursor-pointer border-line-input bg-surface text-brand focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-surface;
+    }
+
+    .check-input[type='checkbox'] {
+        @apply rounded-[4px];
+    }
+
+    .check-input[aria-invalid='true'] {
+        @apply border-danger;
+    }
+
+    .check-input:disabled {
+        @apply cursor-not-allowed opacity-50;
+    }
+
+    .check-label {
+        @apply cursor-pointer font-medium leading-6;
+    }
+
+    .check-description {
+        @apply block font-normal text-fg-subtle;
+    }
+
+    /* ── Switch (44×24, peer-driven) ── */
+    .switch {
+        @apply relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-line-input bg-surface-3 transition-colors duration-fast;
+    }
+
+    .switch::after {
+        content: '';
+        @apply absolute left-0.5 top-1/2 size-[1.125rem] -translate-y-1/2 rounded-full bg-surface shadow-sm ring-1 ring-line-strong;
+        transition: transform var(--cf-dur-1) var(--cf-ease-out);
+    }
+
+    .peer:checked + .switch {
+        @apply border-brand bg-brand;
+    }
+
+    .peer:checked + .switch::after {
+        @apply translate-x-5 ring-0;
+    }
+
+    .peer:focus-visible + .switch {
+        outline: 2px solid rgb(var(--cf-ring));
+        outline-offset: 2px;
+    }
+
+    .peer:disabled + .switch {
+        @apply cursor-not-allowed opacity-50;
+    }
+
+    .peer[aria-invalid='true'] + .switch {
+        @apply border-danger;
+    }
+
+    /* ── Dropzone (file input) ── */
+    .dropzone {
+        @apply relative flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line-strong bg-surface px-6 py-8 text-center transition-colors duration-fast;
+    }
+
+    .dropzone:hover,
+    .dropzone.is-dragging {
+        @apply border-brand bg-brand-soft;
+    }
+
+    .dropzone:focus-within {
+        outline: 2px solid rgb(var(--cf-ring));
+        outline-offset: 2px;
+    }
+
+    .dropzone.is-invalid {
+        @apply border-danger;
+    }
+
+    /* ── Radio cards (choice / DSR request type) ── */
+    .radio-card {
+        @apply relative flex cursor-pointer gap-3 rounded-lg border border-line bg-surface p-4 transition-colors duration-fast hover:border-line-strong;
+    }
+
+    .radio-card:has(:checked) {
+        @apply border-brand/60 bg-brand-soft;
+    }
+
+    .radio-card:has(:focus-visible) {
+        outline: 2px solid rgb(var(--cf-ring));
+        outline-offset: 2px;
+    }
+
+    .radio-card:has(:disabled) {
+        @apply cursor-not-allowed opacity-60;
+    }
+
+    /* ── Segmented control (Terang · Gelap · Sistem) ── */
+    .segmented {
+        @apply inline-flex items-center gap-0.5 rounded-md border border-line bg-surface-2 p-0.5;
+    }
+
+    .segmented-item {
+        @apply inline-flex h-8 items-center gap-1.5 rounded-[calc(var(--cf-radius-md)_-_2px)] px-3 text-[0.8125rem] font-medium text-fg-muted transition-colors duration-fast hover:text-fg;
+    }
+
+    .segmented-item[aria-pressed='true'],
+    .segmented-item[aria-checked='true'],
+    .segmented-item.is-active {
+        @apply bg-surface text-fg shadow-1 ring-1 ring-line;
+    }
+
+    /* Form section layout: 1/3 description + 2/3 fields. */
+    .form-section {
+        @apply grid gap-6 border-b border-line py-8 first:pt-0 last:border-b-0 md:grid-cols-3;
+    }
+
+    .form-section-intro {
+        @apply md:col-span-1;
+    }
+
+    .form-section-body {
+        @apply flex flex-col gap-5 md:col-span-2;
+    }
+
+    /* Sticky action bar for long forms (full width on phones). */
+    .form-actions {
+        @apply sticky bottom-0 z-20 -mx-4 flex flex-col-reverse gap-2 border-t border-line bg-canvas/95 px-4 py-3 sm:mx-0 sm:flex-row sm:items-center sm:justify-end sm:bg-transparent sm:px-0;
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    }
+
+    @media (max-width: 639px) {
+        .form-actions > .btn {
+            @apply w-full;
+        }
+    }
+}

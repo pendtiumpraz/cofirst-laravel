@@ -1,219 +1,77 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Detail Materi') }}: {{ $material->title }}
-            </h2>
-            <div class="flex space-x-2">
-                <a href="{{ route('admin.materials.edit', $material) }}" class="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-                    {{ __('Edit') }}
-                </a>
-                <a href="{{ route('admin.materials.index') }}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-                    {{ __('Kembali') }}
-                </a>
-            </div>
+@php($f = \App\Services\Academic\Format::class)
+<x-app-layout :title="$material->title">
+    <x-ui.page-header :title="$material->title" :eyebrow="$material->meeting_range"
+        :subtitle="$material->description"
+        :breadcrumbs="[
+            ['label' => 'Admin', 'url' => route('admin.dashboard')],
+            ['label' => 'Materi', 'url' => route('admin.materials.index')],
+            ['label' => $material->syllabus ? 'Pertemuan '.$material->syllabus->meeting_number : 'Pertemuan diarsipkan', 'url' => $material->syllabus ? route('admin.syllabuses.show', $material->syllabus) : null],
+            ['label' => $material->title],
+        ]">
+        <x-slot:badge>
+            @include('admin.materials.partials.type-badge', ['type' => $material->type])
+            <x-ui.badge :tone="$material->status === 'active' ? 'success' : 'neutral'" dot>{{ $material->status === 'active' ? 'Aktif' : 'Nonaktif' }}</x-ui.badge>
+        </x-slot:badge>
+        <x-slot:actions>
+            <x-ui.button icon="pencil-square" :href="route('admin.materials.edit', $material)">Ubah</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
+
+    <div class="grid gap-gutter lg:grid-cols-3">
+        <div class="lg:col-span-2">
+            @include('admin.materials.partials.viewer', [
+                'downloadUrl' => route('admin.materials.download', $material),
+            ])
         </div>
-    </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <!-- Material Information -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                        <div class="space-y-4">
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-800 mb-2">Informasi Materi</h3>
-                                <div class="bg-gray-50 p-4 rounded-lg space-y-3">
-                                    <div>
-                                        <span class="font-medium text-gray-600">Judul:</span>
-                                        <p class="text-gray-800">{{ $material->title }}</p>
-                                    </div>
-                                    <div>
-                                        <span class="font-medium text-gray-600">Silabus:</span>
-                                        <p class="text-gray-800">
-                                            <a href="{{ route('admin.syllabuses.show', $material->syllabus) }}" class="text-blue-600 hover:text-blue-800">
-                                                {{ $material->syllabus->title }}
-                                            </a>
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <span class="font-medium text-gray-600">Kurikulum:</span>
-                                        <p class="text-gray-800">
-                                            <a href="{{ route('admin.curriculums.show', $material->syllabus->curriculum) }}" class="text-blue-600 hover:text-blue-800">
-                                                {{ $material->syllabus->curriculum->name }}
-                                            </a>
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <span class="font-medium text-gray-600">Kursus:</span>
-                                        <p class="text-gray-800">
-                                            {{ $material->syllabus->curriculum->course->name }}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <span class="font-medium text-gray-600">Tipe:</span>
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            @if($material->type === 'video') bg-blue-100 text-blue-800
-                                            @elseif($material->type === 'document') bg-green-100 text-green-800
-                                            @elseif($material->type === 'quiz') bg-purple-100 text-purple-800
-                                            @elseif($material->type === 'assignment') bg-orange-100 text-orange-800
-                                            @else bg-gray-100 text-gray-800 @endif">
-                                            {{ ucfirst($material->type) }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span class="font-medium text-gray-600">Status:</span>
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            {{ $material->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                            {{ $material->status === 'active' ? 'Aktif' : 'Tidak Aktif' }}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span class="font-medium text-gray-600">Urutan:</span>
-                                        <p class="text-gray-800">{{ $material->order }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-800 mb-2">Detail Tambahan</h3>
-                                <div class="bg-gray-50 p-4 rounded-lg space-y-3">
-                                    @if($material->duration)
-                                    <div>
-                                        <span class="font-medium text-gray-600">Durasi:</span>
-                                        <p class="text-gray-800">{{ $material->duration }} menit</p>
-                                    </div>
-                                    @endif
-                                    
-                                    @if($material->file_path)
-                                    <div>
-                                        <span class="font-medium text-gray-600">File:</span>
-                                        <p class="text-gray-800">
-                                            <a href="{{ Storage::url($material->file_path) }}" target="_blank" class="text-blue-600 hover:text-blue-800">
-                                                Lihat File
-                                            </a>
-                                        </p>
-                                    </div>
-                                    @endif
-                                    
-                                    @if($material->url)
-                                    <div>
-                                        <span class="font-medium text-gray-600">URL:</span>
-                                        <p class="text-gray-800">
-                                            <a href="{{ $material->url }}" target="_blank" class="text-blue-600 hover:text-blue-800">
-                                                {{ $material->url }}
-                                            </a>
-                                        </p>
-                                    </div>
-                                    @endif
-                                    
-                                    <div>
-                                        <span class="font-medium text-gray-600">Dibuat:</span>
-                                        <p class="text-gray-800">{{ $material->created_at->format('d M Y H:i') }}</p>
-                                    </div>
-                                    <div>
-                                        <span class="font-medium text-gray-600">Diperbarui:</span>
-                                        <p class="text-gray-800">{{ $material->updated_at->format('d M Y H:i') }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+        <div class="space-y-6">
+            <x-ui.card title="Letak materi" variant="inset">
+                <dl class="space-y-3 text-sm">
+                    <div class="flex justify-between gap-3"><dt class="text-fg-muted">Kurikulum</dt>
+                        <dd class="text-right text-fg">
+                            @if ($material->syllabus?->curriculum)
+                                <a class="link" href="{{ route('admin.curriculums.show', $material->syllabus->curriculum) }}">{{ $material->syllabus->curriculum->title }}</a>
+                            @else
+                                —
+                            @endif
+                        </dd>
                     </div>
+                    <div class="flex justify-between gap-3"><dt class="text-fg-muted">Pertemuan</dt><dd class="text-right text-fg">{{ $material->syllabus?->title ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-fg-muted">Urutan</dt><dd class="num text-fg">{{ $material->order }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-fg-muted">Dipakai di berita acara</dt><dd class="num text-fg">{{ $reportCount }}</dd></div>
+                </dl>
+            </x-ui.card>
 
-                    <!-- Description -->
-                    @if($material->description)
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Deskripsi</h3>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <p class="text-gray-700 whitespace-pre-wrap">{{ $material->description }}</p>
-                        </div>
-                    </div>
-                    @endif
-
-                    <!-- Content -->
-                    @if($material->content)
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Konten</h3>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="prose max-w-none">
-                                {!! $material->content !!}
-                            </div>
-                        </div>
-                    </div>
-                    @endif
-
-                    <!-- Material Access Statistics -->
-                    @if($material->materialAccesses && $material->materialAccesses->count() > 0)
-                    <div class="mb-8">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Statistik Akses</h3>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div class="text-center">
-                                    <div class="text-2xl font-bold text-blue-600">{{ $material->materialAccesses->count() }}</div>
-                                    <div class="text-sm text-gray-600">Total Akses</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-2xl font-bold text-green-600">{{ $material->materialAccesses->where('completed', true)->count() }}</div>
-                                    <div class="text-sm text-gray-600">Selesai</div>
-                                </div>
-                                <div class="text-center">
-                                    <div class="text-2xl font-bold text-orange-600">{{ $material->materialAccesses->where('completed', false)->count() }}</div>
-                                    <div class="text-sm text-gray-600">Belum Selesai</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    @endif
-
-                    <!-- Recent Access Log -->
-                    @if($material->materialAccesses && $material->materialAccesses->count() > 0)
+            <x-ui.card title="Akses siswa" subtitle="Hanya nama yang ditampilkan (minimisasi data).">
+                <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Log Akses Terbaru</h3>
-                        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                            <div class="table-wrapper">
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200" data-enhance="true" data-searchable="true" data-sortable="true" data-show-no="true">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Siswa</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu Akses</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        @foreach($material->materialAccesses->take(10) as $access)
-                                        <tr>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-sm font-medium text-gray-900">{{ $access->user->name }}</div>
-                                                <div class="text-sm text-gray-500">{{ $access->user->email }}</div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ $access->accessed_at ? $access->accessed_at->format('d M Y H:i') : '-' }}
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                                    {{ $access->completed ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                                                    {{ $access->completed ? 'Selesai' : 'Dalam Progress' }}
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {{ $access->progress_percentage ?? 0 }}%
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                    </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+                        <p class="text-sm text-fg-muted">Dibuka</p>
+                        <p class="font-num text-2xl text-fg">{{ number_format((int) $stats?->views, 0, ',', '.') }}<span class="text-sm text-fg-subtle"> kali</span></p>
                     </div>
-                    @endif
+                    <div>
+                        <p class="text-sm text-fg-muted">Siswa</p>
+                        <p class="font-num text-2xl text-fg">{{ number_format((int) $stats?->students, 0, ',', '.') }}</p>
+                    </div>
                 </div>
-            </div>
+                @if ($recent->isNotEmpty())
+                    <ul class="mt-5 divide-y divide-line border-t border-line">
+                        @foreach ($recent as $access)
+                            <li class="flex items-center justify-between gap-3 py-2.5 text-sm">
+                                <span class="truncate text-fg">{{ $access->student?->name ?? 'Pengguna dihapus' }}</span>
+                                <span class="shrink-0 text-fg-subtle">{{ $f::dateTime($access->accessed_at, 'd M, H.i') }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="mt-4 text-sm text-fg-subtle">Belum ada siswa yang membuka materi ini.</p>
+                @endif
+            </x-ui.card>
+
+            <x-ui.card variant="inset">
+                <x-ui.confirm-delete :action="route('admin.materials.destroy', $material)" label="Arsipkan materi"
+                    title="Arsipkan materi ini?" confirm-text="Ya, arsipkan"
+                    message="Materi disembunyikan dari semua portal. Berita acara yang memakainya tetap tersimpan." />
+            </x-ui.card>
         </div>
     </div>
 </x-app-layout>

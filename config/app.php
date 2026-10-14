@@ -78,11 +78,12 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    // Coding First's UI language is Bahasa Indonesia (lang/id); English is the fallback.
+    'locale' => env('APP_LOCALE', 'id'),
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
-    'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
+    'faker_locale' => env('APP_FAKER_LOCALE', 'id_ID'),
 
     /*
     |--------------------------------------------------------------------------
@@ -121,6 +122,27 @@ return [
     'maintenance' => [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Database Seeding
+    |--------------------------------------------------------------------------
+    |
+    | Read by DatabaseSeeder / DemoSeeder. Kept here (not read with env() in the
+    | seeders) so the values still work after `php artisan config:cache`, when
+    | env() no longer sees the .env file. Remove SUPERADMIN_PASSWORD from the
+    | environment once the first superadmin exists.
+    |
+    */
+
+    'seeding' => [
+        'demo_data' => filter_var(env('SEED_DEMO_DATA', false), FILTER_VALIDATE_BOOL),
+        'superadmin' => [
+            'email' => env('SUPERADMIN_EMAIL'),
+            'password' => env('SUPERADMIN_PASSWORD'),
+            'name' => env('SUPERADMIN_NAME', 'Super Admin'),
+        ],
     ],
 
 ];

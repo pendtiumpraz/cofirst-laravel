@@ -61,6 +61,8 @@ class RouteSmokeTest extends TestCase
         'message' => \App\Models\Message::class,
         'project_gallery' => \App\Models\ProjectGallery::class,
         'class_report' => \App\Models\ClassReport::class,
+        'handover' => \App\Models\TeacherHandover::class,
+        'attendance' => \App\Models\Attendance::class,
         'role' => \Spatie\Permission\Models\Role::class,
         'permission' => \Spatie\Permission\Models\Permission::class,
     ];
@@ -75,6 +77,20 @@ class RouteSmokeTest extends TestCase
         $roles = ['guest', 'superadmin', 'admin', 'teacher', 'student', 'parent', 'finance'];
 
         return array_combine($roles, array_map(fn ($r) => [$r], $roles));
+    }
+
+    /**
+     * Ensure demo data exists even when another test class migrated the shared
+     * in-memory database first (RefreshDatabase only seeds on the first migration
+     * of the process, so a full suite run would otherwise leave it empty).
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (\Spatie\Permission\Models\Role::query()->doesntExist() || User::query()->doesntExist()) {
+            $this->seed();
+        }
     }
 
     #[DataProvider('roles')]

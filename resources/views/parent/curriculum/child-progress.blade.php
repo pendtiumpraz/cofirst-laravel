@@ -1,30 +1,56 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Child Curriculum Progress') }}
-        </h2>
-    </x-slot>
+@php($f = \App\Services\Academic\Format::class)
+<x-app-layout :title="$child->name.' · '.$class->name">
+    <x-ui.page-header :title="$class->name" :eyebrow="$child->name"
+        :subtitle="($class->curriculum?->title ?? 'Kurikulum').' · '.($class->course?->name ?? '')"
+        :breadcrumbs="['Kurikulum anak' => route('parent.curriculum.index'), $child->name.' · '.$class->name => null]">
+        <x-slot:actions>
+            <x-ui.button variant="secondary" icon="folder-open" :href="route('parent.progress.child-materials', [$child, $class])">Materi</x-ui.button>
+            <x-ui.button variant="secondary" icon="chart-bar" :href="route('parent.progress.child', $child)">Progres anak</x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'Child curriculum progress feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show your child\'s progress through their curriculum.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('parent.curriculum.index') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Curriculum
-                            </a>
+    @if (! $summary->hasCurriculum())
+        <x-ui.empty-state size="page" icon="queue-list" title="Kurikulum kelas ini belum ditetapkan."
+            description="Kami akan memberi tahu Anda setelah kurikulum kelas dilengkapi." />
+    @else
+        <div class="grid gap-gutter lg:grid-cols-3">
+            <div class="lg:col-span-2">
+                @include('student.curriculum.partials.timeline', ['materialUrl' => null, 'accessStats' => null])
+            </div>
+
+            <aside class="space-y-6">
+                <x-ui.card title="Ringkasan" variant="highlight">
+                    <div class="flex items-center gap-5">
+                        <x-ui.progress-ring :value="$summary->percent()" :size="88" marker label="Progres kurikulum">
+                            <span class="font-num text-lg text-fg">{{ (int) round($summary->percent()) }}%</span>
+                        </x-ui.progress-ring>
+                        <div class="space-y-1 text-sm">
+                            <p class="text-fg"><span class="font-num font-semibold">{{ $summary->completed() }}</span> dari {{ $summary->total() }} pertemuan selesai</p>
+                            <p class="text-fg-subtle">{{ $summary->label() }}</p>
                         </div>
                     </div>
-                </div>
-            </div>
+                </x-ui.card>
+
+                <x-ui.card title="Catatan pertemuan terbaru" padding="none">
+                    @if (! $reportsVisible)
+                        <div class="border-t border-line px-card py-4 text-sm text-fg-subtle">Catatan pertemuan sedang tidak dibagikan kepada orang tua. Hubungi admin bila Anda memerlukannya.</div>
+                    @else
+                        @forelse ($latestReports as $report)
+                            <a href="{{ route('parent.progress.meeting', [$child, $report]) }}" class="block border-t border-line px-card py-3 hover:bg-surface-2">
+                                <p class="font-medium text-fg">Pertemuan {{ $report->meeting_number }} · {{ $f::date($report->report_date, 'd M') }}</p>
+                                <p class="line-clamp-2 text-sm text-fg-subtle">{{ $report->notes_recommendations ?: $report->learning_concept }}</p>
+                            </a>
+                        @empty
+                            <div class="border-t border-line"><x-ui.empty-state icon="clipboard-document-list" title="Belum ada catatan pertemuan." /></div>
+                        @endforelse
+                        @if ($latestReports->isNotEmpty())
+                            <div class="border-t border-line px-card py-3">
+                                <x-ui.button variant="link" size="sm" arrow :href="route('parent.progress.meetings', ['child' => $child, 'class_id' => $class->id])">Semua catatan</x-ui.button>
+                            </div>
+                        @endif
+                    @endif
+                </x-ui.card>
+            </aside>
         </div>
-    </div>
+    @endif
 </x-app-layout>

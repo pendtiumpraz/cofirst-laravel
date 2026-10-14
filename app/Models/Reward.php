@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 /**
  * A reward in the points shop. quantity_available NULL = unlimited.
@@ -40,8 +40,11 @@ class Reward extends Model
      * Reward types
      */
     const TYPE_PHYSICAL = 'physical';
+
     const TYPE_DIGITAL = 'digital';
+
     const TYPE_PRIVILEGE = 'privilege';
+
     const TYPE_DISCOUNT = 'discount';
 
     /**
@@ -57,7 +60,7 @@ class Reward extends Model
      */
     public function isAvailable()
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 
@@ -71,14 +74,14 @@ class Reward extends Model
         if ($this->available_until && $now->gt($this->available_until->copy()->endOfDay())) {
             return false;
         }
-        
+
         if ($this->quantity_available !== null) {
             $remaining = $this->quantity_available - $this->quantity_redeemed;
             if ($remaining <= 0) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -90,7 +93,7 @@ class Reward extends Model
         if ($this->quantity_available === null) {
             return null; // Unlimited
         }
-        
+
         return max(0, $this->quantity_available - $this->quantity_redeemed);
     }
 
@@ -99,14 +102,14 @@ class Reward extends Model
      */
     public function canBeRedeemedBy($user)
     {
-        if (!$this->isAvailable()) {
+        if (! $this->isAvailable()) {
             return false;
         }
-        
-        if (!$user->points || $user->points->points < $this->points_cost) {
+
+        if (! $user->points || $user->points->points < $this->points_cost) {
             return false;
         }
-        
+
         return true;
     }
 
@@ -199,9 +202,9 @@ class Reward extends Model
     public function getImageUrlAttribute()
     {
         if ($this->image) {
-            return asset('storage/' . $this->image);
+            return asset('storage/'.$this->image);
         }
-        
+
         return asset('images/default-reward.png');
     }
 }

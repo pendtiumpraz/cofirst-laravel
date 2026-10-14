@@ -15,27 +15,34 @@ Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
-    
-    Route::get('register/success', function () {
-        return view('auth.register-success');
-    })->name('register.success');
+    // Reason: each registration stores personal data; cap automated sign-ups per IP.
+    Route::post('register', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:5,10,register');
+
+    Route::get('register/success', [RegisteredUserController::class, 'success'])
+        ->name('register.success');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
-    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    // Per-email limits live in LoginRequest (setting security.login_max_attempts); this caps one IP
+    // trying many different emails (credential stuffing).
+    Route::post('login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('throttle:30,1,login-ip');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
+    // Reason: the broker throttles per email only; limit per IP too (mail bombing / enumeration).
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->middleware('throttle:6,1,password-email')
         ->name('password.email');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
+        ->middleware('throttle:10,1,password-store')
         ->name('password.store');
 });
 
@@ -54,9 +61,12 @@ Route::middleware('auth')->group(function () {
     Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
         ->name('password.confirm');
 
-    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
+    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store'])
+        ->middleware('throttle:6,1,password-confirm');
 
-    Route::put('password', [PasswordController::class, 'update'])->name('password.update');
+    Route::put('password', [PasswordController::class, 'update'])
+        ->middleware('throttle:6,1,password-update')
+        ->name('password.update');
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');

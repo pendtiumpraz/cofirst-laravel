@@ -1,41 +1,33 @@
-@extends('layouts.app')
+{{--
+    Profil saya (ProfileController::edit).
+    Sections: Informasi pribadi · Foto profil · Keamanan · Sesi aktif · Hapus akun (link to the privacy centre).
+--}}
+<x-app-layout title="Profil saya">
+    <x-ui.page-header title="Profil saya"
+        subtitle="Perbarui data pribadi, foto, dan keamanan akun Anda. Perubahan langsung berlaku di seluruh aplikasi.">
+        @if ($preferencesUrl || $privacyUrl)
+            <x-slot:actions>
+                @if ($preferencesUrl)
+                    <x-ui.button variant="secondary" icon="adjustments-horizontal" :href="$preferencesUrl">Preferensi</x-ui.button>
+                @endif
+                @if ($privacyUrl)
+                    <x-ui.button variant="secondary" icon="finger-print" :href="$privacyUrl">Privasi &amp; Data Saya</x-ui.button>
+                @endif
+            </x-slot:actions>
+        @endif
+    </x-ui.page-header>
 
-@section('title', 'Profile Settings')
+    @include('profile.partials.section-nav')
 
-@section('content')
-<div class="space-y-6">
-    <!-- Header -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h1 class="text-2xl font-bold text-gray-900">Profile Settings</h1>
-        <p class="text-gray-600">Manage your account settings and preferences</p>
+    <div class="mt-6">
+        @include('profile.partials.summary')
     </div>
 
-    <!-- Profile Photo -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div class="max-w-xl">
-            @include('profile.partials.update-photo')
-        </div>
+    <div class="mt-10">
+        @include('profile.partials.personal-information')
+        @include('profile.partials.photo')
+        @include('profile.partials.password')
+        @include('profile.partials.sessions')
+        @include('profile.partials.delete-account')
     </div>
-
-    <!-- Profile Information -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div class="max-w-xl">
-            @include('profile.partials.update-profile-information-form')
-        </div>
-    </div>
-
-    <!-- Update Password -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div class="max-w-xl">
-            @include('profile.partials.update-password-form')
-        </div>
-    </div>
-
-    <!-- Delete Account -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div class="max-w-xl">
-            @include('profile.partials.delete-user-form')
-        </div>
-    </div>
-</div>
-@endsection
+</x-app-layout>

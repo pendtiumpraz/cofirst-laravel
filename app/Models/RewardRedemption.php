@@ -39,8 +39,11 @@ class RewardRedemption extends Model
      * Redemption statuses
      */
     const STATUS_PENDING = 'pending';
+
     const STATUS_APPROVED = 'approved';
+
     const STATUS_DELIVERED = 'delivered';
+
     const STATUS_CANCELLED = 'cancelled';
 
     /**

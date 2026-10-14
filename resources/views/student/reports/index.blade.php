@@ -1,30 +1,66 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('My Reports') }}
-        </h2>
-    </x-slot>
+@php($f = \App\Services\Academic\Format::class)
+<x-app-layout title="Laporan belajar">
+    <x-ui.page-header title="Laporan belajar"
+        subtitle="Laporan perkembangan dari pengajarmu dan catatan setiap pertemuan.">
+        <x-ui.tabs :active="$tab" label="Jenis laporan" :tabs="[
+            'perkembangan' => ['label' => 'Laporan perkembangan', 'count' => (int) $stats->total, 'href' => route('student.reports.index')],
+            'pertemuan' => ['label' => 'Catatan pertemuan', 'count' => $meetingCount, 'href' => route('student.reports.index', ['tab' => 'pertemuan'])],
+        ]" />
+    </x-ui.page-header>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    <div class="text-center py-12">
-                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                        </div>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900">{{ $message ?? 'My reports feature is coming soon!' }}</h3>
-                        <p class="mt-1 text-sm text-gray-500">This feature will show all reports about your academic progress.</p>
-                        <div class="mt-6">
-                            <a href="{{ route('student.dashboard') }}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                                Back to Dashboard
-                            </a>
-                        </div>
-                    </div>
+    @if ($tab === 'perkembangan')
+        <x-ui.metric-strip class="mb-8" :stats="[
+            ['label' => 'Jumlah laporan', 'value' => (string) (int) $stats->total, 'icon' => 'document-chart-bar'],
+            ['label' => 'Rata-rata progres', 'value' => $stats->total ? $f::percent(round((float) $stats->average, 1)) : null, 'icon' => 'chart-bar'],
+            ['label' => 'Laporan akhir', 'value' => (string) (int) ($byType['final'] ?? 0), 'icon' => 'trophy'],
+            ['label' => 'Terbaru', 'value' => $stats->latest ? $f::date($stats->latest, 'd M Y') : null, 'icon' => 'calendar'],
+        ]" />
+
+        @forelse ($reports as $report)
+            <x-ui.card :href="route('student.reports.show', $report)" :title="$report->title" class="mb-3" as="article"
+                :subtitle="$f::date($report->report_date, 'd F Y').' · '.($report->className?->name ?? '').' · '.($report->teacher?->name ?? '')">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <x-ui.badge :tone="\App\Services\Academic\ProgressReportService::typeTone($report->type)">{{ $report->type_label }}</x-ui.badge>
+                    <x-ui.progress class="sm:max-w-xs" :value="(float) $report->progress_percentage" size="sm" show-value label="Progres"
+                        :tone="\App\Services\Academic\ProgressReportService::progressTone($report->progress_percentage)" />
                 </div>
-            </div>
-        </div>
-    </div>
-</x-app-layout> 
+            </x-ui.card>
+        @empty
+            <x-ui.empty-state size="page" icon="document-chart-bar" title="Belum ada laporan perkembangan."
+                description="Pengajarmu menulis laporan secara berkala. Laporan pertamamu akan muncul di sini." />
+        @endforelse
+
+        @if ($reports->hasPages())
+            <div class="mt-6">{{ $reports->links() }}</div>
+        @endif
+    @else
+        <x-ui.table caption="Catatan pertemuan" mobile="stack">
+            <x-slot:head>
+                <x-ui.th>Tanggal</x-ui.th>
+                <x-ui.th>Pertemuan</x-ui.th>
+                <x-ui.th>Kelas</x-ui.th>
+                <x-ui.th><span class="sr-only">Aksi</span></x-ui.th>
+            </x-slot:head>
+            @foreach ($meetings as $meeting)
+                <tr>
+                    <td class="num" data-label="Tanggal">{{ $f::date($meeting->report_date) }}</td>
+                    <td class="cell-primary" data-label="Pertemuan">
+                        <a href="{{ route('student.reports.meeting', $meeting) }}" class="font-medium text-fg hover:text-brand-text">Pertemuan {{ $meeting->meeting_number }}</a>
+                        <p class="cell-secondary line-clamp-1">{{ $meeting->syllabus?->title ?? $meeting->learning_concept }}</p>
+                    </td>
+                    <td data-label="Kelas">{{ $meeting->className?->name }}<p class="cell-secondary">{{ $meeting->teacher?->name }}</p></td>
+                    <td class="cell-actions">
+                        <x-ui.button variant="ghost" size="sm" icon="arrow-right" label="Buka catatan pertemuan {{ $meeting->meeting_number }}" :href="route('student.reports.meeting', $meeting)" />
+                    </td>
+                </tr>
+            @endforeach
+            <x-slot:empty>
+                <x-ui.empty-state icon="clipboard-document-list" title="Belum ada catatan pertemuan."
+                    description="Setelah pertemuan, pengajarmu menulis apa yang sudah kamu pelajari di sini." />
+            </x-slot:empty>
+            @if ($meetings->hasPages())
+                <x-slot:footer>{{ $meetings->links() }}</x-slot:footer>
+            @endif
+        </x-ui.table>
+    @endif
+</x-app-layout>

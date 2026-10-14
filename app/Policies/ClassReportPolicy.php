@@ -4,91 +4,96 @@ namespace App\Policies;
 
 use App\Models\ClassReport;
 use App\Models\User;
-use Illuminate\Auth\Access\HandlesAuthorization;
+use App\Services\Academic\AcademicScope;
+use App\Services\Academic\AcademicSettings;
+use App\Services\Academic\ClassReportService;
 
+/**
+ * Meeting reports (berita acara).
+ *
+ * - teacher: writes reports for their classes; edits/deletes their own within
+ *   academic.class_report_edit_days; reads their own, or every report of their
+ *   classes when academic.class_report_visibility = class;
+ * - admin/superadmin: read and delete everything; correct reports only when
+ *   academic.admin_can_edit_class_reports is on;
+ * - student: reads their own reports (UU PDP right of access);
+ * - parent: reads their children's reports when academic.reports_visible_to_parents.
+ */
 class ClassReportPolicy
 {
-    use HandlesAuthorization;
-
-    /**
-     * Determine whether the user can view any models.
-     */
-    public function viewAny(User $user): bool
-    {
-        return $user->hasAnyRole(['admin', 'superadmin', 'teacher']);
+    public function __construct(
+        private readonly AcademicScope $scope,
+        private readonly ClassReportService $reports,
+    ) {
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
+    /** Open the shared class-report index. */
+    public function viewAny(User $user): bool
+    {
+        return $this->scope->isAdmin($user) || $user->hasRole('teacher');
+    }
+
+    /** Read one report. */
     public function view(User $user, ClassReport $classReport): bool
     {
-        // Admin and superadmin can view all reports
-        if ($user->hasAnyRole(['admin', 'superadmin'])) {
+        if ($this->scope->isAdmin($user)) {
             return true;
         }
 
-        // Teachers can only view their own reports
         if ($user->hasRole('teacher')) {
-            return $classReport->teacher_id === $user->id;
+            if ((int) $classReport->teacher_id === (int) $user->id) {
+                return true;
+            }
+
+            if (AcademicSettings::classReportsSharedWithClassTeachers() && $this->scope->teacherTeaches($user, (int) $classReport->class_id)) {
+                return true;
+            }
         }
 
-        return false;
+        if ($user->hasRole('student') && (int) $classReport->student_id === (int) $user->id) {
+            return true;
+        }
+
+        return $user->hasRole('parent')
+            && AcademicSettings::reportsVisibleToParents()
+            && $this->scope->isParentOf($user, (int) $classReport->student_id);
     }
 
-    /**
-     * Determine whether the user can create models.
-     */
+    /** Write new reports. */
     public function create(User $user): bool
     {
         return $user->hasRole('teacher');
     }
 
-    /**
-     * Determine whether the user can update the model.
-     */
+    /** Edit a report. */
     public function update(User $user, ClassReport $classReport): bool
     {
-        // Only teachers can update their own reports
-        if (!$user->hasRole('teacher') || $classReport->teacher_id !== $user->id) {
-            return false;
+        if ($user->hasRole('teacher') && (int) $classReport->teacher_id === (int) $user->id) {
+            return $this->reports->isEditable($classReport);
         }
 
-        // Check if within grace period (1 week after class date)
-        $daysSinceClass = now()->diffInDays($classReport->report_date);
-        return $daysSinceClass <= 7;
+        return $this->scope->isAdmin($user) && AcademicSettings::adminCanEditClassReports();
     }
 
-    /**
-     * Determine whether the user can delete the model.
-     */
+    /** Delete a report. */
     public function delete(User $user, ClassReport $classReport): bool
     {
-        // Admin and superadmin can delete any report
-        if ($user->hasAnyRole(['admin', 'superadmin'])) {
+        if ($this->scope->isAdmin($user)) {
             return true;
         }
 
-        // Teachers can delete their own reports within grace period
-        if ($user->hasRole('teacher') && $classReport->teacher_id === $user->id) {
-            $daysSinceClass = now()->diffInDays($classReport->report_date);
-            return $daysSinceClass <= 7;
-        }
-
-        return false;
+        return $user->hasRole('teacher')
+            && (int) $classReport->teacher_id === (int) $user->id
+            && $this->reports->isEditable($classReport);
     }
 
-    /**
-     * Determine whether the user can restore the model.
-     */
+    /** Restore (not used: reports are hard-deleted with progress reverted). */
     public function restore(User $user, ClassReport $classReport): bool
     {
-        return $user->hasAnyRole(['admin', 'superadmin']);
+        return $this->scope->isAdmin($user);
     }
 
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
+    /** Permanently delete. */
     public function forceDelete(User $user, ClassReport $classReport): bool
     {
         return $user->hasRole('superadmin');

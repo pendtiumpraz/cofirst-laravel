@@ -103,18 +103,18 @@ class ClassProgress extends Model
     public static function getProgressPercentage($studentId, $classId)
     {
         $total = self::where('student_id', $studentId)
-                    ->where('class_id', $classId)
-                    ->count();
-        
+            ->where('class_id', $classId)
+            ->count();
+
         if ($total === 0) {
             return 0;
         }
-        
+
         $completed = self::where('student_id', $studentId)
-                        ->where('class_id', $classId)
-                        ->where('status', 'completed')
-                        ->count();
-        
+            ->where('class_id', $classId)
+            ->where('status', 'completed')
+            ->count();
+
         return round(($completed / $total) * 100, 2);
     }
 }

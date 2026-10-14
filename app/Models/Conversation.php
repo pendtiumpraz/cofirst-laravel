@@ -135,11 +135,12 @@ class Conversation extends Model
 
         if ($this->type === 'private' && $currentUserId) {
             $otherUser = $this->users()->where('users.id', '!=', $currentUserId)->first();
+
             return $otherUser ? $otherUser->name : 'Unknown User';
         }
 
         if ($this->type === 'class' && $this->class) {
-            return $this->class->name . ' Chat';
+            return $this->class->name.' Chat';
         }
 
         return 'Conversation';

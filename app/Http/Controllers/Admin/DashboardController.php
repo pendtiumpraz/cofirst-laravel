@@ -3,95 +3,129 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Course;
-use App\Models\Curriculum;
-use App\Models\ClassName;
+use App\Models\Attendance;
 use App\Models\Enrollment;
-use App\Models\Material;
-use App\Models\Syllabus;
-use App\Models\Schedule;
+use App\Models\User;
+use App\Services\Admin\AdminClock;
+use App\Services\Admin\AdminDashboardService;
+use App\Support\Navigation\RouteAccess;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use Illuminate\View\View;
 
+/**
+ * Admin › Beranda (cockpit) and Admin › Kinerja Pengajar.
+ */
 class DashboardController extends Controller
 {
     /**
-     * Display the admin dashboard.
+     * The admin cockpit: KPIs, trends, today's sessions, approvals and capacity.
      */
-    public function index()
+    public function index(Request $request, AdminDashboardService $dashboard): View
     {
-        // Get statistics for dashboard
-        $stats = [
-            'total_users' => User::withoutGlobalScopes()->count(),
-            'active_users' => User::withoutGlobalScopes()->where('is_active', true)->count(),
-            'total_students' => User::withoutGlobalScopes()->role('student')->count(),
-            'active_students' => User::withoutGlobalScopes()->role('student')->where('is_active', true)->count(),
-            'total_teachers' => User::withoutGlobalScopes()->role('teacher')->count(),
-            'active_teachers' => User::withoutGlobalScopes()->role('teacher')->where('is_active', true)->count(),
-            'total_parents' => User::withoutGlobalScopes()->role('parent')->count(),
-            'active_parents' => User::withoutGlobalScopes()->role('parent')->where('is_active', true)->count(),
-            'total_courses' => Course::count(),
-            'active_courses' => Course::where('is_active', true)->count(),
-            'total_curriculums' => Curriculum::count(),
-            'active_curriculums' => Curriculum::where('status', 'active')->count(),
-            'total_classes' => ClassName::count(),
-            'active_classes' => ClassName::where('status', 'active')->count(),
-            'total_enrollments' => Enrollment::count(),
-            'active_enrollments' => Enrollment::where('status', 'active')->count(),
-            'total_materials' => Material::count(),
-            'active_materials' => Material::where('status', 'active')->count(),
-            'total_syllabuses' => Syllabus::count(),
-            'active_syllabuses' => Syllabus::where('status', 'active')->count(),
+        $user = $request->user();
+        $data = $dashboard->build();
+
+        $data['quickActions'] = collect([
+            ['label' => 'Tambah pengguna', 'icon' => 'user-plus', 'route' => 'admin.users.create'],
+            ['label' => 'Buat kelas', 'icon' => 'rectangle-group', 'route' => 'admin.classes.create'],
+            ['label' => 'Daftarkan siswa', 'icon' => 'clipboard-document-check', 'route' => 'admin.enrollments.create'],
+            ['label' => 'Atur jadwal', 'icon' => 'calendar-days', 'route' => 'admin.schedules.create'],
+            ['label' => 'Catat pembayaran', 'icon' => 'banknotes', 'route' => 'finance.transactions.create'],
+            ['label' => 'Pengaturan', 'icon' => 'cog-6-tooth', 'route' => 'admin.settings.index'],
+        ])->filter(fn ($action) => Route::has($action['route']) && RouteAccess::allows($user, $action['route']))
+            ->map(fn ($action) => $action + ['url' => route($action['route'])])
+            ->values();
+
+        $data['links'] = [
+            'finance' => collect(['admin.finance.dashboard', 'finance.transactions.index'])
+                ->first(fn ($name) => Route::has($name) && RouteAccess::allows($user, $name)),
+            'privacy' => Route::has('admin.privacy.dashboard') && RouteAccess::allows($user, 'admin.privacy.dashboard') ? 'admin.privacy.dashboard' : null,
         ];
+        $data['isSuperadmin'] = $user->hasRole('superadmin');
+        $data['greeting'] = $this->greeting($data['now']->hour);
 
-        // Get recent activities
-        $recent_enrollments = Enrollment::with(['student', 'className'])
-            ->latest()
-            ->take(5)
-            ->get();
+        return view('admin.dashboard', $data);
+    }
 
-        $recent_users = User::with('roles')
-            ->latest()
-            ->take(5)
-            ->get();
+    /**
+     * Teacher performance overview for a period (this month, 3 months, all time).
+     */
+    public function teachers(Request $request): View
+    {
+        $this->authorize('viewAny', User::class);
 
-        // Get schedules for calendar
-        $schedules = Schedule::where('is_active', true)
-            ->with(['className.course', 'className.teachers', 'enrollment.student'])
-            ->get();
+        $period = in_array($request->query('period'), ['month', 'quarter', 'all'], true) ? $request->query('period') : 'month';
+        $now = AdminClock::now();
+        $from = match ($period) {
+            'month' => $now->copy()->startOfMonth()->toDateString(),
+            'quarter' => $now->copy()->startOfMonth()->subMonthsNoOverflow(2)->toDateString(),
+            default => null,
+        };
 
-        // Get today's schedules based on day of week
-        $todayDayOfWeek = now()->dayOfWeek === 0 ? 7 : now()->dayOfWeek; // Convert Sunday from 0 to 7
-        $todaysSchedules = Schedule::where('is_active', true)
-            ->where('day_of_week', $todayDayOfWeek)
-            ->with(['className.course', 'className.teachers', 'enrollment.student'])
-            ->orderBy('start_time')
-            ->get();
-            
-        // Get this week's schedules (all days)
-        $upcomingSchedules = Schedule::where('is_active', true)
-            ->with(['className.course', 'className.teachers', 'enrollment.student'])
-            ->orderBy('day_of_week')
-            ->orderBy('start_time')
-            ->get();
+        $teachers = User::whereHas('roles', fn ($q) => $q->where('name', 'teacher'))
+            ->where('is_active', true)
+            ->withCount(['taughtClasses as classes_count'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'profile_photo_path']);
 
-        // Calculate monthly revenue (current month)
-        $monthlyRevenue = Enrollment::whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
-            ->whereHas('className.course')
-            ->with('className.course')
+        $students = DB::table('class_teacher')
+            ->join('enrollments', 'enrollments.class_id', '=', 'class_teacher.class_id')
+            ->where('enrollments.status', Enrollment::STATUS_ACTIVE)
+            ->groupBy('class_teacher.teacher_id')
+            ->selectRaw('class_teacher.teacher_id, count(distinct enrollments.student_id) as total')
+            ->pluck('total', 'teacher_id');
+
+        $reports = DB::table('class_reports')
+            ->when($from, fn ($q) => $q->where('report_date', '>=', $from))
+            ->select(['teacher_id', 'class_id', 'report_date'])
+            ->get();
+        $meetings = $reports->unique(fn ($r) => $r->teacher_id.'|'.$r->class_id.'|'.$r->report_date)->countBy('teacher_id');
+        $reportCounts = $reports->countBy('teacher_id');
+
+        $attendance = DB::table('attendance')
+            ->join('class_teacher', 'class_teacher.class_id', '=', 'attendance.class_id')
+            ->when($from, fn ($q) => $q->where('attendance.attendance_date', '>=', $from))
+            ->groupBy('class_teacher.teacher_id')
+            ->selectRaw("class_teacher.teacher_id, count(*) as total, sum(case when attendance.status in ('".implode("','", Attendance::ATTENDED_STATUSES)."') then 1 else 0 end) as attended")
             ->get()
-            ->sum(function($enrollment) {
-                return $enrollment->className->course->price ?? 0;
-            });
-        
-        // Format monthly revenue
-        $monthlyRevenueFormatted = 'Rp ' . number_format($monthlyRevenue, 0, ',', '.');
-        
-        // Get recent courses
-        $recentCourses = Course::latest()->take(5)->get();
+            ->keyBy('teacher_id');
 
-        return view('admin.dashboard', compact('stats', 'recent_enrollments', 'recent_users', 'schedules', 'todaysSchedules', 'upcomingSchedules', 'monthlyRevenueFormatted', 'recentCourses'));
+        $rows = $teachers->map(function (User $teacher) use ($students, $meetings, $reportCounts, $attendance) {
+            $att = $attendance->get($teacher->id);
+
+            return [
+                'teacher' => $teacher,
+                'classes' => (int) $teacher->classes_count,
+                'students' => (int) ($students[$teacher->id] ?? 0),
+                'meetings' => (int) ($meetings[$teacher->id] ?? 0),
+                'reports' => (int) ($reportCounts[$teacher->id] ?? 0),
+                'attendance' => $att && $att->total > 0 ? round($att->attended / $att->total * 100, 1) : null,
+            ];
+        });
+
+        $sort = in_array($request->query('sort'), ['students', 'meetings', 'reports', 'attendance', 'classes'], true) ? $request->query('sort') : 'meetings';
+        $rows = $rows->sortByDesc(fn ($row) => $row[$sort] ?? -1)->values();
+
+        return view('admin.teachers.ranking', [
+            'rows' => $rows,
+            'period' => $period,
+            'sort' => $sort,
+            'periods' => ['month' => 'Bulan ini', 'quarter' => '3 bulan terakhir', 'all' => 'Sepanjang waktu'],
+        ]);
+    }
+
+    /**
+     * Indonesian greeting for the hour of day (business timezone).
+     */
+    private function greeting(int $hour): string
+    {
+        return match (true) {
+            $hour < 11 => 'Selamat pagi',
+            $hour < 15 => 'Selamat siang',
+            $hour < 19 => 'Selamat sore',
+            default => 'Selamat malam',
+        };
     }
 }
